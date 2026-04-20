@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-sop-agent-for-strands
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: sample-sop-agent-for-strands
+  template:
+    metadata:
+      labels:
+        app: sample-sop-agent-for-strands
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: sample-sop-agent-for-strands
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.kubeconfigs.enabled }}
+            - name: kubeconfigs
+              mountPath: /root/.kube
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+      volumes:
+        {{- if .Values.kubeconfigs.enabled }}
+        - name: kubeconfigs
+          secret:
+            secretName: {{ .Values.kubeconfigs.secretName }}
+        {{- end }}

@@ -1,0 +1,15 @@
+FROM node:20-slim AS frontend-build
+WORKDIR /app/webui/frontend
+COPY webui/frontend/package*.json ./
+RUN npm ci
+COPY webui/frontend/ ./
+RUN npx vite build
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY webui/backend/requirements.txt ./webui/backend/
+RUN pip install --no-cache-dir -r webui/backend/requirements.txt
+COPY --from=frontend-build /app/webui/frontend/dist ./webui/frontend/dist
+COPY . .
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "webui.backend.api:app", "--host", "0.0.0.0", "--port", "8000"]

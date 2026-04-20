@@ -1,0 +1,15 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "sample-sop-agent-for-strands.fullname" . }}
+  labels:
+    {{- include "sample-sop-agent-for-strands.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["", "apps", "networking.k8s.io"]
+  resources: ["pods", "services", "deployments", "replicasets", "configmaps", "secrets", "namespaces", "ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log", "pods/exec"]
+  verbs: ["get", "create"]
+{{- end }}

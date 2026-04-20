@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: ""  # Required: ECR URI
+  tag: "latest"
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: sample-sop-agent-for-strands
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/sample-sop-agent-for-strands-role
+
+# RBAC for SOP execution (kubectl access to cluster resources)
+rbac:
+  create: true
+
+env:
+  BEDROCK_REGION: "us-west-2"
+  CORS_ORIGINS: "*"
+  LOG_LEVEL: "INFO"
+
+# Mount kubeconfigs for target clusters
+kubeconfigs:
+  enabled: false
+  # secretName: target-cluster-kubeconfigs
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi

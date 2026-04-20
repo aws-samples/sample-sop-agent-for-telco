@@ -1,0 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+# Backend-specific deps - main deps are in root requirements.txt
+# This file kept for backwards compatibility
+-r ../../requirements.txt

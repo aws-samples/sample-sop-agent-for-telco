@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sample-sop-agent-for-strands
+description: AI-powered SOP executor for NFV validation
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

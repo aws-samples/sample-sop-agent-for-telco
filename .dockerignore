@@ -1,0 +1,30 @@
+# Build artifacts
+webui/frontend/dist/
+webui/frontend/node_modules/
+webui-agentcore/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Runtime
+nohup.out
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Docs
+docs/
+*.md
+!sops/*.md
+
+# Misc
+AWS2026-*.pptx
+AWS2026-*.pdf

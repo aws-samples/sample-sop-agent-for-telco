@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-sop-agent-for-strands
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8000
+  selector:
+    app: sample-sop-agent-for-strands
+---
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample-sop-agent-for-strands
+  annotations:
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: sample-sop-agent-for-strands
+                port:
+                  number: 8000
+          {{- end }}
+    {{- end }}
+{{- end }}
