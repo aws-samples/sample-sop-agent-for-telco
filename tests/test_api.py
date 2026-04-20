@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-"""Tests for api.py — App stats calculation, endpoints."""
+"""Tests for api.py — API endpoints and functionality."""
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 # Patch subprocess before importing api to prevent background threads from hitting real cluster
 with patch("subprocess.check_output", return_value=""), \
      patch("subprocess.run", return_value=MagicMock(stdout="", stderr="", returncode=0)):
-    from api import app, _upf_stats_cache, EventBuffer
+    from api import app, _app_stats_cache, EventBuffer
 
 
 client = TestClient(app)
@@ -40,12 +40,12 @@ class TestSOPEndpoints:
         assert "txGbps" in data
         assert "combined" in data
 
-    def test_get_upf_stats(self):
+    def test_get_app_stats(self):
         resp = client.get("/api/app-stats")
         assert resp.status_code == 200
         data = resp.json()
-        for key in ["ipackets", "opackets", "imissed", "dropRate", "fwdLoss", "totalLoss", "workerNG"]:
-            assert key in data
+        # Generic app stats structure
+        assert isinstance(data, dict)
 
     def test_get_alarms(self):
         resp = client.get("/api/alarms")
@@ -53,48 +53,23 @@ class TestSOPEndpoints:
         assert isinstance(resp.json(), list)
 
 
-# ── App Stats Calculation ──
+# ── App Stats ──
 
-class TestUPFStatsCalculation:
-    """Test the math behind App forwarding stats."""
+class TestAppStats:
+    """Test application stats endpoint."""
 
-    def test_zero_packets_no_division_error(self):
-        """When no packets, all rates should be 0."""
-        _upf_stats_cache["data"] = {
-            "ipackets": 0, "opackets": 0, "imissed": 0,
-            "dropRate": 0, "fwdLoss": 0, "workerNG": 0, "totalLoss": 0,
-        }
+    def test_app_stats_returns_dict(self):
+        """App stats should return a dictionary."""
+        _app_stats_cache["data"] = {"requests": 100, "errors": 0, "latency_ms": 50}
         resp = client.get("/api/app-stats")
         data = resp.json()
-        assert data["dropRate"] == 0
-        assert data["fwdLoss"] == 0
-        assert data["totalLoss"] == 0
+        assert isinstance(data, dict)
 
-    def test_perfect_forwarding(self):
-        """All packets forwarded, no loss."""
-        _upf_stats_cache["data"] = {
-            "ipackets": 1000000, "opackets": 1000000, "imissed": 0,
-            "dropRate": 0, "fwdLoss": 0, "workerNG": 0, "totalLoss": 0,
-        }
+    def test_app_stats_custom_values(self):
+        """App stats should return cached values."""
+        _app_stats_cache["data"] = {"custom_metric": 42}
         data = client.get("/api/app-stats").json()
-        assert data["totalLoss"] == 0
-
-    def test_high_imissed_shows_drop_rate(self):
-        """938M imissed on 75B packets = ~1.2% drop rate."""
-        ipkts = 75_000_000_000
-        imiss = 938_000_000
-        total = ipkts + imiss
-        expected_drop = round(imiss / total * 100, 5)
-        _upf_stats_cache["data"] = {
-            "ipackets": ipkts, "opackets": ipkts - 500_000_000, "imissed": imiss,
-            "dropRate": expected_drop,
-            "fwdLoss": round(500_000_000 / ipkts * 100, 5),
-            "workerNG": 0,
-            "totalLoss": round((total - (ipkts - 500_000_000)) / total * 100, 5),
-        }
-        data = client.get("/api/app-stats").json()
-        assert data["dropRate"] > 1.0
-        assert data["totalLoss"] > 1.0
+        assert data.get("custom_metric") == 42
 
 
 # ── Security: kubectl allowlist & shell blocklist ──
@@ -113,32 +88,6 @@ class TestChatToolSecurity:
             resp = client.get(f"/api/sop/{sops[0]['name']}")
             assert resp.status_code == 200
             assert "content" in resp.json()
-
-
-class TestUPFStatsEdgeCases:
-    """Edge cases for App stats calculation."""
-
-    def test_baseline_subtraction_no_negative(self):
-        """Stats should never go negative after baseline."""
-        _upf_stats_cache["data"] = {
-            "ipackets": 0, "opackets": 0, "imissed": 0,
-            "dropRate": 0, "fwdLoss": 0, "workerNG": 0, "totalLoss": 0,
-        }
-        data = client.get("/api/app-stats").json()
-        assert data["ipackets"] >= 0
-        assert data["opackets"] >= 0
-        assert data["imissed"] >= 0
-
-    def test_small_packet_count_not_meaningful(self):
-        """Below 100K packets, rates should be 0 (not meaningful)."""
-        _upf_stats_cache["data"] = {
-            "ipackets": 1000, "opackets": 500, "imissed": 500,
-            "dropRate": 0, "fwdLoss": 0, "workerNG": 0, "totalLoss": 0,
-        }
-        data = client.get("/api/app-stats").json()
-        # These are pre-computed in cache, but verify structure
-        for key in ["dropRate", "fwdLoss", "totalLoss"]:
-            assert isinstance(data[key], (int, float))
 
 
 # ── Graph Endpoint ──

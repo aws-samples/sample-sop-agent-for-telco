@@ -489,63 +489,13 @@ async def get_metrics():
     """Return cached metrics (updated by background thread)."""
     return _metrics_cache["data"]
 
-_upf_stats_cache = {"data": {"ipackets": 0, "opackets": 0, "imissed": 0, "dropRate": 0, "fwdLoss": 0, "workerNG": 0, "totalLoss": 0}}
-_upf_prev = {"ipackets": None, "opackets": None, "imissed": None, "workerNG": None}
-_upf_totals = {"ipackets": 0, "opackets": 0, "imissed": 0, "workerNG": 0}
-
-def _fetch_upf_stats_sync():
-    try:
-        # nosec B602 - APP_NAMESPACE and APP_SERVICE_LABEL are constants defined at module level
-        svc = subprocess.check_output(f"kubectl get pod -n {APP_NAMESPACE} -l {APP_SERVICE_LABEL} -o jsonpath='{{.items[0].metadata.name}}'", shell=True, text=True, stderr=subprocess.DEVNULL, timeout=5).strip().strip("'")  # nosec B602
-        if not svc:
-            return
-        port_out = subprocess.check_output(f"kubectl exec -n {APP_NAMESPACE} {svc} -- bash -c 'echo stats-port | fpdebug'", shell=True, text=True, stderr=subprocess.DEVNULL, timeout=5)  # nosec B602
-        afp_out = subprocess.check_output(f"kubectl exec -n {APP_NAMESPACE} {svc} -- bash -c 'echo afp-trace | fpdebug'", shell=True, text=True, stderr=subprocess.DEVNULL, timeout=5)  # nosec B602
-        def extract(pattern, text):
-            m = re.search(pattern, text)
-            return int(m.group(1)) if m else 0
-        lines = port_out.split("eth4_0")[0]
-        ipkts = extract(r'ipackets=(\d+)', lines)
-        opkts = extract(r'opackets=(\d+)', lines)
-        imiss = extract(r'imissed=(\d+)', lines)
-        wng = extract(r'Send Worker NG.*?:(\d+)', afp_out)
-        # Accumulate deltas (handles pod restarts — delta just resets to small number)
-        if _upf_prev["ipackets"] is not None:
-            for key, raw in [("ipackets", ipkts), ("opackets", opkts), ("imissed", imiss), ("workerNG", wng)]:
-                delta = raw - _upf_prev[key]
-                if delta >= 0:
-                    _upf_totals[key] += delta
-                # else: counter reset (pod restart), skip this cycle
-        _upf_prev.update(ipackets=ipkts, opackets=opkts, imissed=imiss, workerNG=wng)
-        ip = _upf_totals["ipackets"]
-        op = _upf_totals["opackets"]
-        im = _upf_totals["imissed"]
-        wn = _upf_totals["workerNG"]
-        total = ip + im
-        meaningful = ip > 100000
-        _upf_stats_cache["data"] = {
-            "ipackets": ip, "opackets": op, "imissed": im,
-            "dropRate": round(im / total * 100, 5) if total and meaningful else 0,
-            "fwdLoss": round((ip - op) / ip * 100, 5) if ip and meaningful else 0,
-            "workerNG": wn,
-            "totalLoss": round((total - op) / total * 100, 5) if total and meaningful else 0,
-        }
-    except Exception as e:
-        logging.warning(f"App stats fetch failed: {e}")
-
-def _upf_stats_loop():
-    while True:
-        try:
-            _fetch_upf_stats_sync()
-        except Exception as e:
-            logging.error(f"App stats loop error: {e}")
-        _time.sleep(5)
-
-threading.Thread(target=_upf_stats_loop, daemon=True).start()
+# Placeholder for application-specific stats - customize for your workload
+_app_stats_cache = {"data": {"requests": 0, "errors": 0, "latency_ms": 0}}
 
 @app.get("/api/app-stats")
-async def get_upf_stats():
-    return _upf_stats_cache["data"]
+async def get_app_stats():
+    """Return application-specific stats. Customize for your workload."""
+    return _app_stats_cache["data"]
 
 @app.get("/api/gitlab-issues")
 async def get_gitlab_issues():
@@ -599,9 +549,11 @@ async def get_corrections():
 async def get_alarms():
     """Get alarms from Alertmanager."""
     from datetime import timezone
+    import shlex
     try:
-        cmd = "kubectl exec -n monitoring prometheus-kube-prometheus-stack-prometheus-0 -- wget -qO- 'http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts'"
-        result = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL, timeout=5)  # nosec B602 - hardcoded command
+        cmd = ["kubectl", "exec", "-n", "monitoring", "prometheus-kube-prometheus-stack-prometheus-0", "--",
+               "wget", "-qO-", "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts"]
+        result = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL, timeout=5)
         data = json.loads(result)
         
         alarms = []
@@ -1037,17 +989,19 @@ async def chat_websocket(websocket: WebSocket):
     _ALLOWED_KUBECTL = re.compile(r'^(get|describe|logs|top|explain|api-resources|version)\b', re.I)
 
     def run_tool(name, inp):
+        import shlex
         try:
             if name == "kubectl":
                 args = inp['command'].strip()
                 if not _ALLOWED_KUBECTL.match(args):
                     return f"Blocked: only read-only kubectl commands allowed (get, describe, logs, top). Got: {args.split()[0]}"
-                cmd = f"kubectl {args}"
+                cmd = ["kubectl"] + shlex.split(args)
             else:
-                cmd = inp["command"]
-                if _BLOCKED_SHELL.search(cmd):
+                cmd_str = inp["command"]
+                if _BLOCKED_SHELL.search(cmd_str):
                     return "Blocked: potentially destructive command"
-            r = _sp.run(cmd, shell=True, capture_output=True, text=True, timeout=30)  # nosec B602 - input validated above
+                cmd = shlex.split(cmd_str)
+            r = _sp.run(cmd, capture_output=True, text=True, timeout=30)
             output = (r.stdout + r.stderr).strip()
             return output[:4000] if output else "(no output)"
         except _sp.TimeoutExpired:

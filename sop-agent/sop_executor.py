@@ -114,7 +114,12 @@ class CmdResult:
 
 
 def run_cmd(cmd: str, timeout: int = DEFAULT_TIMEOUT, shell: bool = True) -> CmdResult:
-    """Execute command with proper error handling."""
+    """Execute command with proper error handling.
+
+    Security Note: shell=True is used by default for SOP command execution.
+    SOPs may contain shell features (pipes, redirects, etc.) that require shell interpretation.
+    The agent runs in a controlled environment with limited ServiceAccount permissions.
+    """
     try:
         result = subprocess.run(
             cmd if shell else shlex.split(cmd),

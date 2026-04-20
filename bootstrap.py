@@ -65,19 +65,36 @@ def main():
     def run_shell(command: str) -> str:
         """Execute a shell command and return output.
 
+        Security Note: This tool intentionally uses shell=True to execute SOP commands.
+        The agent runs in a controlled environment (container/EKS pod) with limited
+        permissions defined by the ServiceAccount. Commands come from trusted SOPs.
+
         Args:
             command: The shell command to execute
         """
+        import shlex
         try:
-            result = subprocess.run(
-                command,
-                shell=True,  # nosec B602 - trusted SOP commands
-                capture_output=True,
-                text=True,
-                timeout=600,
-                env=env,
-                cwd=str(Path(__file__).parent)
-            )
+            # For simple commands, try to avoid shell=True
+            # Fall back to shell=True for complex commands with pipes, redirects, etc.
+            if any(c in command for c in ['|', '>', '<', '&&', '||', ';', '$(']):
+                result = subprocess.run(
+                    command,
+                    shell=True,  # nosec B602 - required for shell features in SOP commands
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    env=env,
+                    cwd=str(Path(__file__).parent)
+                )
+            else:
+                result = subprocess.run(
+                    shlex.split(command),
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    env=env,
+                    cwd=str(Path(__file__).parent)
+                )
             output = (result.stdout + result.stderr).strip()
             return output if output else "(no output)"
         except subprocess.TimeoutExpired:

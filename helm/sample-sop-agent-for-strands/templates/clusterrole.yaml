@@ -6,10 +6,20 @@ metadata:
   labels:
     {{- include "sample-sop-agent-for-strands.labels" . | nindent 4 }}
 rules:
+# Read-only access for monitoring and troubleshooting
 - apiGroups: ["", "apps", "networking.k8s.io"]
-  resources: ["pods", "services", "deployments", "replicasets", "configmaps", "secrets", "namespaces", "ingresses"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  resources: ["pods", "services", "deployments", "replicasets", "configmaps", "namespaces", "endpoints", "events"]
+  verbs: ["get", "list", "watch"]
+# Pod logs for troubleshooting
 - apiGroups: [""]
-  resources: ["pods/log", "pods/exec"]
-  verbs: ["get", "create"]
+  resources: ["pods/log"]
+  verbs: ["get"]
+# Limited write access - only for SOP execution in specific namespaces
+# Customize based on your deployment requirements
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["services", "configmaps"]
+  verbs: ["create", "update", "patch"]
 {{- end }}
