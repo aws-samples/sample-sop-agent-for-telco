@@ -45,7 +45,6 @@ function App() {
   const [dragOver, setDragOver] = useState(false)
   const [metrics, setMetrics] = useState({ throughput: 0, latency: 0, packets: 0, cpu: 0, memory: 0 })
   const [alarms, setAlarms] = useState([])
-  const [upfStats, setUpfStats] = useState({ ipackets: 0, opackets: 0, imissed: 0, dropRate: 0, fwdLoss: 0, totalLoss: 0, workerNG: 0 })
   const [alarmFilter, setAlarmFilter] = useState('all')
   const [executionSteps, setExecutionSteps] = useState(() => loadState('executionSteps', []))
   const [slidesExpanded, setSlidesExpanded] = useState(false)
@@ -114,16 +113,10 @@ function App() {
       fetchAgentStatus()
     }, 1000)
 
-    // Fetch App stats every 5 seconds
-    const upfStatsInterval = setInterval(async () => {
-      try { const r = await fetch('/api/app-stats'); setUpfStats(await r.json()) } catch {}
-    }, 5000)
-    
     return () => {
       clearInterval(metricsInterval)
       clearInterval(alarmsInterval)
       clearInterval(statusInterval)
-      clearInterval(upfStatsInterval)
     }
   }, [])
 
@@ -1138,24 +1131,6 @@ function App() {
                 </div>
               </div>
 
-              {/* App Forwarding Stats */}
-              <div className="mt-4 bg-gradient-to-br from-cyan-900/50 to-blue-900/50 rounded-xl p-4 border border-cyan-500/30 hover:border-cyan-400/60 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20">
-                <div className="text-cyan-300/70 text-xs font-medium tracking-wider uppercase mb-2">App Forwarding</div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-500 mb-0.5">Packets In</div>
-                    <div className="text-3xl font-bold text-cyan-400">{upfStats.ipackets >= 1e12 ? (upfStats.ipackets / 1e12).toFixed(1) : (upfStats.ipackets / 1e9).toFixed(1)}<span className="text-sm text-cyan-400/60">{upfStats.ipackets >= 1e12 ? 'T' : 'B'}</span></div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 mb-0.5">Forwarded</div>
-                    <div className="text-3xl font-bold text-green-400">{upfStats.opackets >= 1e12 ? (upfStats.opackets / 1e12).toFixed(1) : (upfStats.opackets / 1e9).toFixed(1)}<span className="text-sm text-green-400/60">{upfStats.opackets >= 1e12 ? 'T' : 'B'}</span></div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 mb-0.5">Packet Loss</div>
-                    <div className={`text-3xl font-bold ${upfStats.totalLoss < 0.1 ? 'text-green-400' : 'text-red-400'}`}>{upfStats.totalLoss.toFixed(3)}<span className="text-sm opacity-60">%</span></div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Alarm Management */}

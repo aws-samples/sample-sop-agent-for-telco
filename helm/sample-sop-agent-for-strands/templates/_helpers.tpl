@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "strands-sop-agent.name" -}}
+{{- define "sample-sop-agent-for-strands.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "strands-sop-agent.fullname" -}}
+{{- define "sample-sop-agent-for-strands.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,17 +24,17 @@ Create a default fully qualified app name.
 {{/*
 Common labels
 */}}
-{{- define "strands-sop-agent.labels" -}}
+{{- define "sample-sop-agent-for-strands.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-app: {{ include "strands-sop-agent.name" . }}
+app: {{ include "sample-sop-agent-for-strands.name" . }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "strands-sop-agent.serviceAccountName" -}}
+{{- define "sample-sop-agent-for-strands.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "strands-sop-agent.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "sample-sop-agent-for-strands.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

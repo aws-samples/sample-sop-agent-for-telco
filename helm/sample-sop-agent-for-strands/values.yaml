@@ -19,6 +19,8 @@ env:
   BEDROCK_REGION: "us-west-2"
   CORS_ORIGINS: "*"
   LOG_LEVEL: "INFO"
+  AUTH_USERNAME: "admin"
+  # AUTH_PASSWORD: ""  # Set via --set env.AUTH_PASSWORD=<password> for security
 
 # Mount kubeconfigs for target clusters
 kubeconfigs:

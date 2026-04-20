@@ -1,15 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-# Use ECR public images to comply with AWS samples requirements
-FROM public.ecr.aws/docker/library/node:20-slim AS frontend-build
+FROM node:20-slim AS frontend-build
 WORKDIR /app/webui/frontend
-COPY webui/frontend/package*.json ./
-RUN npm ci
+COPY webui/frontend/package.json ./
+RUN npm install
 COPY webui/frontend/ ./
 RUN npx vite build
 
-FROM public.ecr.aws/docker/library/python:3.11-slim
+FROM python:3.11-slim
 WORKDIR /app
 
 # Create non-root user for security

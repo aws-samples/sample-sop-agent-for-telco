@@ -9,11 +9,13 @@ import asyncio
 import json
 import time as _time
 import threading
+import secrets
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import subprocess
 import re
@@ -38,7 +40,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from execution_state import execution_state, AgentStatus, ExecutionHistory
 from dataclasses import asdict
 
-from config import SOP_REPO, BEDROCK_PROFILE, BEDROCK_REGION, BEDROCK_MODEL, API_KEY, CORS_ORIGINS, AMP_WORKSPACE_URL, LOG_LEVEL, APP_NAMESPACE, APP_SERVICE_LABEL, SLACK_EXECUTION_WEBHOOK
+from config import SOP_REPO, BEDROCK_PROFILE, BEDROCK_REGION, BEDROCK_MODEL, API_KEY, CORS_ORIGINS, AMP_WORKSPACE_URL, LOG_LEVEL, APP_NAMESPACE, APP_SERVICE_LABEL, SLACK_EXECUTION_WEBHOOK, AUTH_USERNAME, AUTH_PASSWORD
+
+security = HTTPBasic()
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify HTTP Basic Auth credentials."""
+    if not AUTH_PASSWORD:
+        return True  # Auth disabled if no password set
+    correct_username = secrets.compare_digest(credentials.username.encode("utf8"), AUTH_USERNAME.encode("utf8"))
+    correct_password = secrets.compare_digest(credentials.password.encode("utf8"), AUTH_PASSWORD.encode("utf8"))
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"})
+    return True
 
 from contextlib import asynccontextmanager
 
@@ -79,14 +93,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi import Request, Depends
-from fastapi.security import APIKeyHeader
+from fastapi import Request
 
-_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-async def verify_api_key(key: str = Depends(_api_key_header)):
-    if API_KEY and key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+# Health endpoint without auth (for k8s probes)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 class SOPFile(BaseModel):
@@ -171,16 +183,12 @@ except ImportError:
     build_sop_graph = build_eval_loop = None
 _sop_lock = asyncio.Lock()
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-@app.get("/api/status")
+@app.get("/api/status", dependencies=[Depends(verify_credentials)])
 async def get_agent_status():
     """Get current agent execution status."""
     return execution_state.to_dict()
 
-@app.get("/api/sop/{sop_name}/history")
+@app.get("/api/sop/{sop_name}/history", dependencies=[Depends(verify_credentials)])
 async def get_sop_history(sop_name: str):
     """Get last execution history for a specific SOP."""
     # Try exact match first, then try with .md extension
@@ -195,12 +203,12 @@ async def get_sop_history(sop_name: str):
     else:
         return {"status": "never_run", "message": "This SOP has not been executed yet"}
 
-@app.get("/api/executions")
+@app.get("/api/executions", dependencies=[Depends(verify_credentials)])
 async def api_list_executions():
     """List saved execution records (most recent first)."""
     return list_executions()
 
-@app.get("/api/executions/{run_id}")
+@app.get("/api/executions/{run_id}", dependencies=[Depends(verify_credentials)])
 async def api_get_execution(run_id: str):
     """Get full execution record by run_id."""
     record = get_execution(run_id)
@@ -208,12 +216,12 @@ async def api_get_execution(run_id: str):
         raise HTTPException(status_code=404, detail="Execution not found")
     return record
 
-@app.get("/api/eval-history/{sop_stem}")
+@app.get("/api/eval-history/{sop_stem}", dependencies=[Depends(verify_credentials)])
 async def api_eval_history(sop_stem: str):
     """Get eval score history for a specific SOP across runs."""
     return get_eval_history(sop_stem)
 
-@app.get("/api/sops", response_model=List[SOPFile])
+@app.get("/api/sops", response_model=List[SOPFile], dependencies=[Depends(verify_credentials)])
 async def list_sops():
     """List all available SOPs."""
     sop_dir = Path(SOP_REPO) / "sops"
@@ -232,7 +240,7 @@ async def list_sops():
             ))
     return sops
 
-@app.get("/api/sop/{sop_name}")
+@app.get("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
 async def get_sop(sop_name: str):
     """Get SOP content."""
     sop_path = Path(SOP_REPO) / "sops" / sop_name
@@ -240,16 +248,16 @@ async def get_sop(sop_name: str):
         raise HTTPException(status_code=404, detail="SOP not found")
     return {"path": str(sop_path), "content": sop_path.read_text()}
 
-@app.post("/api/sop/{sop_name}")
-async def save_sop(sop_name: str, content: SOPContent, _=Depends(verify_api_key)):
+@app.post("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
+async def save_sop(sop_name: str, content: SOPContent, _=Depends(verify_credentials)):
     """Save or update SOP content."""
     sop_path = Path(SOP_REPO) / "sops" / sop_name
     sop_path.parent.mkdir(parents=True, exist_ok=True)
     sop_path.write_text(content.content)
     return {"status": "saved", "path": str(sop_path)}
 
-@app.post("/api/sop")
-async def create_sop(name: str, content: str = "# New SOP\n\n## Description\n\nAdd your SOP content here.", _=Depends(verify_api_key)):
+@app.post("/api/sop", dependencies=[Depends(verify_credentials)])
+async def create_sop(name: str, content: str = "# New SOP\n\n## Description\n\nAdd your SOP content here.", _=Depends(verify_credentials)):
     """Create a new SOP."""
     if not name.endswith('.md'):
         name += '.md'
@@ -262,8 +270,8 @@ async def create_sop(name: str, content: str = "# New SOP\n\n## Description\n\nA
     return {"status": "created", "path": str(sop_path), "name": name}
 
 
-@app.delete("/api/sop/{sop_name}")
-async def delete_sop(sop_name: str, _=Depends(verify_api_key)):
+@app.delete("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
+async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
     """Delete an SOP file."""
     sop_path = Path(SOP_REPO) / "sops" / sop_name
     if not sop_path.exists():
@@ -271,8 +279,8 @@ async def delete_sop(sop_name: str, _=Depends(verify_api_key)):
     sop_path.unlink()
     return {"status": "deleted", "name": sop_name}
 
-@app.delete("/api/sop/{sop_name}")
-async def delete_sop(sop_name: str, _=Depends(verify_api_key)):
+@app.delete("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
+async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
     """Delete an SOP file."""
     sop_path = Path(SOP_REPO) / "sops" / sop_name
     if not sop_path.exists():
@@ -280,7 +288,7 @@ async def delete_sop(sop_name: str, _=Depends(verify_api_key)):
     sop_path.unlink()
     return {"status": "deleted", "name": sop_name}
 
-@app.post("/api/generate-sop")
+@app.post("/api/generate-sop", dependencies=[Depends(verify_credentials)])
 async def generate_sop(file: UploadFile = File(...)):
     """Accept a document upload (HLD/LLD/run-book) and generate an SOP via Strands Agent."""
     allowed = {".pdf", ".docx", ".doc", ".md", ".txt"}
@@ -484,7 +492,7 @@ def _metrics_loop():
 
 threading.Thread(target=_metrics_loop, daemon=True).start()
 
-@app.get("/api/metrics")
+@app.get("/api/metrics", dependencies=[Depends(verify_credentials)])
 async def get_metrics():
     """Return cached metrics (updated by background thread)."""
     return _metrics_cache["data"]
@@ -492,12 +500,12 @@ async def get_metrics():
 # Placeholder for application-specific stats - customize for your workload
 _app_stats_cache = {"data": {"requests": 0, "errors": 0, "latency_ms": 0}}
 
-@app.get("/api/app-stats")
+@app.get("/api/app-stats", dependencies=[Depends(verify_credentials)])
 async def get_app_stats():
     """Return application-specific stats. Customize for your workload."""
     return _app_stats_cache["data"]
 
-@app.get("/api/gitlab-issues")
+@app.get("/api/gitlab-issues", dependencies=[Depends(verify_credentials)])
 async def get_gitlab_issues():
     """Proxy recent GitLab issues for the Day2 monitor dashboard."""
     import httpx
@@ -520,7 +528,7 @@ async def get_gitlab_issues():
         logger.warning(f"GitLab issues fetch failed: {e}")
         return []
 
-@app.get("/api/corrections")
+@app.get("/api/corrections", dependencies=[Depends(verify_credentials)])
 async def get_corrections():
     """Return all corrections from historical execution logs."""
     import glob as g
@@ -545,7 +553,7 @@ async def get_corrections():
                 })
     return results
 
-@app.get("/api/alarms")
+@app.get("/api/alarms", dependencies=[Depends(verify_credentials)])
 async def get_alarms():
     """Get alarms from Alertmanager."""
     from datetime import timezone

@@ -14,3 +14,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 SLACK_EXECUTION_WEBHOOK = os.getenv("SLACK_EXECUTION_WEBHOOK", "")
 APP_NAMESPACE = os.getenv("APP_NAMESPACE", "default")
 APP_SERVICE_LABEL = os.getenv("APP_SERVICE_LABEL", "app=demo")
+
+# Basic Auth credentials (set via env vars for security)
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "admin")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")  # Must be set in production
