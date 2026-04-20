@@ -51,7 +51,7 @@ ALARM_REFERENCE_PATH = os.getenv("ALARM_REFERENCE_PATH", "/app/alarm_reference.j
 # Load ISV alarm reference (reaction procedures, service impact, fault details)
 _alarm_reference: dict = {}
 try:
-    with open(ALARM_REFERENCE_PATH) as f:
+    with open(ALARM_REFERENCE_PATH, encoding="utf-8") as f:
         _alarm_reference = json.load(f)
     log.info(f"Loaded {len(_alarm_reference)} alarm definitions from {ALARM_REFERENCE_PATH}")
 except FileNotFoundError:

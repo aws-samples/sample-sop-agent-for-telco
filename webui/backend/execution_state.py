@@ -167,7 +167,7 @@ class ExecutionState:
                 }
                 for name, h in self.history.items()
             }
-            with open(self._HISTORY_FILE, 'w') as f:
+            with open(self._HISTORY_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f)
         except Exception:
             pass
@@ -176,7 +176,7 @@ class ExecutionState:
         """Load persisted history on startup."""
         import json
         try:
-            with open(self._HISTORY_FILE) as f:
+            with open(self._HISTORY_FILE, encoding='utf-8') as f:
                 data = json.load(f)
             for name, h in data.items():
                 status_str = h.get('status', 'completed')

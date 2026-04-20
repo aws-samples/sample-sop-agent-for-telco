@@ -527,7 +527,7 @@ async def get_corrections():
     results = []
     for logfile in sorted(g.glob(str(Path(SOP_REPO) / "logs" / "execution_*.json"))):
         try:
-            with open(logfile) as f:
+            with open(logfile, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             continue

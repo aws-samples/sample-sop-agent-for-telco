@@ -173,7 +173,7 @@ class ExecutionLogger:
             for node in self.record["nodes"].values():
                 for tc in node.get("tool_calls", []):
                     tc.pop("start_time", None)
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.record, f, indent=2, default=str)
             logger.info(f"Execution log saved: {path}")
         except Exception as e:
