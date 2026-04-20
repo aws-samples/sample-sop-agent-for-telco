@@ -5,11 +5,13 @@ import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
-# Patch subprocess before importing api to prevent background threads from hitting real cluster
+# Patch subprocess before importing api
 with patch("subprocess.check_output", return_value=""), \
      patch("subprocess.run", return_value=MagicMock(stdout="", stderr="", returncode=0)):
-    from api import app, _app_stats_cache, EventBuffer
+    from api import app, _app_stats_cache, EventBuffer, verify_credentials
 
+# Override auth dependency for tests
+app.dependency_overrides[verify_credentials] = lambda: True
 
 client = TestClient(app)
 

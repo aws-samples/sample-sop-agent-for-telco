@@ -1,9 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Shared fixtures for all tests."""
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+
+# Disable auth for all tests
+os.environ["AUTH_PASSWORD"] = ""
 
 # Mock strands if not installed (CI environment)
 if 'strands' not in sys.modules:
