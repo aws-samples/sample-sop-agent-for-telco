@@ -1,6 +1,8 @@
-# Strands SOP Agent
+# Sample Telco SOP Agent for Strands
 
-AI-powered Standard Operating Procedure (SOP) executor for NFV validation using [Strands Agents SDK](https://github.com/strands-agents/strands-agents-sdk-python) and Amazon Bedrock.
+> **⚠️ Important:** This is sample code for demonstration and learning purposes. You should work with your security and legal teams to meet your organizational security, regulatory, and compliance requirements before deploying to production environments.
+
+AI-powered Standard Operating Procedure (SOP) executor for telco network function validation using [Strands Agents SDK](https://github.com/strands-agents/sdk-python) and Amazon Bedrock.
 
 ## What It Does
 
@@ -132,4 +134,12 @@ Environment variables:
 
 ## License
 
-MIT-0 - See [LICENSE](LICENSE)
+This sample code is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+## Disclaimer
+
+This is sample code, for non-production usage. You are responsible for testing, securing, and optimizing the code as appropriate for production grade use based on your specific quality control practices and standards. Deploying this code may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances, using Amazon Bedrock, or Amazon EKS clusters.
