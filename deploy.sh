@@ -112,6 +112,8 @@ docker push "${ECR_URI}:latest" 2>&1 | tail -3
 # Step 8: Deploy with Helm
 echo "  Deploying with Helm..."
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+# SECURITY: In production, store credentials in AWS Secrets Manager or K8s Secrets
+# instead of printing to stdout. This is acceptable for demo/workshop use only.
 AUTH_PASSWORD=$(openssl rand -base64 12)
 
 helm upgrade --install sop-agent "$(dirname "$0")/helm/sample-sop-agent-for-strands" \
@@ -134,5 +136,8 @@ echo ""
 echo "Access URL: http://${LB_URL}:8000"
 echo "Username:   admin"
 echo "Password:   $AUTH_PASSWORD"
+echo ""
+echo "SECURITY NOTE: This deployment uses HTTP Basic Auth over plain HTTP."
+echo "For non-demo use, enable TLS via ALB/NLB with ACM certificate or ingress TLS termination."
 echo ""
 echo "Note: LoadBalancer may take 2-3 minutes to become available."

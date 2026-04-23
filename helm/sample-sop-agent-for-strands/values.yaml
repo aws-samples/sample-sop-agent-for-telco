@@ -17,7 +17,7 @@ rbac:
 
 env:
   BEDROCK_REGION: "us-west-2"
-  CORS_ORIGINS: "*"
+  CORS_ORIGINS: "*"  # SECURITY: Restrict to specific origins in production (e.g., "https://your-domain.com")
   LOG_LEVEL: "INFO"
   AUTH_USERNAME: "admin"
   # AUTH_PASSWORD: ""  # Set via --set env.AUTH_PASSWORD=<password> for security

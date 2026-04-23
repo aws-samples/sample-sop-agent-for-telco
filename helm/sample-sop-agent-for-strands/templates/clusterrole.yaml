@@ -14,8 +14,11 @@ rules:
 - apiGroups: [""]
   resources: ["pods/log"]
   verbs: ["get"]
-# Limited write access - only for SOP execution in specific namespaces
-# Customize based on your deployment requirements
+# Limited write access for SOP execution
+# NOTE: This ClusterRole grants write access cluster-wide to support multi-namespace
+# SOP execution (e.g., deploying NFs across different namespaces). For production use,
+# replace with a namespaced Role scoped to specific target namespaces to follow the
+# principle of least privilege.
 - apiGroups: ["apps"]
   resources: ["deployments"]
   verbs: ["create", "update", "patch"]

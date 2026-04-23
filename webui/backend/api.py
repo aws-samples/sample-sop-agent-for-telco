@@ -279,15 +279,6 @@ async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
     sop_path.unlink()
     return {"status": "deleted", "name": sop_name}
 
-@app.delete("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
-async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
-    """Delete an SOP file."""
-    sop_path = Path(SOP_REPO) / "sops" / sop_name
-    if not sop_path.exists():
-        raise HTTPException(status_code=404, detail="SOP not found")
-    sop_path.unlink()
-    return {"status": "deleted", "name": sop_name}
-
 @app.post("/api/generate-sop", dependencies=[Depends(verify_credentials)])
 async def generate_sop(file: UploadFile = File(...)):
     """Accept a document upload (HLD/LLD/run-book) and generate an SOP via Strands Agent."""

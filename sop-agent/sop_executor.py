@@ -298,6 +298,12 @@ def ssh_expect(
         commands: Semicolon-separated commands to send
         user: SSH user (default: 'ec2-user')
         timeout: Timeout in seconds (max 120)
+
+    Security Note:
+        This function builds expect scripts dynamically from agent-supplied commands.
+        SSH authentication relies on key-based access (no passwords). Ensure SSH private
+        keys are managed via AWS Secrets Manager or K8s Secrets, not stored in the
+        container image or environment variables.
     """
     timeout = min(timeout, 120)  # Cap to prevent indefinite hangs
     ssh_target = host if "@" in host else f"{user}@{host}"
