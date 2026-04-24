@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for execution_state.py — state machine, history, log rotation."""
-import pytest
 from execution_state import ExecutionState, ExecutionHistory, AgentStatus
 
 

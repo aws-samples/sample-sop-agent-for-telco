@@ -3,7 +3,6 @@
 """Tests for sop_executor.py — tools, parsing, command execution."""
 import subprocess
 from unittest.mock import patch, MagicMock
-import pytest
 
 from sop_executor import (
     CmdResult, run_cmd, parse_sop, get_tools_for_sop,

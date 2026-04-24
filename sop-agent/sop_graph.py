@@ -24,8 +24,7 @@ from strands.agent.agent_result import AgentResult
 from strands.types.content import ContentBlock, Message
 
 from sop_executor import (
-    MODELS, SOPSteeringHooks,
-    SYSTEM_PROMPT_REPORT, SYSTEM_PROMPT_FIX,
+    MODELS, SYSTEM_PROMPT_REPORT, SYSTEM_PROMPT_FIX,
     get_tools_for_sop, get_sop_eval_meta,
     setup_eval_telemetry, collect_eval_session,
 )
@@ -385,7 +384,7 @@ class CorrectorNode(MultiAgentBase):
     async def stream_async(self, task, invocation_state=None, **kwargs):
         """Read eval failures from upstream, patch the SOP, stream what changed."""
         import asyncio
-        from sop_corrector import build_correction_prompt, extract_failures
+        from sop_corrector import build_correction_prompt
 
         start = _time.time()
         # task may be a list of ContentBlocks or a string — extract text properly

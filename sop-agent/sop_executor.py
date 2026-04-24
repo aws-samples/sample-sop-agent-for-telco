@@ -18,7 +18,7 @@ from typing import Optional
 from dataclasses import dataclass, field
 from strands import Agent, tool
 from strands.models import BedrockModel
-from strands.hooks import BeforeToolCallEvent, AfterToolCallEvent, HookProvider, HookRegistry
+from strands.hooks import BeforeToolCallEvent, AfterToolCallEvent, HookRegistry
 
 # Configuration via environment variables
 _script_dir = os.path.dirname(os.path.abspath(__file__))

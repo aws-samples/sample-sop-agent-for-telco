@@ -20,7 +20,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
 
 from strands.vended_plugins.steering import SteeringHandler, LedgerProvider, Guide, Proceed
 from strands.types.tools import ToolUse

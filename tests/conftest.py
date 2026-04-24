@@ -12,7 +12,7 @@ os.environ["AUTH_PASSWORD"] = ""  # nosec B105 - intentionally empty to disable 
 # Mock strands if not installed (CI environment)
 if 'strands' not in sys.modules:
     try:
-        import strands
+        import strands  # noqa: F401
     except ImportError:
         strands_mock = MagicMock()
         sys.modules['strands'] = strands_mock

@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = [
+    "E402",   # module-import-not-at-top — by design (conditional imports, inline imports in tools)
+    "E501",   # line-too-long — long strings in prompts and tool outputs
+    "E702",   # multiple-statements-on-one-line — used in compact tool definitions
+    "E741",   # ambiguous-variable-name — l, O, I used intentionally
+    "F821",   # undefined-name — runtime-injected names (Strands SDK tool decorators)
+    "E722",   # bare-except — used in resilient error handling for agent execution
+    "F841",   # unused-variable — websocket receive used for keepalive
+]

@@ -5,7 +5,6 @@ import subprocess  # nosec B404 - required for testing CLI
 import sys
 from pathlib import Path
 
-import pytest
 
 BOOTSTRAP_PATH = Path(__file__).parent.parent / "scripts" / "bootstrap.py"
 

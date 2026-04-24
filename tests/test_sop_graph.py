@@ -5,7 +5,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sop-agent"))
 
 from sop_graph import (
@@ -190,7 +191,6 @@ class TestBuildSopGraph:
 class TestBuildEvalLoop:
     def test_eval_loop_needs_correction_condition(self):
         """Test the needs_correction condition logic directly."""
-        from sop_graph import build_eval_loop
         from strands.multiagent.base import Status
 
         # Simulate eval result with NEEDS_CORRECTION

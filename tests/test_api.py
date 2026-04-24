@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for api.py — API endpoints and functionality."""
-import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 

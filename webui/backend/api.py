@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from execution_state import execution_state, AgentStatus, ExecutionHistory
 from dataclasses import asdict
 
-from config import SOP_REPO, BEDROCK_PROFILE, BEDROCK_REGION, BEDROCK_MODEL, API_KEY, CORS_ORIGINS, AMP_WORKSPACE_URL, LOG_LEVEL, APP_NAMESPACE, APP_SERVICE_LABEL, SLACK_EXECUTION_WEBHOOK, AUTH_USERNAME, AUTH_PASSWORD
+from config import SOP_REPO, BEDROCK_PROFILE, BEDROCK_REGION, BEDROCK_MODEL, CORS_ORIGINS, AMP_WORKSPACE_URL, SLACK_EXECUTION_WEBHOOK, AUTH_USERNAME, AUTH_PASSWORD
 
 security = HTTPBasic()
 
@@ -93,7 +93,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi import Request
 
 # Health endpoint without auth (for k8s probes)
 @app.get("/health")
@@ -169,7 +168,6 @@ manager = ConnectionManager()
 event_buffer = EventBuffer()
 _graph_task: Optional[asyncio.Task] = None
 
-from execution_state import execution_state, AgentStatus
 from execution_logger import ExecutionLogger, list_executions, get_execution, get_eval_history
 
 # Import graph orchestrator (sop-agent directory)
@@ -548,7 +546,6 @@ async def get_corrections():
 async def get_alarms():
     """Get alarms from Alertmanager."""
     from datetime import timezone
-    import shlex
     try:
         cmd = ["kubectl", "exec", "-n", "monitoring", "prometheus-kube-prometheus-stack-prometheus-0", "--",
                "wget", "-qO-", "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts"]
@@ -943,7 +940,7 @@ async def execute_graph(websocket: WebSocket):
         while True:
             try:
                 # Wait for client messages (ping/close). Timeout keeps us checking task status.
-                msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
             except asyncio.TimeoutError:
                 # Check if execution finished while we were waiting
                 if _graph_task is None or _graph_task.done():
@@ -966,7 +963,9 @@ async def execute_graph(websocket: WebSocket):
 async def chat_websocket(websocket: WebSocket):
     """WebSocket endpoint for AI chat powered by Amazon Bedrock with tool use."""
     await websocket.accept()
-    import boto3, json as _json, subprocess as _sp
+    import boto3
+    import json as _json
+    import subprocess as _sp
     session = boto3.Session(profile_name=BEDROCK_PROFILE, region_name=BEDROCK_REGION)
     bedrock = session.client('bedrock-runtime')
     system_prompt = (

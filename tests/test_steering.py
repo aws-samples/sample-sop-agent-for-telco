@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: MIT-0
 
 """Tests for SOPSteeringHooks — steering hooks for SOP executor agent."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sop-agent"))
 
 from unittest.mock import MagicMock
@@ -169,7 +170,7 @@ class TestEvalTelemetry:
 
     def test_exporter_clear_resets_spans(self):
         telemetry = setup_eval_telemetry()
-        spans_before = telemetry.in_memory_exporter.get_finished_spans()
+        telemetry.in_memory_exporter.get_finished_spans()
         telemetry.in_memory_exporter.clear()
         spans_after = telemetry.in_memory_exporter.get_finished_spans()
         assert len(spans_after) == 0

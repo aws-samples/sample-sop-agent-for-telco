@@ -4,7 +4,6 @@
 import json
 import os
 import tempfile
-import time
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -182,7 +181,7 @@ def test_tool_success_rate_no_spans():
 
 def _make_tool_spans(total, failed_count, error_msg="connection refused"):
     """Create mock tool spans for evaluator testing."""
-    from strands_evals.types.trace import Session, Trace
+    from strands_evals.types.trace import Session
 
     spans = []
     for i in range(total):

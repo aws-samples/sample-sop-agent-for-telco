@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """SOP Correction Agent — patches SOPs based on eval failures."""
-import os
 import logging
 from pathlib import Path
 

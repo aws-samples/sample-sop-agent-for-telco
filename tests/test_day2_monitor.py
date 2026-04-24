@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for day2-monitor — alert dedup, fingerprinting, SOP generation dispatch."""
 import sys
-import os
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "day2-monitor"))
 from monitor import (
@@ -14,7 +12,6 @@ from monitor import (
     MonitorState,
     fetch_active_alerts,
     fetch_k8s_events,
-    IGNORED_ALERTS,
 )
 
 
