@@ -6,7 +6,7 @@
 echo "🚀 Starting SOP Executor Web UI..."
 
 # Environment config
-export BEDROCK_PROFILE="${BEDROCK_PROFILE:-sudhshet-GenAI-578155391066}"
+export BEDROCK_PROFILE="${BEDROCK_PROFILE:-default}"
 export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 
 # Navigate to webui directory

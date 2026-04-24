@@ -1,0 +1,22 @@
+AWS Sample SOP Agent for Strands
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+This project includes the following third-party software/licensing:
+
+** Strands Agents SDK - https://github.com/strands-agents/sdk-python
+Apache License 2.0
+
+** FastAPI - https://github.com/tiangolo/fastapi
+MIT License
+
+** React - https://github.com/facebook/react
+MIT License
+
+** Open5GS - https://github.com/open5gs/open5gs
+AGPL-3.0 (used as a separate deployment, not linked)
+
+** UERANSIM - https://github.com/aligungr/UERANSIM
+GPL-3.0 (used as a separate deployment, not linked)
+
+** Gradiant 5G Helm Charts - https://github.com/Gradiant/5g-charts
+Apache License 2.0

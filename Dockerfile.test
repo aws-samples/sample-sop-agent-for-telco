@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 FROM node:20-slim AS frontend-build
 WORKDIR /app/webui/frontend
 COPY webui/frontend/package*.json ./
