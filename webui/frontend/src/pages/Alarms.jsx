@@ -147,10 +147,10 @@ const Alarms = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Demo — Trigger Alarm:</span>
             {[
-              { layer: 'hardware', label: 'Hardware', color: '#fa8c16' },
-              { layer: 'infra', label: 'Infra', color: '#722ed1' },
-              { layer: 'core', label: 'Core', color: '#1890ff' },
-              { layer: 'ran', label: 'RAN', color: '#f5222d' },
+              { layer: 'hardware', label: 'Resource Exhaustion', color: '#fa8c16' },
+              { layer: 'infra', label: 'UPF PFCP Loss', color: '#722ed1' },
+              { layer: 'core', label: 'NF CrashLoop', color: '#1890ff' },
+              { layer: 'ran', label: 'AMF-gNB Disconnect', color: '#f5222d' },
             ].map(({ layer, label, color }) => (
               <button key={layer} onClick={() => axios.post(`/api/alarms/trigger/${layer}`).then(() => load())}
                 style={{ background: color, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>

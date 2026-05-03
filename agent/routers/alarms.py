@@ -16,28 +16,28 @@ def get_alarms():
 # Demo trigger buttons — inject a synthetic alarm for each layer
 DEMO_ALARMS = {
     "ran": {
-        "name": "du_timing_failure", "severity": "critical", "source": "demo-trigger",
-        "service_impact": "Cell outage, UE disconnections",
-        "probable_cause": "[DEMO] Simulated RAN layer fault — PTP drift causing timing failure",
-        "sop": "day2-remediate/ran/remediate-du-timing-failure.md", "value": 999, "threshold": "> 500",
+        "name": "amf_gnb_disconnect", "severity": "critical", "source": "demo-trigger",
+        "service_impact": "All UEs lose service, gNB disconnected from core",
+        "probable_cause": "[DEMO] AMF pod killed — gNB lost SCTP connection",
+        "sop": "workshop-remediate/remediate-amf-gnb-disconnect.md", "value": 0, "threshold": "> 0",
     },
     "core": {
         "name": "nf_crashloop", "severity": "critical", "source": "demo-trigger",
-        "service_impact": "Degraded core network",
-        "probable_cause": "[DEMO] Simulated Core layer fault — NF health below threshold",
-        "sop": "day2-remediate/core/remediate-nf-crashloop.md", "value": 80, "threshold": "< 95",
+        "service_impact": "Degraded core network, NF pod in CrashLoopBackOff",
+        "probable_cause": "[DEMO] Core NF pod crashed — service degraded below 95%",
+        "sop": "workshop-remediate/remediate-nf-crashloop.md", "value": 80, "threshold": "< 95",
     },
     "infra": {
-        "name": "network_partition", "severity": "critical", "source": "demo-trigger",
-        "service_impact": "RAN isolated from core",
-        "probable_cause": "[DEMO] Simulated Infra layer fault — network partition detected",
-        "sop": "day2-remediate/infra/remediate-network-partition.md", "value": 1, "threshold": "> 0",
+        "name": "upf_pfcp_loss", "severity": "critical", "source": "demo-trigger",
+        "service_impact": "No new PDU sessions, data plane disrupted",
+        "probable_cause": "[DEMO] UPF pod killed — PFCP association lost with SMF",
+        "sop": "workshop-remediate/remediate-upf-pfcp-loss.md", "value": 0, "threshold": "> 0",
     },
     "hardware": {
-        "name": "hw_thermal_critical", "severity": "critical", "source": "demo-trigger",
-        "service_impact": "Server thermal throttling",
-        "probable_cause": "[DEMO] Simulated Hardware layer fault — CPU temperature critical",
-        "sop": "", "value": 95, "threshold": "> 85",
+        "name": "resource_exhaustion", "severity": "critical", "source": "demo-trigger",
+        "service_impact": "NF pods evicted due to resource pressure",
+        "probable_cause": "[DEMO] Resource hog consuming CPU/memory — NFs starved",
+        "sop": "workshop-remediate/remediate-nf-crashloop.md", "value": 95, "threshold": "> 85",
     },
 }
 
