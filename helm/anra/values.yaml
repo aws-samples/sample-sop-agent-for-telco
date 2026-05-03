@@ -1,0 +1,68 @@
+# ANRA Helm Values — agent only
+replicaCount: 1
+
+image:
+  repository: ""  # Set during deploy: ECR URI
+  tag: latest
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: anra-sa
+  annotations: {}
+
+nodeSelector:
+  role: region
+
+bedrock:
+  region: us-west-2
+  profile: ""
+
+approval:
+  mode: manual
+
+# Site topology
+config:
+  cluster:
+    name: ""
+    context: ""
+    region: us-west-1
+  nodes: []
+  topology:
+    provider: yaml
+  alarmReferences:
+    - alarm-references/generic-5g.json
+
+# Secrets
+secrets:
+  influxdbToken: ""
+  bmcPassword: ""
+
+# External monitoring (URLs only — deploy separately via configs/)
+monitoring:
+  influxdbUrl: ""
+  influxdbOrg: srs
+  influxdbBucket: srsran
+  alertmanagerUrl: ""
+
+# Dashboard
+webui:
+  enabled: true
+  port: 8080
+  service:
+    type: NodePort
+    nodePort: 30080
+
+# Optional AWS ALB Ingress (AWS Load Balancer Controller) — use as origin for Amazon CloudFront.
+# When enabled, switch webui.service.type to ClusterIP unless you need NodePort for other access.
+ingress:
+  enabled: false
+  # Must match the IngressClass installed by AWS Load Balancer Controller (commonly "alb")
+  className: alb
+  # Optional. If empty, a single default rule (ALB DNS only) is used.
+  host: ""
+  # Extra ALB annotations (e.g. certificate-arn, listen-ports) — see docs/CLOUDFRONT.md
+  annotations: {}
+
+ssm:
+  region: us-west-1

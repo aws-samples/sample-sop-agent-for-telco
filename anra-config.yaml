@@ -1,0 +1,55 @@
+# ANRA Site Configuration
+# Fill in during deployment — describes your infrastructure topology.
+# deploy.sh can auto-generate this by discovering SSM instances and prompting for BMC IPs.
+
+cluster:
+  name: site-002-workload
+  context: site-002-workload
+  region: us-west-1
+
+bedrock:
+  region: us-west-2
+  profile: cse-dev-test
+
+monitoring:
+  influxdb_url: http://influxdb.srsran.svc.cluster.local:8086
+  influxdb_token_secret: influx-creds       # K8s Secret name
+  influxdb_org: srs
+  influxdb_bucket: srsran
+  alertmanager_url: ""                       # optional
+
+nodes:
+  - name: dell-worker-1
+    oam_ip: 192.168.31.195
+    ssm_id: mi-0c32a0cb4c4c06fdd
+    bmc:
+      ip: 192.168.30.10
+      type: idrac                            # idrac | ilo | generic-redfish
+      username: root
+      password_secret: bmc-creds             # K8s Secret name, key=password
+    roles: [upf]
+    namespaces: [open5gs]
+
+  - name: dell-worker-2
+    oam_ip: 192.168.31.222
+    ssm_id: mi-026bd2d584e205efb
+    bmc:
+      ip: 192.168.30.11
+      type: idrac
+      username: root
+      password_secret: bmc-creds
+    roles: [du, cu]
+    namespaces: [srsran]
+
+# Topology provider: yaml (single site) | neptune (multi-site scale)
+topology:
+  provider: yaml
+  # endpoint: cloudran-neptune-cluster.cluster-xxx.neptune.amazonaws.com  # uncomment for Neptune
+
+# Alarm reference files to load (vendor-specific)
+alarm_references:
+  - alarm-references/generic-5g.json
+
+# Approval mode: auto (execute immediately) | manual (log only) | gitlab
+approval:
+  mode: auto

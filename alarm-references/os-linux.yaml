@@ -1,0 +1,53 @@
+# OS + PTP Alarm References
+# Covers Linux kernel metrics and PTP timing signals collected via CSE Telegraf / node-exporter.
+
+alarms:
+  high_cpu_steal:
+    severity: warning
+    category: Infrastructure
+    nf_type: OS
+    service_impact: "Hypervisor stealing CPU cycles from workloads — real-time DU scheduling affected"
+    probable_cause: "Noisy neighbor on hypervisor, overcommitted host, or cloud instance throttling"
+    metrics: ["node_cpu_steal_percent"]
+    threshold: "> 5%"
+    sop: "day2-remediate/infra/remediate-os-memory-pressure.md"
+
+  memory_pressure:
+    severity: warning
+    category: Infrastructure
+    nf_type: OS
+    service_impact: "Kernel memory reclaim active — latency spikes, potential OOM kills of 5G NFs"
+    probable_cause: "Workload memory exceeds available RAM, missing resource limits, memory leak"
+    metrics: ["node_pressure_memory_stalled_seconds_total"]
+    threshold: "> 10s stall time"
+    sop: "day2-remediate/infra/remediate-os-memory-pressure.md"
+
+  hugepage_exhaustion:
+    severity: critical
+    category: Infrastructure
+    nf_type: OS
+    service_impact: "DPDK-based UPF cannot allocate hugepages — packet processing stops"
+    probable_cause: "Hugepages not reserved at boot, consumed by other workloads, fragmentation"
+    metrics: ["node_memory_HugePages_Free"]
+    threshold: "== 0"
+    sop: "day2-remediate/infra/remediate-os-memory-pressure.md"
+
+  ptp_offset_drift:
+    severity: critical
+    category: Infrastructure
+    nf_type: Timing
+    service_impact: "TDD frame timing violation — DU scheduling failures, cell degradation or outage"
+    probable_cause: "PTP grandmaster unreachable, NIC timestamping disabled, ptp4l process crashed"
+    metrics: ["ptp_offset_ns"]
+    threshold: "> 1500ns"
+    sop: "day2-remediate/infra/remediate-ptp-drift.md"
+
+  high_swap_usage:
+    severity: warning
+    category: Infrastructure
+    nf_type: OS
+    service_impact: "Swap activity causes unpredictable latency — real-time workloads degraded"
+    probable_cause: "Insufficient RAM, missing memory limits on pods, memory leak"
+    metrics: ["node_memory_SwapFree_bytes", "node_memory_SwapTotal_bytes"]
+    threshold: "< 20% free"
+    sop: "day2-remediate/infra/remediate-os-memory-pressure.md"

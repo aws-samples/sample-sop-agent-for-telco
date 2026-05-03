@@ -1,0 +1,259 @@
+{
+  "du_cpu_overload": {
+    "layer": 3,
+    "depends_on": [
+      "nf_crashloop",
+      "ptp_drift"
+    ],
+    "nf_scope": "per-node",
+    "severity": "critical",
+    "category": "RAN",
+    "nf_type": "O-DU",
+    "service_impact": "DL/UL throughput degradation, late HARQ responses, increased scheduling latency",
+    "probable_cause": "CPU contention from competing workloads, insufficient CPU isolation, missing RT kernel tuning",
+    "metrics": [
+      "du_du_high_mac_dl_0_cpu_usage_percent",
+      "du_du_high_mac_dl_0_max_latency_us",
+      "cells_0_ue_list_0_dl_brate"
+    ],
+    "reaction_procedure": "Check CPU affinity, identify competing processes, verify RT kernel and TuneD profile, adjust cgroup limits",
+    "sop": "day2-remediate/ran/remediate-du-cpu-overload.md"
+  },
+  "du_timing_failure": {
+    "layer": 3,
+    "depends_on": [
+      "amf_gnb_disconnect",
+      "network_partition",
+      "ptp_drift"
+    ],
+    "nf_scope": "per-node",
+    "severity": "critical",
+    "category": "RAN",
+    "nf_type": "O-DU",
+    "service_impact": "Cell outage, UE disconnections, HARQ failures",
+    "probable_cause": "PTP grandmaster unreachable, NIC timestamping disabled, ptp4l process crashed",
+    "metrics": [
+      "cells_0_cell_metrics_error_indication_count",
+      "cells_0_cell_metrics_late_dl_harqs"
+    ],
+    "reaction_procedure": "Check ptp4l status, verify grandmaster connectivity, restart PTP daemon, check NIC hardware timestamping",
+    "sop": "day2-remediate/ran/remediate-du-timing-failure.md"
+  },
+  "du_throughput_drop": {
+    "layer": 3,
+    "depends_on": [
+      "du_cpu_overload",
+      "du_timing_failure",
+      "amf_gnb_disconnect"
+    ],
+    "nf_scope": "per-node",
+    "severity": "warning",
+    "category": "RAN",
+    "nf_type": "O-DU",
+    "service_impact": "Reduced user throughput, SLA breach risk",
+    "probable_cause": "CPU overload, interference, UE channel degradation, PRB exhaustion",
+    "metrics": [
+      "cells_0_ue_list_0_dl_brate",
+      "cells_0_ue_list_0_ul_brate",
+      "cells_0_ue_list_0_cqi"
+    ],
+    "reaction_procedure": "Check CQI trends, verify CPU load, check for interference, review PRB utilization",
+    "sop": "day2-remediate/ran/remediate-du-throughput-drop.md"
+  },
+  "amf_gnb_disconnect": {
+    "layer": 2,
+    "depends_on": [
+      "nf_crashloop",
+      "sbi_mesh_failure",
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC-AMF",
+    "service_impact": "gNB isolated from core, all UEs on cell lose service",
+    "probable_cause": "Network partition, SCTP path failure, AMF crash, firewall rule change",
+    "metrics": [
+      "amf_gnb_connected"
+    ],
+    "reaction_procedure": "Check SCTP connectivity, verify network path, check AMF pod status, review recent config changes",
+    "sop": "day2-remediate/core/remediate-amf-gnb-disconnect.md"
+  },
+  "upf_pfcp_loss": {
+    "layer": 2,
+    "depends_on": [
+      "nf_crashloop",
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC-UPF",
+    "service_impact": "No new PDU sessions, existing sessions may timeout",
+    "probable_cause": "SMF-UPF network path broken, UPF crash, PFCP heartbeat timeout",
+    "metrics": [
+      "upf_pfcp_active",
+      "alarm_upf_heartbeat_lost"
+    ],
+    "reaction_procedure": "Verify SMF-UPF connectivity, check UPF pod status, restart UPF if needed, verify PFCP re-association",
+    "sop": "day2-remediate/core/remediate-upf-pfcp-loss.md"
+  },
+  "nf_crashloop": {
+    "layer": 2,
+    "depends_on": [
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC",
+    "service_impact": "Degraded core network, dependent NFs may fail",
+    "probable_cause": "OOM kill, config error, dependency unavailable, image pull failure",
+    "metrics": [
+      "core_nf_health_pct",
+      "core_nf_running"
+    ],
+    "reaction_procedure": "Check pod events, review logs for crash reason, verify resource limits, check dependencies",
+    "sop": "day2-remediate/core/remediate-nf-crashloop.md"
+  },
+  "sbi_mesh_failure": {
+    "layer": 2,
+    "depends_on": [
+      "nf_crashloop",
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "warning",
+    "category": "Core",
+    "nf_type": "5GC-SCP",
+    "service_impact": "Inter-NF communication degraded, registration/session failures",
+    "probable_cause": "SCP caching stale endpoints, NRF registration expired, DNS resolution failure",
+    "metrics": [
+      "alarm_scp_timeout",
+      "alarm_nrf_nf_missing"
+    ],
+    "reaction_procedure": "Restart SCP to clear cache, verify NRF registrations, check DNS resolution",
+    "sop": "day2-remediate/core/remediate-sbi-mesh-failure.md"
+  },
+  "network_partition": {
+    "layer": 1,
+    "depends_on": [],
+    "nf_scope": "site-wide",
+    "severity": "critical",
+    "category": "Infrastructure",
+    "nf_type": "Transport",
+    "service_impact": "RAN isolated from core, complete service outage for affected cells",
+    "probable_cause": "VPN tunnel down, routing change, firewall rule, physical link failure",
+    "metrics": [
+      "amf_gnb_connected",
+      "alarm_scp_timeout",
+      "core_nf_health_pct"
+    ],
+    "reaction_procedure": "Check VPN tunnel status, verify routing tables, test connectivity, check physical links",
+    "sop": "day2-remediate/infra/remediate-network-partition.md"
+  },
+  "ptp_drift": {
+    "layer": 1,
+    "depends_on": [],
+    "nf_scope": "per-node",
+    "severity": "critical",
+    "category": "Infrastructure",
+    "nf_type": "Timing",
+    "service_impact": "TDD scheduling failure, cell degradation or outage",
+    "probable_cause": "Grandmaster unreachable, NIC timestamping failure, kernel not RT-capable",
+    "metrics": [
+      "cells_0_cell_metrics_error_indication_count"
+    ],
+    "reaction_procedure": "Check ptp4l offset, verify grandmaster, restart PTP daemon, verify RT kernel",
+    "sop": "day2-remediate/infra/remediate-ptp-drift.md"
+  },
+  "amf_registration_failure": {
+    "layer": 2,
+    "depends_on": [
+      "nf_crashloop",
+      "sbi_mesh_failure"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC-AMF",
+    "service_impact": "UEs cannot register, new subscribers rejected",
+    "probable_cause": "AUSF/UDM/UDR auth chain broken, MongoDB down, subscriber not provisioned",
+    "metrics": [
+      "amf_fivegs_amffunction_rm_reginitfail"
+    ],
+    "reaction_procedure": "Check auth chain: AUSF\u2192UDM\u2192UDR\u2192MongoDB. Verify subscriber exists.",
+    "sop": ""
+  },
+  "amf_auth_rejection": {
+    "layer": 2,
+    "depends_on": [
+      "nf_crashloop"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC-AMF",
+    "service_impact": "Authentication failing, UEs rejected",
+    "probable_cause": "Subscriber credentials mismatch, AUSF error, UDR subscription expired",
+    "metrics": [
+      "amf_fivegs_amffunction_amf_authreject"
+    ],
+    "reaction_procedure": "Check subscriber K/OPC in MongoDB, verify AUSF/UDM logs",
+    "sop": ""
+  },
+  "smf_pfcp_failure": {
+    "layer": 2,
+    "depends_on": [
+      "upf_pfcp_loss",
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "critical",
+    "category": "Core",
+    "nf_type": "5GC-SMF",
+    "service_impact": "Cannot establish new PDU sessions",
+    "probable_cause": "UPF unreachable, PFCP association lost, cross-CNI routing broken",
+    "metrics": [
+      "smf_fivegs_smffunction_sm_n4sessionestabfail"
+    ],
+    "reaction_procedure": "Check SMF\u2192UPF PFCP, verify UPF pod, check cross-CNI routing",
+    "sop": "day2-remediate/core/remediate-upf-pfcp-loss.md"
+  },
+  "smf_session_drop": {
+    "layer": 2,
+    "depends_on": [
+      "upf_pfcp_loss",
+      "smf_pfcp_failure"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "warning",
+    "category": "Core",
+    "nf_type": "5GC-SMF",
+    "service_impact": "Active sessions being torn down",
+    "probable_cause": "UPF restart, PFCP re-association, PCF policy error",
+    "metrics": [
+      "smf_fivegs_smffunction_sm_sessionnbr"
+    ],
+    "reaction_procedure": "Check SMF/UPF logs, verify PFCP, check PCF policy errors",
+    "sop": ""
+  },
+  "upf_no_traffic": {
+    "layer": 2,
+    "depends_on": [
+      "upf_pfcp_loss",
+      "network_partition"
+    ],
+    "nf_scope": "per-instance",
+    "severity": "warning",
+    "category": "Core",
+    "nf_type": "5GC-UPF",
+    "service_impact": "No user plane traffic flowing",
+    "probable_cause": "GTP tunnel down, N3 interface issue, no active sessions",
+    "metrics": [
+      "upf_fivegs_ep_n3_gtp_indatapktn3upf"
+    ],
+    "reaction_procedure": "Check UPF sessions, verify GTP tunnel, check N3 interface",
+    "sop": ""
+  }
+}

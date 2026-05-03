@@ -1,0 +1,126 @@
+# Telegraf Deployments — RAN, Core, HW collectors
+# Requires: ConfigMaps with telegraf configs + collector scripts
+# Requires: Secret 'anra-secrets' with key 'influxdb-token'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegraf-ran
+  labels:
+    app.kubernetes.io/component: telegraf-ran
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: telegraf-ran
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: telegraf-ran
+    spec:
+      containers:
+        - name: telegraf
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
+          env:
+            - name: WS_URL
+              value: "GNB_HOST_IP:55555"
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: anra-secrets
+                  key: influxdb-token
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf
+            - name: scripts
+              mountPath: /etc/srs
+      volumes:
+        - name: config
+          configMap:
+            name: telegraf-ran-config
+            items: [{ key: telegraf-ran.conf, path: telegraf.conf }]
+        - name: scripts
+          configMap:
+            name: telegraf-ran-config
+            items: [{ key: ws_adapter.py, path: ws_adapter.py }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegraf-core
+  labels:
+    app.kubernetes.io/component: telegraf-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: telegraf-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: telegraf-core
+    spec:
+      serviceAccountName: anra-sa
+      containers:
+        - name: telegraf
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
+          env:
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: anra-secrets
+                  key: influxdb-token
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf
+            - name: scripts
+              mountPath: /etc/srs
+      volumes:
+        - name: config
+          configMap:
+            name: telegraf-core-config
+            items: [{ key: telegraf-core.conf, path: telegraf.conf }]
+        - name: scripts
+          configMap:
+            name: telegraf-core-config
+            items: [{ key: core_collector.py, path: core_collector.py }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegraf-hw
+  labels:
+    app.kubernetes.io/component: telegraf-hw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: telegraf-hw
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: telegraf-hw
+    spec:
+      containers:
+        - name: telegraf
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
+          env:
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: anra-secrets
+                  key: influxdb-token
+            - name: BMC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: anra-secrets
+                  key: bmc-password
+                  optional: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf
+      volumes:
+        - name: config
+          configMap:
+            name: telegraf-hw-config
+            items: [{ key: telegraf-hw.conf, path: telegraf.conf }]
