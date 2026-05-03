@@ -4,11 +4,13 @@
 **Target:** Full 5G SA stack (UE → gNB → Core → UPF)
 
 ## Overview
-Deploy UERANSIM gNB and UE, validate registration, authentication, PDU session, and IP connectivity. Uses Gradiant's official gnb-ues-values.yaml which matches the 5gSA-values.yaml slice config (SST:1, SD:0x111111).
+Deploy UERANSIM gNB and UE, validate registration, authentication, PDU session, and IP connectivity.
 
 ## Prerequisites
 - 5G Core deployed with 5gSA-values.yaml (all NFs Running)
 - Subscribers pre-registered by populate container (IMSI 999700000000001)
+
+> **CRITICAL: Never restart individual NFs (e.g., AUSF, UDM) during troubleshooting. The SCP caches NF endpoints and individual restarts break the SBI mesh. If anything fails, always do a full nuclear restart: `kubectl delete pods --all -n open5gs && sleep 90`**
 
 ## Steps
 
@@ -24,9 +26,23 @@ NODE_ID=$(kubectl get nodes -o jsonpath='{.items[0].spec.providerID}' | awk -F/ 
 ```
 **Expected**: `SCTP rule added` or `SCTP rule already exists`
 
-> **Critical:** EKS node security groups block SCTP (protocol 132) by default. Without this rule, the gNB SCTP connection to AMF will timeout after 5 minutes. This is the #1 deployment failure for 5G on EKS.
+### Step 3: Nuclear restart Open5GS to ensure clean SBI mesh before UE registration
+```tool: shell
+kubectl delete pods --all -n open5gs && echo "Waiting 90s for SBI mesh to stabilize..." && sleep 90 && kubectl wait --for=condition=ready pod --all -n open5gs --timeout=180s && echo "All NFs ready"
+```
+**Expected**: All pods ready after stabilization
 
-### Step 3: Get AMF pod IP
+> **Why:** The SBI mesh (SCP→NRF→AUSF→UDM→UDR) must be fully converged before UE authentication will work. AUSF returns HTTP 500 if the SBI mesh has stale endpoints. A nuclear restart forces all NFs to re-register with NRF simultaneously.
+
+### Step 4: Verify PFCP association
+```tool: kubectl
+kubectl logs -l app.kubernetes.io/name=smf -n open5gs --tail=10 | grep -i pfcp
+```
+**Expected**: `PFCP associated`
+
+> **If no PFCP:** Wait 30 more seconds and check again. If still missing, repeat Step 3.
+
+### Step 5: Get AMF pod IP
 ```tool: kubectl
 AMF_POD_IP=$(kubectl get pod -n open5gs -l app.kubernetes.io/name=amf -o jsonpath='{.items[0].status.podIP}') && echo "AMF Pod IP: $AMF_POD_IP"
 ```
@@ -34,27 +50,25 @@ AMF_POD_IP=$(kubectl get pod -n open5gs -l app.kubernetes.io/name=amf -o jsonpat
 
 > **Critical:** Use AMF pod IP, NOT ClusterIP service. AWS VPC CNI does not support SCTP for ClusterIP services.
 
-### Step 4: Deploy UERANSIM gNB + UE
+### Step 6: Deploy UERANSIM gNB + UE
 ```tool: shell
 helm upgrade --install ueransim oci://registry-1.docker.io/gradiant/ueransim-gnb --version 0.2.6 --namespace srsran --values https://gradiant.github.io/5g-charts/docs/open5gs-ueransim-gnb/gnb-ues-values.yaml --set amf.ip=$AMF_POD_IP --timeout 120s
 ```
 **Expected**: `STATUS: deployed`
 
-> **Note:** The gnb-ues-values.yaml sets mcc=999, mnc=70, sst=1, sd=0x111111 matching the 5gSA-values.yaml. It also deploys 2 UEs with matching subscriber credentials.
-
-### Step 5: Verify gNB NG Setup
+### Step 7: Verify gNB NG Setup
 ```tool: kubectl
 sleep 20 && kubectl logs deploy/ueransim-ueransim-gnb -n srsran --tail=10
 ```
 **Expected**: `NG Setup procedure is successful`
 
 > **Troubleshooting:**
-> - `SCTP could not connect: Connection timed out` → SCTP SG rule missing (Step 2)
-> - `slice-not-supported` → SD mismatch. Verify both chart used 5gSA-values.yaml and gnb-ues-values.yaml
+> - `SCTP could not connect: Connection timed out` → SCTP SG rule missing (go back to Step 2)
+> - `slice-not-supported` → SD mismatch. Both charts should use gnb-ues-values.yaml and 5gSA-values.yaml which have matching SD:0x111111
 
-### Step 6: Verify UE registration and PDU session
+### Step 8: Verify UE registration and PDU session
 ```tool: kubectl
-sleep 10 && kubectl logs deploy/ueransim-ueransim-gnb-ues -n srsran --tail=15
+sleep 15 && kubectl logs deploy/ueransim-ueransim-gnb-ues -n srsran --tail=15
 ```
 **Expected**:
 - `Initial Registration is successful`
@@ -62,10 +76,11 @@ sleep 10 && kubectl logs deploy/ueransim-ueransim-gnb-ues -n srsran --tail=15
 - `TUN interface[uesimtun0, 10.45.0.x] is up`
 
 > **Troubleshooting:**
-> - `Authentication failure / SQN out of range` → Subscriber keys don't match UE. Re-deploy with matching values files.
+> - `UE_IDENTITY_CANNOT_BE_DERIVED_FROM_NETWORK` → SBI mesh is stale. Do NOT restart individual NFs. Instead: `kubectl delete pods --all -n open5gs && sleep 90` then restart UE pods: `kubectl delete pods --all -n srsran && sleep 20`
+> - `Authentication failure / SQN out of range` → Subscriber keys don't match UE. Both should come from the official values files.
 > - `DNN_NOT_SUPPORTED` → Session slice SD doesn't match subscriber. Both should be 0x111111 from the values files.
 
-### Step 7: Verify IP connectivity
+### Step 9: Verify IP connectivity
 ```tool: kubectl
 kubectl exec deploy/ueransim-ueransim-gnb-ues -n srsran -- ip addr show uesimtun0 2>/dev/null | grep inet
 ```
@@ -79,4 +94,4 @@ echo "=== ALL PODS ===" && kubectl get pods -n open5gs --no-headers | awk '{prin
 
 ## Related SOPs
 - **Previous:** `workshop-deploy/deploy-5g-core.md`
-- **Remediation:** `workshop-remediate/remediate-amf-gnb-disconnect.md`
+- **Remediation:** `workshop-remediate/remediate-nf-crashloop.md`
