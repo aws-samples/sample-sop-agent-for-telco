@@ -22,6 +22,34 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="ANRA", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Basic Auth middleware — required for public-facing deployments
+_AUTH_USER = os.getenv("AUTH_USERNAME", "")
+_AUTH_PASS = os.getenv("AUTH_PASSWORD", "")
+
+if _AUTH_USER and _AUTH_PASS:
+    import base64
+    import secrets
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import Response
+
+    class _BasicAuthMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            if request.url.path in ("/health", "/healthz"):
+                return await call_next(request)
+            auth = request.headers.get("Authorization", "")
+            if auth.startswith("Basic "):
+                try:
+                    decoded = base64.b64decode(auth.split(" ", 1)[1]).decode()
+                    u, p = decoded.split(":", 1)
+                    if secrets.compare_digest(u, _AUTH_USER) and secrets.compare_digest(p, _AUTH_PASS):
+                        return await call_next(request)
+                except Exception:
+                    pass
+            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="ANRA"'}, content="Unauthorized")
+
+    app.add_middleware(_BasicAuthMiddleware)
+    log.info("Basic Auth enabled (user: %s)", _AUTH_USER)
+
 app.include_router(health.router)
 app.include_router(alarms.router)
 app.include_router(nodes.router)
