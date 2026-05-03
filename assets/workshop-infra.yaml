@@ -180,7 +180,7 @@ Resources:
               - ""
               - "# Phase 2: Clone repo + install deps"
               - "mkdir -p $HOME/environment && cd $HOME/environment"
-              - "git clone $REPO workshop"
+              - "git clone -b workshop $REPO workshop"
               - "python3.11 -m pip install -r workshop/requirements.txt"
               - ""
               - "echo REPO_CLONED > $STATUS"

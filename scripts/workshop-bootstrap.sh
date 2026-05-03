@@ -7,6 +7,7 @@ exec > /var/log/workshop-bootstrap.log 2>&1
 HOME=/home/ec2-user
 STATUS=$HOME/.workshop-status
 REPO="https://github.com/aws-samples/sample-sop-agent-for-telco.git"
+BRANCH="workshop"
 BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 
 echo "BOOTSTRAPPING" > $STATUS
@@ -31,7 +32,7 @@ echo "TOOLS_INSTALLED" > $STATUS
 
 # ── Phase 2: Clone repo + install deps ──
 mkdir -p $HOME/environment && cd $HOME/environment
-git clone "$REPO" workshop
+git clone -b "$BRANCH" "$REPO" workshop
 python3.11 -m pip install -r workshop/requirements.txt
 
 echo "REPO_CLONED" > $STATUS
