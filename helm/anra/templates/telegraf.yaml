@@ -1,0 +1,93 @@
+{{- if .Values.monitoring.telegraf.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegraf-core-config
+data:
+  telegraf-core.conf: |
+    [agent]
+      interval = "30s"
+      flush_interval = "30s"
+
+    [[outputs.influxdb_v2]]
+      urls = ["http://influxdb.{{ .Release.Namespace }}.svc:8086"]
+      token = "{{ .Values.monitoring.influxdb.token | default "anra-workshop-token" }}"
+      organization = "{{ .Values.monitoring.influxdb.org | default "anra" }}"
+      bucket = "{{ .Values.monitoring.influxdb.bucket | default "metrics" }}"
+
+    [[inputs.exec]]
+      commands = ["python3 /etc/telegraf/core_collector.py"]
+      timeout = "25s"
+      data_format = "influx"
+      interval = "30s"
+  core_collector.py: |
+    #!/usr/bin/env python3
+    """Collect Open5GS NF pod metrics via kubectl."""
+    import subprocess, json, sys
+
+    def run(cmd):
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+        return r.stdout.strip()
+
+    # Pod status metrics
+    pods = run("kubectl get pods -n open5gs --no-headers 2>/dev/null")
+    total = running = restarts = 0
+    for line in pods.split("\n"):
+        if not line.strip():
+            continue
+        parts = line.split()
+        total += 1
+        if len(parts) >= 3 and parts[2] == "Running":
+            running += 1
+        if len(parts) >= 4:
+            try:
+                restarts += int(parts[3])
+            except ValueError:
+                pass
+
+    print(f"core_network,namespace=open5gs pods_total={total}i,pods_running={running}i,pods_not_running={total-running}i,total_restarts={restarts}i")
+
+    # PFCP status
+    pfcp = run("kubectl logs -l app.kubernetes.io/name=smf -n open5gs --tail=5 2>/dev/null | grep -c 'PFCP associated' || echo 0")
+    print(f"core_network,namespace=open5gs,nf=smf pfcp_associated={'1' if int(pfcp) > 0 else '0'}i")
+
+    # AMF connections
+    amf_gnb = run("kubectl logs -l app.kubernetes.io/name=amf -n open5gs --tail=20 2>/dev/null | grep -c 'gNB-N2 accepted' || echo 0")
+    print(f"core_network,namespace=open5gs,nf=amf gnb_connections={amf_gnb}i")
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegraf-core
+  labels:
+    app: telegraf-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telegraf-core
+  template:
+    metadata:
+      labels:
+        app: telegraf-core
+    spec:
+      serviceAccountName: {{ include "anra.serviceAccountName" . }}
+      containers:
+      - name: telegraf
+        image: telegraf:1.35
+        command: ["telegraf", "--config", "/etc/telegraf/telegraf-core.conf"]
+        volumeMounts:
+        - name: config
+          mountPath: /etc/telegraf
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: config
+        configMap:
+          name: telegraf-core-config
+{{- end }}

@@ -38,11 +38,22 @@ secrets:
   influxdbToken: ""
   bmcPassword: ""
 
-# External monitoring (URLs only — deploy separately via configs/)
+# Monitoring stack (deployed alongside ANRA when enabled)
+# For production, replace with managed services:
+#   - InfluxDB → Amazon Timestream for InfluxDB
+#   - Telegraf → Amazon CloudWatch Container Insights
+#   - Grafana → Amazon Managed Grafana
 monitoring:
-  influxdbUrl: ""
-  influxdbOrg: srs
-  influxdbBucket: srsran
+  influxdb:
+    enabled: true
+    org: anra
+    bucket: metrics
+    token: anra-workshop-token
+  telegraf:
+    enabled: true
+  influxdbUrl: "http://influxdb:8086"
+  influxdbOrg: anra
+  influxdbBucket: metrics
   alertmanagerUrl: ""
 
 # Dashboard

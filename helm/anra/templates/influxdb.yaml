@@ -1,0 +1,55 @@
+{{- if .Values.monitoring.influxdb.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: influxdb
+  labels:
+    app: influxdb
+spec:
+  serviceName: influxdb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influxdb
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+      - name: influxdb
+        image: influxdb:2.7
+        ports:
+        - containerPort: 8086
+        env:
+        - name: DOCKER_INFLUXDB_INIT_MODE
+          value: setup
+        - name: DOCKER_INFLUXDB_INIT_USERNAME
+          value: admin
+        - name: DOCKER_INFLUXDB_INIT_PASSWORD
+          value: adminadmin
+        - name: DOCKER_INFLUXDB_INIT_ORG
+          value: {{ .Values.monitoring.influxdb.org | default "anra" }}
+        - name: DOCKER_INFLUXDB_INIT_BUCKET
+          value: {{ .Values.monitoring.influxdb.bucket | default "metrics" }}
+        - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+          value: {{ .Values.monitoring.influxdb.token | default "anra-workshop-token" }}
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdb
+spec:
+  selector:
+    app: influxdb
+  ports:
+  - port: 8086
+    targetPort: 8086
+{{- end }}
