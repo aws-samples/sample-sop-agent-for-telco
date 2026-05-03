@@ -71,7 +71,7 @@ spec:
       labels:
         app: telegraf-core
     spec:
-      serviceAccountName: {{ include "anra.serviceAccountName" . }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "anra-sa" }}
       containers:
       - name: telegraf
         image: telegraf:1.35
