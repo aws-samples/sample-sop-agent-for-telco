@@ -40,7 +40,16 @@ kubectl logs -l app.kubernetes.io/name=smf -n open5gs --tail=10 | grep -i pfcp
 ```
 **Expected**: `PFCP associated`
 
-### Step 5: Get AMF pod IP (MUST be after nuclear restart — pods have new IPs)
+### Step 5: Re-register subscribers with correct format
+The populate container uses `open5gs-dbctl` which creates subscriber records that may be missing fields AUSF needs. Re-insert subscribers manually with the full document format:
+```tool: shell
+MONGO=$(kubectl get pods -l app.kubernetes.io/name=mongodb -n open5gs --no-headers | grep Running | awk '{print $1}') && kubectl exec $MONGO -n open5gs -- mongosh open5gs --quiet --eval 'db.subscribers.deleteMany({}); db.subscribers.insertOne({"imsi":"999700000000001","msisdn":[],"security":{"k":"465B5CE8B199B49FAA5F0A2EE238A6BC","amf":"8000","op":null,"opc":"E8ED289DEBA952E4283B54E88E6183CA"},"ambr":{"downlink":{"value":1,"unit":3},"uplink":{"value":1,"unit":3}},"slice":[{"sst":1,"sd":"111111","default_indicator":true,"session":[{"name":"internet","type":3,"ambr":{"downlink":{"value":1,"unit":3},"uplink":{"value":1,"unit":3}},"qos":{"index":9,"arp":{"priority_level":8,"pre_emption_capability":1,"pre_emption_vulnerability":1}}}]}]}); db.subscribers.insertOne({"imsi":"999700000000002","msisdn":[],"security":{"k":"465B5CE8B199B49FAA5F0A2EE238A6BC","amf":"8000","op":null,"opc":"E8ED289DEBA952E4283B54E88E6183CA"},"ambr":{"downlink":{"value":1,"unit":3},"uplink":{"value":1,"unit":3}},"slice":[{"sst":1,"sd":"111111","default_indicator":true,"session":[{"name":"internet","type":3,"ambr":{"downlink":{"value":1,"unit":3},"uplink":{"value":1,"unit":3}},"qos":{"index":9,"arp":{"priority_level":8,"pre_emption_capability":1,"pre_emption_vulnerability":1}}}]}]}); print("Subscribers: " + db.subscribers.countDocuments())'
+```
+**Expected**: `Subscribers: 2`
+
+> **Why:** The `open5gs-dbctl add_ue_with_slice` tool creates a minimal subscriber record. The manual insert includes all required fields (ambr, qos, arp) that AUSF/UDM need for authentication. Without these, AUSF returns HTTP 500.
+
+### Step 6: Get AMF pod IP (MUST be after nuclear restart — pods have new IPs)
 ```tool: kubectl
 AMF_POD_IP=$(kubectl get pod -n open5gs -l app.kubernetes.io/name=amf -o jsonpath='{.items[0].status.podIP}') && echo "AMF Pod IP: $AMF_POD_IP"
 ```
@@ -48,20 +57,20 @@ AMF_POD_IP=$(kubectl get pod -n open5gs -l app.kubernetes.io/name=amf -o jsonpat
 
 > **Critical:** This MUST be done AFTER the nuclear restart in Step 3. The restart creates new pods with new IPs. Using a stale AMF IP will cause the gNB SCTP connection to be terminated.
 
-### Step 6: Verify gNB and UE configs before deploying
+### Step 7: Verify gNB and UE configs before deploying
 Check that the gnb-ues-values.yaml has correct slice config and credentials:
 ```tool: shell
 curl -s https://gradiant.github.io/5g-charts/docs/open5gs-ueransim-gnb/gnb-ues-values.yaml | grep -E "mcc|mnc|sst|sd|key|opc|supi"
 ```
 **Expected**: mcc=999, mnc=70, sst=1, sd=0x111111, key and opc matching subscriber in MongoDB
 
-### Step 7: Deploy UERANSIM gNB + UE
+### Step 8: Deploy UERANSIM gNB + UE
 ```tool: shell
 helm upgrade --install ueransim oci://registry-1.docker.io/gradiant/ueransim-gnb --version 0.2.6 --namespace srsran --values https://gradiant.github.io/5g-charts/docs/open5gs-ueransim-gnb/gnb-ues-values.yaml --set amf.ip=$AMF_POD_IP --timeout 120s
 ```
 **Expected**: `STATUS: deployed`
 
-### Step 8: Verify gNB NG Setup
+### Step 9: Verify gNB NG Setup
 ```tool: kubectl
 sleep 20 && kubectl logs deploy/ueransim-ueransim-gnb -n srsran --tail=10
 ```
@@ -71,7 +80,7 @@ sleep 20 && kubectl logs deploy/ueransim-ueransim-gnb -n srsran --tail=10
 > - `SCTP could not connect` → SG rule missing (Step 2) or AMF IP is stale (redo Step 5)
 > - `slice-not-supported` → SD mismatch between gNB and AMF config
 
-### Step 9: Verify UE registration and PDU session
+### Step 10: Verify UE registration and PDU session
 ```tool: kubectl
 sleep 15 && kubectl logs deploy/ueransim-ueransim-gnb-ues -n srsran --tail=15
 ```
@@ -84,7 +93,7 @@ sleep 15 && kubectl logs deploy/ueransim-ueransim-gnb-ues -n srsran --tail=15
 > - `UE_IDENTITY_CANNOT_BE_DERIVED_FROM_NETWORK` → SBI mesh is stale. Do NOT restart individual NFs. Nuclear restart: `kubectl delete pods --all -n open5gs && sleep 90` then `kubectl delete pods --all -n srsran && sleep 20`
 > - `no cells in coverage` → gNB lost AMF connection. AMF IP may have changed. Redo Steps 3-7.
 
-### Step 10: Verify IP connectivity
+### Step 11: Verify IP connectivity
 ```tool: kubectl
 kubectl exec deploy/ueransim-ueransim-gnb-ues -n srsran -- ip addr show uesimtun0 2>/dev/null | grep inet
 ```
