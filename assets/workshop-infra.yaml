@@ -222,7 +222,7 @@ Resources:
               - ""
               - "# Phase 7: Setup ec2-user environment"
               - "echo 'export KUBECONFIG=$HOME/.kube/config' >> $HOME/.bashrc"
-              - "echo 'export PYTHONPATH=$HOME/environment/workshop/agent' >> $HOME/.bashrc"
+              - "echo 'export PYTHONPATH=$HOME/environment/workshop/agent:$HOME/environment/workshop/evals' >> $HOME/.bashrc"
               - "echo 'alias sop=\"python3.11 -m agent.sop_executor --fix --yes\"' >> $HOME/.bashrc"
               - "echo 'alias k=kubectl' >> $HOME/.bashrc"
               - "echo 'cd ~/environment/workshop' >> $HOME/.bashrc"

@@ -8,6 +8,7 @@ HOME=/home/ec2-user
 STATUS=$HOME/.workshop-status
 REPO="https://github.com/aws-samples/sample-sop-agent-for-telco.git"
 BRANCH="workshop"
+BRANCH="workshop"
 BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 
 echo "BOOTSTRAPPING" > $STATUS
@@ -83,7 +84,7 @@ done
 # ── Phase 7: Setup ec2-user environment ──
 cat >> $HOME/.bashrc <<'BASHEOF'
 export KUBECONFIG=$HOME/.kube/config
-export PYTHONPATH=$HOME/environment/workshop/agent
+export PYTHONPATH=$HOME/environment/workshop/agent:$HOME/environment/workshop/evals
 alias sop="python3.11 -m agent.sop_executor --fix --yes"
 alias k=kubectl
 cd ~/environment/workshop
