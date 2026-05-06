@@ -7,10 +7,12 @@ unit-tests:
   before_script:
     - pip install --no-cache-dir pytest pytest-mock pytest-asyncio fastapi httpx boto3 requests aiofiles strands-agents strands-agents-builder strands-agents-evals python-docx PyPDF2 || true
   script:
-    - if [ -d tests/ ]; then python -m pytest tests/ -v --tb=short --junitxml=report.xml; else echo "No tests directory — skipping"; fi
+    - if [ -d tests/ ]; then python -m pytest tests/ -v --tb=short --junitxml=report.xml; else echo "No tests directory — skipping" && exit 0; fi
   artifacts:
     reports:
       junit: report.xml
-    when: always
+    when: on_success
+    expire_in: 1 week
+  allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
