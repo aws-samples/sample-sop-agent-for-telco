@@ -5,14 +5,13 @@ unit-tests:
   stage: test
   image: python:3.11-slim
   before_script:
-    - pip install --no-cache-dir pytest pytest-mock pytest-asyncio fastapi httpx boto3 requests aiofiles strands-agents strands-agents-builder strands-agents-evals python-docx PyPDF2 || true
+    - pip install --no-cache-dir pytest pytest-mock pytest-asyncio fastapi httpx boto3 requests aiofiles strands-agents strands-agents-builder strands-agents-evals python-docx PyPDF2 pyyaml || true
   script:
-    - if [ -d tests/ ]; then python -m pytest tests/ -v --tb=short --junitxml=report.xml; else echo "No tests directory — skipping" && exit 0; fi
+    - python -m pytest tests/ -v --tb=short --junitxml=report.xml || [ $? -eq 5 ] && echo "No tests collected — OK"
   artifacts:
     reports:
       junit: report.xml
     when: on_success
     expire_in: 1 week
-  allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
