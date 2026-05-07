@@ -4,7 +4,7 @@ stages:
 
 unit-tests:
   stage: test
-  image: python:3.11-slim
+  image: public.ecr.aws/docker/library/python:3.11-slim
   before_script:
     - pip install --no-cache-dir pytest pytest-mock pytest-asyncio fastapi httpx boto3 requests aiofiles strands-agents strands-agents-builder strands-agents-evals python-docx PyPDF2 pyyaml || true
   script:
