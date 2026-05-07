@@ -305,7 +305,7 @@ def describe_node() -> str:
 
 
 @tool
-def ssh_command(host: str, command: str, user: str = os.getenv("SSH_DEFAULT_USER", "nec"), timeout: int = 30) -> str:
+def ssh_command(host: str, command: str, user: str = os.getenv("SSH_DEFAULT_USER", "ec2-user"), timeout: int = 30) -> str:
     """Execute a command on remote host via SSH.
 
     Args:
@@ -329,7 +329,7 @@ def ssh_expect(
     start_cmd: str,
     prompt: str,
     commands: str,
-    user: str = os.getenv("SSH_DEFAULT_USER", "nec"),
+    user: str = os.getenv("SSH_DEFAULT_USER", "ec2-user"),
     timeout: int = 120,
 ) -> str:
     """Run interactive commands on remote host using expect.
@@ -570,9 +570,9 @@ def telcocli(command: str) -> str:
     - 'describe-outpost --outpost-id <id> --include-capacity --include-hosts' for details
     - 'health' for system health check
     - 'analyze-dedicated-hosts' for host utilization
-    Always include '--profile nec --region us-east-1' in the command."""
+    Always include '--profile default --region $AWS_DEFAULT_REGION' in the command."""
     tool_call("telcocli", command)
-    result = run_cmd(f"telcocli --profile nec --region us-east-1 {command}")
+    result = run_cmd(f"telcocli --profile default --region $AWS_DEFAULT_REGION {command}")
     tool_result(result.stdout[:200] if result.success else "Failed", result.success)
     return result.output
 

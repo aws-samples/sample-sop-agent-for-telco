@@ -61,8 +61,9 @@ webui:
   enabled: true
   port: 8080
   service:
-    type: NodePort
-    nodePort: 30080
+    type: LoadBalancer
+    # Internal LB prevents Epoxy auto-mitigation of public endpoints
+    # Access via SSM port-forwarding from jump host
 
 # Optional AWS ALB Ingress (AWS Load Balancer Controller) — use as origin for Amazon CloudFront.
 # When enabled, switch webui.service.type to ClusterIP unless you need NodePort for other access.

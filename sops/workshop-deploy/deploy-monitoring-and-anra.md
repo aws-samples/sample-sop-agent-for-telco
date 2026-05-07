@@ -32,11 +32,13 @@ kubectl get pods -n anra --no-headers | awk '{print $1, $3}' | column -t
 ```
 **Expected**: anra, influxdb, telegraf-core all Running
 
-### Step 4: Expose ANRA dashboard
+### Step 4: Verify service is internal LoadBalancer
 ```tool: kubectl
-kubectl patch svc anra -n anra -p '{"spec":{"type":"LoadBalancer"}}'
+kubectl get svc anra -n anra -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-internal}' && echo " (internal)"
 ```
-**Expected**: Service patched
+**Expected**: `true (internal)`
+
+> **Note:** The Helm chart creates an internal LoadBalancer by default. Access the dashboard via SSM port-forwarding from the jump host.
 
 ### Step 5: Get dashboard URL
 ```tool: shell

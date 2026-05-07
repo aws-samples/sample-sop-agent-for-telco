@@ -5,6 +5,10 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "anra.labels" . | nindent 4 }}
+  {{- if eq .Values.webui.service.type "LoadBalancer" }}
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+  {{- end }}
 spec:
   type: {{ .Values.webui.service.type }}
   ports:
