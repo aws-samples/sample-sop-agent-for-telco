@@ -19,7 +19,9 @@ unit-tests:
 
 e2e-test:
   stage: e2e
-  image: amazon/aws-cli:latest
+  image:
+    name: amazon/aws-cli:latest
+    entrypoint: ["/bin/sh", "-c"]
   variables:
     INSTANCE_ID: "i-0c3f7845dda89605d"
     AWS_REGION: "ap-northeast-3"
