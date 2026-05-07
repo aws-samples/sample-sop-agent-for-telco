@@ -9,10 +9,12 @@ set -o pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 SKIP_DEPLOY=false
+CLEANUP=false
 SKIP_TEARDOWN=false
 for arg in "$@"; do
   case $arg in
     --skip-deploy) SKIP_DEPLOY=true ;;
+    --cleanup) CLEANUP=true ;;
     --skip-teardown) SKIP_TEARDOWN=true ;;
   esac
 done
@@ -76,3 +78,16 @@ echo "Pass: $PASS  Fail: $FAIL"
 echo "E2E Test Completed: $(date -u)"
 
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1
+
+# Cleanup Helm releases (not infra) for next run
+if [ "$CLEANUP" = true ]; then
+  echo ""
+  echo "=========================================="
+  echo "CLEANUP (Helm releases only, keeping EKS)"
+  echo "=========================================="
+  helm uninstall anra -n anra 2>/dev/null
+  helm uninstall ueransim -n srsran 2>/dev/null
+  helm uninstall open5gs -n open5gs 2>/dev/null
+  kubectl delete ns anra srsran open5gs --ignore-not-found --wait=false
+  echo "Cleanup complete — cluster ready for next run"
+fi
