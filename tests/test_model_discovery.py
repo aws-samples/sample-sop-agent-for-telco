@@ -1,23 +1,24 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Unit tests for model_discovery module."""
-import pytest
-from unittest.mock import MagicMock, patch, call
-from botocore.exceptions import ClientError
-
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from botocore.exceptions import ClientError
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "sop-agent"))
 
 from model_discovery import (
+    _CANDIDATE_MODELS,
+    _LEGACY_KEY_TO_TIER,
+    DiscoveredModels,
+    _cache,
+    _probe_model,
     discover_models,
     get_model_id,
     resolve_model_key,
-    DiscoveredModels,
-    _probe_model,
-    _CANDIDATE_MODELS,
-    _LEGACY_KEY_TO_TIER,
-    _cache,
 )
 
 

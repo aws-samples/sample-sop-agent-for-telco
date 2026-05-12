@@ -2,24 +2,25 @@
 # SPDX-License-Identifier: MIT-0
 #!/usr/bin/env python3
 """FastAPI backend for SOP Executor with WebSocket support."""
-import os
-import sys
-import io
 import asyncio
+import io
 import json
-import time as _time
-import threading
+import logging
+import os
+import re
 import secrets
+import subprocess
+import sys
+import threading
+import time as _time
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List, Optional
-from datetime import datetime
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Depends, status
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
-import subprocess
-import re
-import logging
+
 
 class _RunIdFilter(logging.Filter):
     """Injects run_id into every log record for correlation."""
@@ -37,10 +38,20 @@ logging.getLogger().addFilter(_run_id_filter)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import execution state management
-from execution_state import execution_state, AgentStatus, ExecutionHistory
 from dataclasses import asdict
 
-from config import SOP_REPO, BEDROCK_PROFILE, BEDROCK_REGION, BEDROCK_MODEL, API_KEY, CORS_ORIGINS, AMP_WORKSPACE_URL, LOG_LEVEL, APP_NAMESPACE, APP_SERVICE_LABEL, SLACK_EXECUTION_WEBHOOK, AUTH_USERNAME, AUTH_PASSWORD
+from config import (
+    AMP_WORKSPACE_URL,
+    AUTH_PASSWORD,
+    AUTH_USERNAME,
+    BEDROCK_MODEL,
+    BEDROCK_PROFILE,
+    BEDROCK_REGION,
+    CORS_ORIGINS,
+    SLACK_EXECUTION_WEBHOOK,
+    SOP_REPO,
+)
+from execution_state import AgentStatus, ExecutionHistory, execution_state
 
 security = HTTPBasic()
 
@@ -55,6 +66,7 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 from contextlib import asynccontextmanager
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -93,7 +105,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi import Request
 
 # Health endpoint without auth (for k8s probes)
 @app.get("/health")
@@ -145,7 +156,7 @@ class EventBuffer:
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -167,17 +178,16 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 event_buffer = EventBuffer()
-_graph_task: Optional[asyncio.Task] = None
+_graph_task: asyncio.Task | None = None
 
-from execution_state import execution_state, AgentStatus
-from execution_logger import ExecutionLogger, list_executions, get_execution, get_eval_history
+from execution_logger import ExecutionLogger, get_eval_history, get_execution, list_executions
 
 # Import graph orchestrator (sop-agent directory)
 _graph_agent_dir = str(Path(__file__).parent.parent.parent / "sop-agent")
 if _graph_agent_dir not in sys.path:
     sys.path.insert(0, _graph_agent_dir)
 try:
-    from sop_graph import build_sop_graph, build_eval_loop
+    from sop_graph import build_eval_loop, build_sop_graph
 except ImportError:
     logging.warning("sop_graph not available — graph execution disabled")
     build_sop_graph = build_eval_loop = None
@@ -195,7 +205,7 @@ async def get_sop_history(sop_name: str):
     history = execution_state.get_sop_history(sop_name)
     if not history and not sop_name.endswith('.md'):
         history = execution_state.get_sop_history(f"{sop_name}.md")
-    
+
     if history:
         result = asdict(history)
         result['status'] = history.status.value
@@ -221,13 +231,13 @@ async def api_eval_history(sop_stem: str):
     """Get eval score history for a specific SOP across runs."""
     return get_eval_history(sop_stem)
 
-@app.get("/api/sops", response_model=List[SOPFile], dependencies=[Depends(verify_credentials)])
+@app.get("/api/sops", response_model=list[SOPFile], dependencies=[Depends(verify_credentials)])
 async def list_sops():
     """List all available SOPs."""
     sop_dir = Path(SOP_REPO) / "sops"
     if not sop_dir.exists():
         sop_dir = Path(SOP_REPO)
-    
+
     sops = []
     for f in sorted(sop_dir.glob("*.md")):
         if not f.name.startswith("archive"):
@@ -261,11 +271,11 @@ async def create_sop(name: str, content: str = "# New SOP\n\n## Description\n\nA
     """Create a new SOP."""
     if not name.endswith('.md'):
         name += '.md'
-    
+
     sop_path = Path(SOP_REPO) / "sops" / name
     if sop_path.exists():
         raise HTTPException(status_code=400, detail="SOP already exists")
-    
+
     sop_path.write_text(content)
     return {"status": "created", "path": str(sop_path), "name": name}
 
@@ -353,10 +363,10 @@ async def generate_sop(file: UploadFile = File(...)):
 def _generate_sop_with_agent(source_text: str, filename: str) -> str:
     """Use Strands Agent + strands-agents-sops format rule to convert a document into an SOP."""
     try:
+        import boto3
         from strands import Agent
         from strands.models.bedrock import BedrockModel
         from strands_agents_sops import get_sop_format
-        import boto3
 
         # Read one existing SOP as a reference for our format
         ref_path = Path(SOP_REPO) / "sops" / "05-validation.md"
@@ -433,11 +443,12 @@ def _fetch_metrics_sync():
     """Blocking metrics fetch — runs in background thread."""
     amp_workspace_url = AMP_WORKSPACE_URL
     try:
+        from urllib.parse import urlencode
+
         import boto3
+        import requests as req_lib
         from botocore.auth import SigV4Auth
         from botocore.awsrequest import AWSRequest
-        import requests as req_lib
-        from urllib.parse import urlencode
 
         session = boto3.Session(region_name="us-east-1")
         credentials = session.get_credentials()
@@ -556,14 +567,12 @@ async def get_corrections():
 @app.get("/api/alarms", dependencies=[Depends(verify_credentials)])
 async def get_alarms():
     """Get alarms from Alertmanager."""
-    from datetime import timezone
-    import shlex
     try:
         cmd = ["kubectl", "exec", "-n", "monitoring", "prometheus-kube-prometheus-stack-prometheus-0", "--",
                "wget", "-qO-", "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts"]
         result = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL, timeout=5)
         data = json.loads(result)
-        
+
         alarms = []
         for idx, alert in enumerate(data, 1):
             if alert.get("status", {}).get("state") != "active":
@@ -574,19 +583,19 @@ async def get_alarms():
             alertname = labels.get("alertname", "Unknown Alert")
             summary = annotations.get("summary", annotations.get("description", "")[:100])
             message = f"{alertname}: {summary}" if summary else alertname
-            
+
             time_str = "now"
             starts_at = alert.get("startsAt", "")
             if starts_at:
                 try:
                     start_time = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-                    minutes = int((datetime.now(timezone.utc) - start_time).total_seconds() / 60)
+                    minutes = int((datetime.now(UTC) - start_time).total_seconds() / 60)
                     if minutes > 1440:  # skip alarms older than 24h
                         continue
                     time_str = f"{minutes}m ago" if minutes < 60 else f"{minutes // 60}h ago"
                 except:
                     pass
-            
+
             alarms.append({"id": idx, "priority": severity, "message": message, "time": time_str})
         return alarms
     except Exception as e:
@@ -953,7 +962,7 @@ async def execute_graph(websocket: WebSocket):
             try:
                 # Wait for client messages (ping/close). Timeout keeps us checking task status.
                 msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Check if execution finished while we were waiting
                 if _graph_task is None or _graph_task.done():
                     break
@@ -975,7 +984,10 @@ async def execute_graph(websocket: WebSocket):
 async def chat_websocket(websocket: WebSocket):
     """WebSocket endpoint for AI chat powered by Amazon Bedrock with tool use."""
     await websocket.accept()
-    import boto3, json as _json, subprocess as _sp
+    import json as _json
+    import subprocess as _sp
+
+    import boto3
     session = boto3.Session(profile_name=BEDROCK_PROFILE, region_name=BEDROCK_REGION)
     bedrock = session.client('bedrock-runtime')
     system_prompt = (
@@ -1095,8 +1107,8 @@ async def chat_websocket(websocket: WebSocket):
 # Serve frontend static files (for Docker deployment)
 _dist_dir = Path(__file__).parent.parent / "frontend" / "dist"
 if _dist_dir.exists():
-    from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
     app.mount("/assets", StaticFiles(directory=str(_dist_dir / "assets")), name="assets")
     # Serve static files from dist root (images, slides, etc.)
     for _f in _dist_dir.iterdir():

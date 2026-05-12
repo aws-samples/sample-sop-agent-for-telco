@@ -12,11 +12,10 @@ Usage:
     model_id = get_model_id("fast")    # Returns best available for tier
 """
 
-import os
 import logging
+import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
 import boto3
 
@@ -47,17 +46,17 @@ _CANDIDATE_MODELS = [
 @dataclass
 class DiscoveredModels:
     """Result of model discovery — the best available model per tier."""
-    fast: Optional[str] = None
-    fast_name: Optional[str] = None
-    balanced: Optional[str] = None
-    balanced_name: Optional[str] = None
-    powerful: Optional[str] = None
-    powerful_name: Optional[str] = None
+    fast: str | None = None
+    fast_name: str | None = None
+    balanced: str | None = None
+    balanced_name: str | None = None
+    powerful: str | None = None
+    powerful_name: str | None = None
     all_available: list = field(default_factory=list)
     discovery_time_ms: int = 0
     region: str = ""
 
-    def get(self, tier: str) -> Optional[str]:
+    def get(self, tier: str) -> str | None:
         """Get model ID for a tier, with fallback chain: powerful→balanced→fast."""
         if tier == "powerful":
             return self.powerful or self.balanced or self.fast
@@ -85,8 +84,8 @@ _cache = {}  # type: Dict[str, DiscoveredModels]
 
 
 def discover_models(
-    boto_session: Optional[boto3.Session] = None,
-    region: Optional[str] = None,
+    boto_session: boto3.Session | None = None,
+    region: str | None = None,
     force: bool = False,
 ) -> DiscoveredModels:
     """Probe Bedrock to find the best available model per tier.
@@ -198,12 +197,12 @@ def _probe_model(client, model_id: str) -> bool:
         return False
 
 
-def get_models(boto_session: Optional[boto3.Session] = None, region: Optional[str] = None) -> DiscoveredModels:
+def get_models(boto_session: boto3.Session | None = None, region: str | None = None) -> DiscoveredModels:
     """Get discovered models (cached). Alias for discover_models()."""
     return discover_models(boto_session=boto_session, region=region)
 
 
-def get_model_id(tier: str = "balanced", boto_session: Optional[boto3.Session] = None, region: Optional[str] = None) -> str:
+def get_model_id(tier: str = "balanced", boto_session: boto3.Session | None = None, region: str | None = None) -> str:
     """Get the best available model ID for a tier.
 
     Args:
@@ -239,7 +238,7 @@ _LEGACY_KEY_TO_TIER = {
 }
 
 
-def resolve_model_key(key: str, boto_session: Optional[boto3.Session] = None, region: Optional[str] = None) -> str:
+def resolve_model_key(key: str, boto_session: boto3.Session | None = None, region: str | None = None) -> str:
     """Resolve a legacy model key (haiku, sonnet, opus) to an actual model ID.
 
     Supports both legacy keys and direct model IDs (pass-through).

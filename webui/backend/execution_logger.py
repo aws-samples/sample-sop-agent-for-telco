@@ -7,12 +7,12 @@ Tracks per-node: tool calls (name, args, result, duration), token usage,
 eval scores with reasons, errors, and graph flow (batches, handoffs).
 """
 import json
+import logging
 import os
 import time
-import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class ExecutionLogger:
             "output_summary": None,
         })
 
-    def tool_call(self, node_id: str, tool_name: str, tool_input: Optional[str] = None):
+    def tool_call(self, node_id: str, tool_name: str, tool_input: str | None = None):
         node = self.record["nodes"].get(node_id)
         if not node:
             return
@@ -78,7 +78,7 @@ class ExecutionLogger:
             tc["duration_ms"] = int((time.time() - tc["start_time"]) * 1000)
 
     def node_complete(self, node_id: str, status: str, execution_time_ms: int = 0,
-                      token_usage: Optional[dict] = None, output_summary: Optional[str] = None):
+                      token_usage: dict | None = None, output_summary: str | None = None):
         node = self.record["nodes"].get(node_id)
         if not node:
             return
@@ -89,7 +89,7 @@ class ExecutionLogger:
         node["output_summary"] = (output_summary or "")[:2000]
 
     def eval_score(self, node_id: str, evaluator: str, score: float, passed: bool,
-                   reason: str, budget: Optional[dict] = None):
+                   reason: str, budget: dict | None = None):
         node = self.record["nodes"].get(node_id)
         if not node:
             return
@@ -119,7 +119,7 @@ class ExecutionLogger:
             "result": result,
         })
 
-    def add_error(self, error: str, node_id: Optional[str] = None):
+    def add_error(self, error: str, node_id: str | None = None):
         self.record["errors"].append({
             "timestamp": datetime.now().isoformat(),
             "node_id": node_id,
@@ -141,7 +141,7 @@ class ExecutionLogger:
             "failures_addressed": [f.get("reason", "")[:200] for f in failures],
         }
 
-    def complete(self, status: str, node_states: Optional[dict] = None):
+    def complete(self, status: str, node_states: dict | None = None):
         self.record["end_time"] = datetime.now().isoformat()
         self.record["status"] = status
         self.record["duration_s"] = round(time.time() - self.start_time, 1)
@@ -202,7 +202,7 @@ def list_executions(limit: int = 50) -> list[dict]:
     return records
 
 
-def get_execution(run_id: str) -> Optional[dict]:
+def get_execution(run_id: str) -> dict | None:
     """Get full execution record by run_id."""
     path = _log_dir() / f"execution_{run_id}.json"
     if path.exists():

@@ -2,13 +2,9 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for day2-monitor/monitor.py — alarm lookup, alert filtering, fingerprinting."""
 
-import sys
-import os
 import json
-import hashlib
-import importlib
-import tempfile
-from pathlib import Path
+import os
+import sys
 from unittest.mock import patch
 
 import pytest

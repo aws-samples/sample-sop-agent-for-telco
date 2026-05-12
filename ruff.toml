@@ -17,21 +17,43 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
+    "E402",   # module-import-not-at-top (used for sys.path manipulation)
+    "E702",   # multiple statements on one line (used in compact dicts)
+    "E722",   # bare except (legacy code)
+    "E741",   # ambiguous variable name (e.g. `l`)
     "S602",   # subprocess with shell=True (intentional in SOP executor)
     "S603",   # subprocess without shell=True (intentional)
     "S404",   # import subprocess (intentional)
     "S101",   # assert (used in tests)
+    "S104",   # hardcoded bind all interfaces (intentional for container)
+    "S108",   # hardcoded temp file paths (legacy code)
+    "S110",   # try-except-pass (tech debt — tracked for Phase 1 fix)
+    "S112",   # try-except-continue (tech debt)
+    "S607",   # start process with partial path (intentional for kubectl/git)
     "T201",   # print (used for CLI output in agent)
     "B008",   # function call in default argument (used in FastAPI Depends)
+    "B904",   # raise without from inside except (tech debt)
+    "B007",   # unused loop control variable (style preference)
+    "B905",   # zip without explicit strict (tech debt)
     "N802",   # function name lowercase (some test class methods)
     "N803",   # argument name lowercase
+    "N806",   # non-lowercase variable in function (e.g. MODELS)
     "UP007",  # Use X | Y for union types (keep Optional for 3.9 compat)
+    "UP042",  # replace str enum (legacy code)
+    "F821",   # undefined name (dynamic imports via sys.path)
+    "F841",   # unused variable (tech debt)
+    "SIM105", # suppressible exception (style preference)
+    "SIM108", # if-else vs ternary (style preference)
+    "RUF001", # ambiguous unicode (intentional emoji)
+    "RUF005", # collection literal concatenation (style)
+    "RUF015", # unnecessary iterable allocation (style)
 ]
 
 [lint.per-file-ignores]
-"tests/*" = ["S101", "S106", "B011"]
+"tests/*" = ["S101", "S106", "B011", "F401"]
 "sop-agent/sop_executor.py" = ["T201"]
 "sop-agent/model_discovery.py" = ["T201"]
+"webui/backend/api.py" = ["F811"]
 
 [format]
 quote-style = "double"

@@ -20,10 +20,9 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
 
-from strands.vended_plugins.steering import SteeringHandler, LedgerProvider, Guide, Proceed
 from strands.types.tools import ToolUse
+from strands.vended_plugins.steering import Guide, LedgerProvider, Proceed, SteeringHandler
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +88,7 @@ def _extract_target(tool: str, tool_input: str) -> str | None:
         m = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', inp)
         if m:
             return m.group(1)
-        # Match hostnames after ssh/@ 
+        # Match hostnames after ssh/@
         m = re.search(r'@([\w.-]+)', inp)
         if m:
             return m.group(1)

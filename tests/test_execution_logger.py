@@ -3,13 +3,13 @@
 """Tests for execution_logger and new evaluators."""
 import json
 import os
+import sys
 import tempfile
-import time
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "webui" / "backend"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "evals"))
 
@@ -100,7 +100,7 @@ def test_corrector_snapshot(log_dir):
 
 
 def test_list_and_get_executions(log_dir):
-    from execution_logger import ExecutionLogger, list_executions, get_execution
+    from execution_logger import ExecutionLogger, get_execution, list_executions
 
     log = ExecutionLogger(["/app/sops/01.md"])
     log.complete("completed")
@@ -182,7 +182,7 @@ def test_tool_success_rate_no_spans():
 
 def _make_tool_spans(total, failed_count, error_msg="connection refused"):
     """Create mock tool spans for evaluator testing."""
-    from strands_evals.types.trace import Session, Trace
+    from strands_evals.types.trace import Session
 
     spans = []
     for i in range(total):

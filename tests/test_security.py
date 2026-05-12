@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for security controls — command blocklist/allowlist."""
 import re
-import pytest
 
+import pytest
 
 # Reproduce the exact patterns from api.py
 _BLOCKED_SHELL = re.compile(r'rm\s+-rf\s+/($|\s|[a-z])|mkfs|dd\s+if=|>\s*/dev/sd|chmod\s+-R\s+777\s+/', re.I)

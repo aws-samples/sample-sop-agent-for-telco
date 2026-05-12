@@ -2,14 +2,17 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for sop_executor.py — tools, parsing, command execution."""
 import subprocess
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
 
 from sop_executor import (
-    CmdResult, run_cmd, parse_sop, get_tools_for_sop,
-    BASE_TOOLS, ARGOCD_TOOLS, MODELS,
+    ARGOCD_TOOLS,
+    BASE_TOOLS,
+    MODELS,
+    CmdResult,
+    get_tools_for_sop,
+    parse_sop,
+    run_cmd,
 )
-
 
 # ── CmdResult ──
 

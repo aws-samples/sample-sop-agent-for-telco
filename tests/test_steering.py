@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: MIT-0
 
 """Tests for SOPSteeringHooks — steering hooks for SOP executor agent."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sop-agent"))
 
 from unittest.mock import MagicMock
+
 from sop_executor import SOPSteeringHooks
 
 
@@ -152,7 +155,7 @@ class TestLedger:
 
 
 # ============== Phase 1: Eval Telemetry Tests ==============
-from sop_executor import setup_eval_telemetry, collect_eval_session
+from sop_executor import collect_eval_session, setup_eval_telemetry
 
 
 class TestEvalTelemetry:
@@ -177,18 +180,25 @@ class TestEvalTelemetry:
 
 # ============== Phase 2: Evaluator Tests ==============
 import sys as _sys
+
 _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "evals"))
-from evaluators import SteeringEffectivenessEvaluator, SOPCompletionEvaluator
+from datetime import UTC, datetime
+
+from evaluators import SOPCompletionEvaluator, SteeringEffectivenessEvaluator
+from sop_executor import get_sop_eval_meta
 from strands_evals.types import EvaluationData
 from strands_evals.types.trace import (
-    Session, Trace, ToolExecutionSpan, ToolCall, ToolResult, SpanInfo,
+    Session,
+    SpanInfo,
+    ToolCall,
+    ToolExecutionSpan,
+    ToolResult,
+    Trace,
 )
-from sop_executor import get_sop_eval_meta
-from datetime import datetime, timezone
 
 
 def _make_tool_span(name, error=None):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return ToolExecutionSpan(
         span_info=SpanInfo(session_id="test", start_time=now, end_time=now),
         tool_call=ToolCall(name=name, arguments={}),
@@ -291,7 +301,7 @@ class TestSOPEvalMeta:
 
 
 # ============== Phase 3: SOP Corrector Tests ==============
-from sop_corrector import extract_failures, build_correction_prompt, correct_sop, MAX_CORRECTIONS_PER_SESSION
+from sop_corrector import MAX_CORRECTIONS_PER_SESSION, build_correction_prompt, correct_sop, extract_failures
 from strands_evals.types.evaluation_report import EvaluationReport
 
 

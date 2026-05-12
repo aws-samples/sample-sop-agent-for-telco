@@ -6,19 +6,19 @@ SOP Executor Agent - Production-grade SOP execution with auto-remediation.
 Demo Demo: AI-Driven 5G App Deployment
 """
 
+import logging
 import os
 import re
+import shlex
+import subprocess
 import sys
 import uuid
-import logging
-import subprocess
-import shlex
-from pathlib import Path
-from typing import Optional
 from dataclasses import dataclass, field
+from pathlib import Path
+
 from strands import Agent, tool
+from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookRegistry
 from strands.models import BedrockModel
-from strands.hooks import BeforeToolCallEvent, AfterToolCallEvent, HookProvider, HookRegistry
 
 # Configuration via environment variables
 _script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -581,7 +581,7 @@ def run_post_eval(eval_ctx: dict, sop_path: str, agent_output: str) -> list:
     """Run post-execution evaluators on captured trace. Returns list of EvaluationReport."""
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "evals"))
-    from evaluators import SteeringEffectivenessEvaluator, SOPCompletionEvaluator
+    from evaluators import SOPCompletionEvaluator, SteeringEffectivenessEvaluator
     from strands_evals import Case, Experiment
 
     session = collect_eval_session(eval_ctx["telemetry"], eval_ctx["session_id"])
@@ -604,7 +604,7 @@ def run_post_eval(eval_ctx: dict, sop_path: str, agent_output: str) -> list:
 
 
 # ============== AGENT FACTORY ==============
-from model_discovery import discover_models, resolve_model_key, get_model_id
+from model_discovery import discover_models, resolve_model_key
 
 # Legacy MODELS dict — kept for backward compatibility with CLI --model flag
 # Values are resolved dynamically at runtime via model_discovery
@@ -613,7 +613,7 @@ MODELS = {"haiku": "fast", "sonnet": "balanced", "sonnet4.5": "balanced",
 
 
 def create_agent(
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = AWS_REGION,
     model_name: str = "sonnet",
     fix_mode: bool = False,
@@ -731,8 +731,9 @@ def main() -> None:
 4. Remediate failures, report final status"""
     elif len(sop_paths) > 1:
         banner(f"📋 Executing: {len(sop_paths)} SOPs via graph", C.BLUE)
-        from sop_graph import build_sop_graph
         import asyncio
+
+        from sop_graph import build_sop_graph
         graph = build_sop_graph(
             sop_paths=sop_paths, profile=args.profile, region=args.region,
             default_model=args.model, fix_mode=args.fix,

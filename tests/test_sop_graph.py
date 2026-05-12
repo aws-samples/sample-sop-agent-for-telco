@@ -1,27 +1,28 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for graph-based SOP orchestrator — Phase 1."""
-import pytest
+import os
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import sys, os
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sop-agent"))
 
 from sop_graph import (
+    CorrectorNode,
+    EvalNode,
+    _all_upstreams_passed,
+    _classify_failure,
+    _corrector_made_changes,
+    _needs_correction,
     parse_sop_metadata,
     resolve_dependencies,
     select_model,
-    _all_upstreams_passed,
-    _classify_failure,
-    _needs_correction,
-    _corrector_made_changes,
-    EvalNode,
-    CorrectorNode,
 )
-from strands.types.content import ContentBlock
 from strands.multiagent.base import Status
-
+from strands.types.content import ContentBlock
 
 # ── Fixtures ──
 
@@ -190,7 +191,6 @@ class TestBuildSopGraph:
 class TestBuildEvalLoop:
     def test_eval_loop_needs_correction_condition(self):
         """Test the needs_correction condition logic directly."""
-        from sop_graph import build_eval_loop
         from strands.multiagent.base import Status
 
         # Simulate eval result with NEEDS_CORRECTION
@@ -400,8 +400,8 @@ class TestCorrectorMadeChanges:
     """Tests for _corrector_made_changes edge condition."""
 
     def _make_state(self, node_id, text):
-        from strands.types.content import ContentBlock, Message
         from strands.agent.agent_result import AgentResult
+        from strands.types.content import ContentBlock, Message
         state = MagicMock()
         ar = AgentResult(
             stop_reason="end_turn",
@@ -439,8 +439,8 @@ class TestNeedsCorrectionRetryLimit:
     """Tests for _needs_correction retry cap."""
 
     def _make_state(self, eval_id, text):
-        from strands.types.content import ContentBlock, Message
         from strands.agent.agent_result import AgentResult
+        from strands.types.content import ContentBlock, Message
         ar = AgentResult(
             stop_reason="end_turn",
             message=Message(role="assistant", content=[ContentBlock(text=text)]),

@@ -1,14 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for api.py — API endpoints and functionality."""
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 # Patch subprocess before importing api
 with patch("subprocess.check_output", return_value=""), \
      patch("subprocess.run", return_value=MagicMock(stdout="", stderr="", returncode=0)):
-    from api import app, _app_stats_cache, EventBuffer, verify_credentials
+    from api import EventBuffer, _app_stats_cache, app, verify_credentials
 
 # Override auth dependency for tests
 app.dependency_overrides[verify_credentials] = lambda: True
@@ -206,9 +206,10 @@ class TestGenerateSOP:
 
     def test_upload_docx_extracts_text(self, tmp_path, monkeypatch):
         """Uploading a .docx extracts paragraph text."""
+        import io
+
         import api
         from docx import Document
-        import io
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: f"# SOP\n\n{text[:80]}")

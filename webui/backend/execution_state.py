@@ -4,14 +4,15 @@
 Agent execution state management
 """
 import os
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any
+
 
 class AgentStatus(str, Enum):
     IDLE = "idle"
-    RUNNING = "running" 
+    RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -21,49 +22,49 @@ class LogEntry:
     message: str
     type: str = "stdout"
 
-@dataclass 
+@dataclass
 class ExecutionStep:
     name: str
     status: str  # 'success', 'failed', 'running'
     timestamp: str
 
-@dataclass 
+@dataclass
 class ExecutionHistory:
     sop_path: str
     status: AgentStatus
     start_time: str
-    end_time: Optional[str] = None
-    logs: List[LogEntry] = None
-    last_output: Optional[str] = None
-    exit_code: Optional[int] = None
-    steps: List[ExecutionStep] = None
-    
+    end_time: str | None = None
+    logs: list[LogEntry] = None
+    last_output: str | None = None
+    exit_code: int | None = None
+    steps: list[ExecutionStep] = None
+
     def __post_init__(self):
         if self.logs is None:
             self.logs = []
         if self.steps is None:
             self.steps = []
 
-@dataclass 
+@dataclass
 class ExecutionState:
     status: AgentStatus = AgentStatus.IDLE
-    current_sop: Optional[str] = None
-    current_tool: Optional[str] = None
+    current_sop: str | None = None
+    current_tool: str | None = None
     _tool_timestamp: float = 0
-    _tools_used: List[str] = None
-    _pending_eval_name: Optional[str] = None
-    _pending_eval_node: Optional[str] = None
-    _eval_scores: Dict[str, float] = None
+    _tools_used: list[str] = None
+    _pending_eval_name: str | None = None
+    _pending_eval_node: str | None = None
+    _eval_scores: dict[str, float] = None
     fix_mode: bool = False
-    start_time: Optional[str] = None
-    end_time: Optional[str] = None
-    logs: List[LogEntry] = None
-    last_output: Optional[str] = None
+    start_time: str | None = None
+    end_time: str | None = None
+    logs: list[LogEntry] = None
+    last_output: str | None = None
     progress: int = 0
     total_steps: int = 0
-    history: Dict[str, ExecutionHistory] = None  # SOP name -> last execution
-    steps: List[ExecutionStep] = None  # Current execution steps
-    
+    history: dict[str, ExecutionHistory] = None  # SOP name -> last execution
+    steps: list[ExecutionStep] = None  # Current execution steps
+
     def __post_init__(self):
         if self.logs is None:
             self.logs = []
@@ -72,7 +73,7 @@ class ExecutionState:
         if self.steps is None:
             self.steps = []
         self._restore_history()
-    
+
     def start_execution(self, sop_path: str) -> None:
         """Start a new execution"""
         self.status = AgentStatus.RUNNING
@@ -86,12 +87,12 @@ class ExecutionState:
         self.last_output = None
         self.current_tool = None
         self._tools_used = []
-    
+
     def complete_execution(self, success: bool = True, exit_code: int = 0) -> None:
         """Complete the current execution"""
         self.status = AgentStatus.COMPLETED if success else AgentStatus.FAILED
         self.end_time = datetime.now().isoformat()
-        
+
         # Save to history using SOP name as key
         if self.current_sop:
             sop_name = self.current_sop.split('/')[-1] if '/' in self.current_sop else self.current_sop
@@ -106,7 +107,7 @@ class ExecutionState:
                 steps=self.steps.copy()
             )
         self._persist_history()
-    
+
     def add_step(self, name: str, status: str) -> None:
         """Add or update an execution step"""
         step = ExecutionStep(
@@ -115,7 +116,7 @@ class ExecutionState:
             timestamp=datetime.now().isoformat()
         )
         self.steps.append(step)
-    
+
     def add_log(self, message: str, log_type: str = "stdout") -> None:
         """Add a log entry"""
         log_entry = LogEntry(
@@ -125,16 +126,16 @@ class ExecutionState:
         )
         self.logs.append(log_entry)
         self.last_output = message
-        
+
         # Keep only last 100 log entries to prevent memory bloat
         if len(self.logs) > 100:
             self.logs = self.logs[-100:]
-    
-    def get_sop_history(self, sop_name: str) -> Optional[ExecutionHistory]:
+
+    def get_sop_history(self, sop_name: str) -> ExecutionHistory | None:
         """Get last execution history for a specific SOP"""
         return self.history.get(sop_name)
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         import time
         # Clear stale tool after 10s of no new tool call

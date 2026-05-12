@@ -6,33 +6,34 @@ Fully SOP-agnostic — all dependencies, tools, and model selection are
 derived from SOP content at runtime. No hardcoded SOP names or stages.
 """
 
+import logging
 import os
 import re
-import uuid
-import logging
-import time as _time
-from pathlib import Path
-from typing import Optional
-
-import boto3
-from strands import Agent
-from strands.models import BedrockModel
-from strands.multiagent import GraphBuilder
-from strands.multiagent.base import MultiAgentBase, NodeResult, Status, MultiAgentResult
-from strands.multiagent.graph import GraphState
-from strands.agent.agent_result import AgentResult
-from strands.types.content import ContentBlock, Message
-
-from sop_executor import (
-    MODELS, SOPSteeringHooks,
-    SYSTEM_PROMPT_REPORT, SYSTEM_PROMPT_FIX,
-    get_tools_for_sop, get_sop_eval_meta,
-    setup_eval_telemetry, collect_eval_session,
-)
-from model_discovery import discover_models, resolve_model_key
 
 # Ensure evals directory is importable
 import sys as _sys
+import time as _time
+import uuid
+from pathlib import Path
+
+import boto3
+from model_discovery import resolve_model_key
+from sop_executor import (
+    SYSTEM_PROMPT_FIX,
+    SYSTEM_PROMPT_REPORT,
+    collect_eval_session,
+    get_sop_eval_meta,
+    get_tools_for_sop,
+    setup_eval_telemetry,
+)
+from strands import Agent
+from strands.agent.agent_result import AgentResult
+from strands.models import BedrockModel
+from strands.multiagent import GraphBuilder
+from strands.multiagent.base import MultiAgentBase, MultiAgentResult, NodeResult, Status
+from strands.multiagent.graph import GraphState
+from strands.types.content import ContentBlock, Message
+
 _evals_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "evals")
 if _evals_dir not in _sys.path:
     _sys.path.insert(0, _evals_dir)
@@ -232,9 +233,14 @@ class EvalNode(MultiAgentBase):
     async def stream_async(self, task, invocation_state=None, **kwargs):
         """Stream eval score lines as data events so the backend can parse them."""
         import asyncio
-        from evaluators import (SteeringEffectivenessEvaluator, SOPCompletionEvaluator,
-                                _extract_tool_spans,
-                                 ExecutionTimeEvaluator, ToolSuccessRateEvaluator)
+
+        from evaluators import (
+            ExecutionTimeEvaluator,
+            SOPCompletionEvaluator,
+            SteeringEffectivenessEvaluator,
+            ToolSuccessRateEvaluator,
+            _extract_tool_spans,
+        )
         from strands_evals import Case, Experiment
 
         start = _time.time()
@@ -387,7 +393,8 @@ class CorrectorNode(MultiAgentBase):
     async def stream_async(self, task, invocation_state=None, **kwargs):
         """Read eval failures from upstream, patch the SOP, stream what changed."""
         import asyncio
-        from sop_corrector import build_correction_prompt, extract_failures
+
+        from sop_corrector import build_correction_prompt
 
         start = _time.time()
         # task may be a list of ContentBlocks or a string — extract text properly
@@ -475,12 +482,12 @@ class CorrectorNode(MultiAgentBase):
 
 def create_sop_agent(
     sop_path: str,
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     model_name: str = "haiku",
     fix_mode: bool = False,
     no_steering: bool = False,
-    eval_ctx: Optional[dict] = None,
+    eval_ctx: dict | None = None,
 ) -> Agent:
     """Create a scoped agent for a single SOP."""
     session = boto3.Session(profile_name=profile if profile else None, region_name=region)
@@ -604,7 +611,7 @@ def _derive_timeout(metas: list[dict], eval_mode: bool, auto_correct: bool) -> i
 
 def build_sop_graph(
     sop_paths: list[str],
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     default_model: str = "haiku",
     fix_mode: bool = False,
@@ -717,7 +724,7 @@ def build_sop_graph(
 
 def build_eval_loop(
     sop_path: str,
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     model_name: str = "haiku",
     fix_mode: bool = False,

@@ -3,16 +3,15 @@
 
 """Tests for AdaptiveSteeringHandler."""
 import json
-import os
+import sys
 import tempfile
-import pytest
 from pathlib import Path
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "sop-agent"))
 
-from adaptive_steering import _extract_target, _load_failure_patterns, _build_guidance, AdaptiveSteeringHandler, Guide, Proceed
-
+from adaptive_steering import AdaptiveSteeringHandler, Guide, Proceed, _extract_target, _load_failure_patterns
 
 # ── Target extraction ──
 

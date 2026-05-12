@@ -1,20 +1,17 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for day2-monitor — alert dedup, fingerprinting, SOP generation dispatch."""
-import sys
-import os
 import json
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "day2-monitor"))
 from monitor import (
-    alert_fingerprint,
     MonitorState,
+    alert_fingerprint,
     fetch_active_alerts,
     fetch_k8s_events,
-    IGNORED_ALERTS,
 )
 
 
