@@ -60,6 +60,8 @@ monitoring:
 webui:
   enabled: true
   port: 8080
+  # Comma-separated allowed CORS origins. Use "*" only for local dev.
+  corsOrigins: "http://localhost:3000,http://localhost:5173"
   service:
     type: LoadBalancer
     # Internal LB prevents Epoxy auto-mitigation of public endpoints

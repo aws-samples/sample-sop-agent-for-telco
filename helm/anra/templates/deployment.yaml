@@ -48,6 +48,8 @@ spec:
               value: {{ .Values.approval.mode | quote }}
             - name: ANRA_CONFIG
               value: /app/config/anra-config.yaml
+            - name: CORS_ORIGINS
+              value: {{ .Values.webui.corsOrigins | quote }}
             - name: SOP_REPO
               value: /app
             - name: INFLUX_TOKEN

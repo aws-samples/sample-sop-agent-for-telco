@@ -20,7 +20,16 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger(__name__)
 
 app = FastAPI(title="ANRA", version="0.2.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# CORS — configurable via CORS_ORIGINS env var (comma-separated).
+# Defaults to localhost dev servers only; set explicitly for production.
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _cors_origins.split(",") if o.strip()],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 # Basic Auth middleware — required for public-facing deployments
 _AUTH_USER = os.getenv("AUTH_USERNAME", "")
