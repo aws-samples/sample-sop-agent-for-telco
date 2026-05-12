@@ -12,18 +12,18 @@ from monitor import (
 
 
 def test_eval_condition_gt():
-    assert _eval_condition(10, "gt 5") is True
-    assert _eval_condition(3, "gt 5") is False
+    assert _eval_condition(10, "> 5") is True
+    assert _eval_condition(3, "> 5") is False
 
 
 def test_eval_condition_lt():
-    assert _eval_condition(3, "lt 5") is True
-    assert _eval_condition(10, "lt 5") is False
+    assert _eval_condition(3, "< 5") is True
+    assert _eval_condition(10, "< 5") is False
 
 
 def test_eval_condition_eq():
-    assert _eval_condition(5, "eq 5") is True
-    assert _eval_condition(3, "eq 5") is False
+    assert _eval_condition(5, "== 5") is True
+    assert _eval_condition(3, "== 5") is False
 
 
 @patch("monitor._run")

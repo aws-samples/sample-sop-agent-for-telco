@@ -149,7 +149,7 @@ class TestToolContracts:
     """Verify tools are callable and have proper signatures."""
 
     def test_base_tools_count(self):
-        assert len(BASE_TOOLS) == 13
+        assert len(BASE_TOOLS) == 16
 
     def test_all_tools_callable(self):
         for t in BASE_TOOLS:
@@ -197,5 +197,5 @@ class TestToolInputSafety:
         mock_run.return_value = CmdResult("ok", "", 0)
         telcocli("list-outposts")
         call_args = mock_run.call_args[0][0]
-        assert "--profile nec" in call_args
-        assert "--region us-east-1" in call_args
+        assert "--profile default" in call_args
+        assert "--region $AWS_DEFAULT_REGION" in call_args

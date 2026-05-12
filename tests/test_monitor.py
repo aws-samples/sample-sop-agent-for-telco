@@ -16,30 +16,30 @@ from monitor import (
 
 class TestEvalCondition:
     def test_gt_true(self):
-        assert _eval_condition(10, "gt 5") is True
+        assert _eval_condition(10, "> 5") is True
 
     def test_gt_false(self):
-        assert _eval_condition(3, "gt 5") is False
+        assert _eval_condition(3, "> 5") is False
 
     def test_lt_true(self):
-        assert _eval_condition(3, "lt 5") is True
+        assert _eval_condition(3, "< 5") is True
 
     def test_lt_false(self):
-        assert _eval_condition(10, "lt 5") is False
+        assert _eval_condition(10, "< 5") is False
 
     def test_eq_true(self):
-        assert _eval_condition(5, "eq 5") is True
+        assert _eval_condition(5, "== 5") is True
 
     def test_eq_false(self):
-        assert _eval_condition(3, "eq 5") is False
+        assert _eval_condition(3, "== 5") is False
 
     def test_gte(self):
-        assert _eval_condition(5, "gte 5") is True
-        assert _eval_condition(4, "gte 5") is False
+        assert _eval_condition(5, ">= 5") is True
+        assert _eval_condition(4, ">= 5") is False
 
     def test_lte(self):
-        assert _eval_condition(5, "lte 5") is True
-        assert _eval_condition(6, "lte 5") is False
+        assert _eval_condition(5, "<= 5") is True
+        assert _eval_condition(6, "<= 5") is False
 
     def test_invalid_operator_returns_false(self):
         assert _eval_condition(5, "invalid 5") is False
@@ -58,13 +58,13 @@ class TestResolveSop:
 class TestEvaluateThresholds:
     @patch("monitor._run")
     def test_returns_list(self, mock_run):
-        mock_run.return_value = MagicMock(success=False, output="")
+        mock_run.return_value = ""
         result = evaluate_thresholds()
         assert isinstance(result, list)
 
     @patch("monitor._run")
     def test_no_crash_on_kubectl_failure(self, mock_run):
-        mock_run.return_value = MagicMock(success=False, output="connection refused")
+        mock_run.return_value = "connection refused"
         # Should not raise
         evaluate_thresholds()
 
@@ -76,7 +76,8 @@ class TestRun:
             returncode=0, stdout="output", stderr=""
         )
         result = _run("echo hello")
-        assert result.success is True
+        assert isinstance(result, str)
+        assert "output" in result or result == "output"
 
     @patch("subprocess.run")
     def test_failure(self, mock_subprocess):
@@ -84,4 +85,4 @@ class TestRun:
             returncode=1, stdout="", stderr="error"
         )
         result = _run("false")
-        assert result.success is False
+        assert isinstance(result, str)

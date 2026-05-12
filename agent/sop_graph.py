@@ -124,7 +124,7 @@ def parse_sop_metadata(sop_path: str) -> dict:
 
     stem = Path(sop_path).stem
     lines = content.split("\n")
-    bash_blocks = len(re.findall(r"```bash", content))
+    bash_blocks = len(re.findall(r"```(?:bash|tool:)", content))
 
     # Parse stage number: "Stage: 5 of 8" or "Stage: 1 (Infrastructure)"
     stage = None

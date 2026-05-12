@@ -21,7 +21,7 @@ def client():
 def test_health_endpoint(client):
     resp = client.get("/health")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "healthy"
+    assert resp.json()["status"] == "ok"
 
 
 def test_alarms_endpoint_empty(client):
