@@ -10,7 +10,6 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -118,16 +117,16 @@ class SiteConfig:
     guardrails: GuardrailsConfig = field(default_factory=GuardrailsConfig)
     anomaly_detection: AnomalyConfig = field(default_factory=AnomalyConfig)
 
-    def get_node_by_ssm(self, ssm_id: str) -> Optional[NodeConfig]:
+    def get_node_by_ssm(self, ssm_id: str) -> NodeConfig | None:
         return next((n for n in self.nodes if n.ssm_id == ssm_id), None)
 
-    def get_node_by_oam(self, oam_ip: str) -> Optional[NodeConfig]:
+    def get_node_by_oam(self, oam_ip: str) -> NodeConfig | None:
         return next((n for n in self.nodes if n.oam_ip == oam_ip), None)
 
-    def get_node_by_bmc(self, bmc_ip: str) -> Optional[NodeConfig]:
+    def get_node_by_bmc(self, bmc_ip: str) -> NodeConfig | None:
         return next((n for n in self.nodes if n.bmc.ip == bmc_ip), None)
 
-    def get_node_by_role(self, role: str) -> Optional[NodeConfig]:
+    def get_node_by_role(self, role: str) -> NodeConfig | None:
         return next((n for n in self.nodes if role in n.roles), None)
 
     def get_nodes_by_role(self, role: str) -> list:

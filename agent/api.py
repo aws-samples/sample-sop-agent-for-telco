@@ -29,6 +29,7 @@ _AUTH_PASS = os.getenv("AUTH_PASSWORD", "")
 if _AUTH_USER and _AUTH_PASS:
     import base64
     import secrets
+
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import Response
 

@@ -1,16 +1,17 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for the workshop branch monitor module."""
-import pytest
-from unittest.mock import patch, MagicMock
 
+from unittest.mock import MagicMock, patch
+
+import pytest
 from monitor import (
     _eval_condition,
-    resolve_sop,
     _run,
-    evaluate_thresholds,
-    evaluate_ran_thresholds,
     evaluate_os_thresholds,
+    evaluate_ran_thresholds,
+    evaluate_thresholds,
+    resolve_sop,
 )
 
 
@@ -72,17 +73,13 @@ class TestEvaluateThresholds:
 class TestRun:
     @patch("subprocess.run")
     def test_success(self, mock_subprocess):
-        mock_subprocess.return_value = MagicMock(
-            returncode=0, stdout="output", stderr=""
-        )
+        mock_subprocess.return_value = MagicMock(returncode=0, stdout="output", stderr="")
         result = _run("echo hello")
         assert isinstance(result, str)
         assert "output" in result or result == "output"
 
     @patch("subprocess.run")
     def test_failure(self, mock_subprocess):
-        mock_subprocess.return_value = MagicMock(
-            returncode=1, stdout="", stderr="error"
-        )
+        mock_subprocess.return_value = MagicMock(returncode=1, stdout="", stderr="error")
         result = _run("false")
         assert isinstance(result, str)

@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app_state import _pending_approvals
 from fastapi import APIRouter, HTTPException
@@ -26,5 +26,5 @@ def approve(req: ApprovalRequest):
         raise HTTPException(404, f"No pending approval for {req.alarm_name}")
     entry = _pending_approvals.pop(req.alarm_name)
     entry["action"] = req.action
-    entry["actioned_at"] = datetime.now(timezone.utc).isoformat()
+    entry["actioned_at"] = datetime.now(UTC).isoformat()
     return {"status": req.action, "alarm": req.alarm_name, "sop": entry.get("sop")}

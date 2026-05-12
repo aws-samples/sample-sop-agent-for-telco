@@ -15,7 +15,6 @@ import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from strands import Agent, tool
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookRegistry
@@ -246,8 +245,11 @@ def argocd_sync(app_name: str) -> str:
     if result.success:
         # Wait and check status
         import time
+
         time.sleep(10)
-        status = run_cmd(f"kubectl get application {app_name} -n argocd -o jsonpath='{{.status.sync.status}} {{.status.health.status}}'")
+        status = run_cmd(
+            f"kubectl get application {app_name} -n argocd -o jsonpath='{{.status.sync.status}} {{.status.health.status}}'"
+        )
         tool_result(f"Synced — {status.stdout.strip()}", True)
         return f"ArgoCD sync triggered for {app_name}. Status: {status.stdout.strip()}"
     tool_result("Sync failed", False)
@@ -305,7 +307,9 @@ def describe_node() -> str:
 
 
 @tool
-def ssh_command(host: str, command: str, user: str = os.getenv("SSH_DEFAULT_USER", "ec2-user"), timeout: int = 30) -> str:
+def ssh_command(
+    host: str, command: str, user: str = os.getenv("SSH_DEFAULT_USER", "ec2-user"), timeout: int = 30
+) -> str:
     """Execute a command on remote host via SSH.
 
     Args:
@@ -787,7 +791,7 @@ MODELS = {
 
 
 def create_agent(
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = AWS_REGION,
     model_name: str = "sonnet",
     fix_mode: bool = False,

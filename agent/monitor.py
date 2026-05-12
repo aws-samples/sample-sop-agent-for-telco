@@ -76,6 +76,7 @@ if not _alarm_ref:
 def _run(cmd, timeout=10):
     try:
         import shlex
+
         r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=timeout)
         return (r.stdout + r.stderr).strip()
     except Exception as e:
@@ -537,6 +538,7 @@ def poll_cloudwatch_k8s_events():
     try:
         import boto3
         from config import load_config
+
         cfg = load_config()
         session = boto3.Session(region_name=cfg.cluster_region, profile_name=cfg.bedrock_profile or None)
         client = session.client("logs")
@@ -593,14 +595,18 @@ def poll_cloudwatch_k8s_events():
                         continue
                     _cw_seen[key] = now
 
-                    alerts.append({
-                        "name": f"k8s_{reason.lower()}",
-                        "severity": "critical" if reason in {"CrashLoopBackOff", "OOMKilled", "UnexpectedAdmissionError"} else "warning",
-                        "source": "cloudwatch-k8s",
-                        "service_impact": f"Pod {pod} in {ns}: {reason}",
-                        "probable_cause": msg,
-                        "sop": "",
-                    })
+                    alerts.append(
+                        {
+                            "name": f"k8s_{reason.lower()}",
+                            "severity": "critical"
+                            if reason in {"CrashLoopBackOff", "OOMKilled", "UnexpectedAdmissionError"}
+                            else "warning",
+                            "source": "cloudwatch-k8s",
+                            "service_impact": f"Pod {pod} in {ns}: {reason}",
+                            "probable_cause": msg,
+                            "sop": "",
+                        }
+                    )
                     log.info(f"CW K8S ALARM: {reason} on {pod} in {ns}")
             except client.exceptions.ResourceNotFoundException:
                 continue
@@ -881,6 +887,7 @@ def execute_sop(sop_path, alert):
         log.info(f"SOP execution complete for {alert['name']}")
         try:
             from app_state import push_activity
+
             push_activity("execute", "%s SOP completed" % alert["name"], status="success")
         except Exception:
             pass
@@ -1003,6 +1010,7 @@ def _submit_sop(alert, correlation_result=None):
     sop_path = resolve_sop(alert)
     try:
         from app_state import push_activity
+
         push_activity("resolve", "SOP: %s" % (sop_path or "generating..."))
     except Exception:
         pass
@@ -1017,6 +1025,7 @@ def _submit_sop(alert, correlation_result=None):
         enriched = _enrich_sop(sop_content, alert)
         try:
             from app_state import push_activity
+
             push_activity("enrich", "Bedrock enriching SOP for %s" % alert["name"])
         except Exception:
             pass
@@ -1110,6 +1119,7 @@ def run_loop():
             # Drain injected alarms (from demo trigger buttons)
             try:
                 from routers.alarms import _injected_queue
+
                 while _injected_queue:
                     alerts.append(_injected_queue.pop(0))
             except Exception:
@@ -1121,6 +1131,7 @@ def run_loop():
             clear_alarms({a["name"] for a in alerts})
             try:
                 from app_state import push_activity
+
                 if alerts:
                     push_activity("collect", "Cycle %d: %d alerts from 6 sources" % (cycle, len(alerts)))
             except Exception:
@@ -1208,7 +1219,12 @@ def run_loop():
 
                 try:
                     from app_state import push_activity
-                    push_activity("detect", "%s — %s %s" % (alert["name"], alert.get("value", ""), alert.get("threshold", "")), status="warning")
+
+                    push_activity(
+                        "detect",
+                        "%s — %s %s" % (alert["name"], alert.get("value", ""), alert.get("threshold", "")),
+                        status="warning",
+                    )
                 except Exception:
                     pass
 
@@ -1269,7 +1285,12 @@ def run_loop():
                     )
                     try:
                         from app_state import push_activity
-                        push_activity("correlate", "%s -> %s (root: %s)" % (alert["name"], result["action"], result["root_cause"]), status="success")
+
+                        push_activity(
+                            "correlate",
+                            "%s -> %s (root: %s)" % (alert["name"], result["action"], result["root_cause"]),
+                            status="success",
+                        )
                     except Exception:
                         pass
                 except Exception as e:
@@ -1284,6 +1305,7 @@ def run_loop():
                     log.info(f"RE-EVAL: {sym} still active after {root} fixed")
                     try:
                         from app_state import push_activity
+
                         push_activity("reeval", "%s still active after %s fixed" % (sym, root), status="warning")
                     except Exception:
                         pass

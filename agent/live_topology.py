@@ -52,13 +52,9 @@ def build_live_topology() -> dict:
                 if len(parts) >= 3 and parts[2] == "Running":
                     pod, node = parts[0], parts[1]
                     name_parts = pod.split("-")
-                    if pod.startswith("open5gs-"):
+                    if pod.startswith("open5gs-") or pod.startswith("ueransim-"):
                         nf = name_parts[1]
-                    elif pod.startswith("ueransim-"):
-                        nf = name_parts[1]
-                    elif pod.startswith("telegraf-"):
-                        nf = "-".join(name_parts[:2])
-                    elif ns == "cloudran-agents":
+                    elif pod.startswith("telegraf-") or ns == "cloudran-agents":
                         nf = "-".join(name_parts[:2])
                     else:
                         nf = name_parts[0]

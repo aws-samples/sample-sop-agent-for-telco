@@ -32,6 +32,7 @@ def get_correlations():
 def get_activity(limit: int = 50):
     """Return live agent activity stream for pipeline animation."""
     from app_state import _activity
+
     return {"activity": _activity[-limit:]}
 
 

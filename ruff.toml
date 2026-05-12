@@ -40,20 +40,27 @@ ignore = [
     "N806",   # non-lowercase variable in function (e.g. MODELS)
     "UP007",  # Use X | Y for union types (keep Optional for 3.9 compat)
     "UP042",  # replace str enum (legacy code)
+    "UP017", # datetime.UTC alias (workshop uses timezone.utc)
+    "UP031", # printf string formatting (workshop style)
+    "UP045", # non-pep604 Optional annotation (workshop style)
     "F821",   # undefined name (dynamic imports via sys.path)
     "F841",   # unused variable (tech debt)
     "SIM105", # suppressible exception (style preference)
     "SIM108", # if-else vs ternary (style preference)
+    "SIM102", # collapsible if (style preference)
+    "SIM114", # combinable if branches (style preference)
     "RUF001", # ambiguous unicode (intentional emoji)
+    "RUF002", # ambiguous unicode in docstring (intentional σ symbol)
+    "RUF013", # implicit Optional (workshop style)
     "RUF005", # collection literal concatenation (style)
     "RUF015", # unnecessary iterable allocation (style)
 ]
 
 [lint.per-file-ignores]
 "tests/*" = ["S101", "S106", "B011", "F401"]
-"sop-agent/sop_executor.py" = ["T201"]
-"sop-agent/model_discovery.py" = ["T201"]
-"webui/backend/api.py" = ["F811"]
+"agent/sop_executor.py" = ["T201"]
+"agent/model_discovery.py" = ["T201"]
+"agent/api.py" = ["F811"]
 
 [format]
 quote-style = "double"

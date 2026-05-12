@@ -34,13 +34,18 @@ class SteeringEffectivenessEvaluator(Evaluator[InputT, OutputT]):
         budget = metadata.get("tool_budget", 95)
 
         if tool_count >= budget:
-            return [EvaluationOutput(score=0.0, test_pass=False,
-                                     reason=f"Tool budget exceeded: {tool_count}/{budget} calls.")]
+            return [
+                EvaluationOutput(
+                    score=0.0, test_pass=False, reason=f"Tool budget exceeded: {tool_count}/{budget} calls."
+                )
+            ]
         if tool_count > budget * 0.8:
-            return [EvaluationOutput(score=0.5, test_pass=True,
-                                     reason=f"⚠️ {tool_count} tool calls. Approaching budget ({budget}).")]
-        return [EvaluationOutput(score=1.0, test_pass=True,
-                                 reason=f"✅ {tool_count} tool calls. No issues.")]
+            return [
+                EvaluationOutput(
+                    score=0.5, test_pass=True, reason=f"⚠️ {tool_count} tool calls. Approaching budget ({budget})."
+                )
+            ]
+        return [EvaluationOutput(score=1.0, test_pass=True, reason=f"✅ {tool_count} tool calls. No issues.")]
 
     async def evaluate_async(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         return self.evaluate(evaluation_case)
@@ -73,10 +78,16 @@ class ExecutionTimeEvaluator(Evaluator[InputT, OutputT]):
         budget = max(bash_blocks * 60, 120)
 
         if exec_time > budget:
-            return [EvaluationOutput(score=0.0, test_pass=False,
-                                     reason=f"❌ Execution took {exec_time:.0f}s (budget: {budget}s).")]
-        return [EvaluationOutput(score=1.0, test_pass=True,
-                                 reason=f"✅ Execution took {exec_time:.0f}s (budget: {budget}s).")]
+            return [
+                EvaluationOutput(
+                    score=0.0, test_pass=False, reason=f"❌ Execution took {exec_time:.0f}s (budget: {budget}s)."
+                )
+            ]
+        return [
+            EvaluationOutput(
+                score=1.0, test_pass=True, reason=f"✅ Execution took {exec_time:.0f}s (budget: {budget}s)."
+            )
+        ]
 
     async def evaluate_async(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         return self.evaluate(evaluation_case)
@@ -93,20 +104,34 @@ class ToolSuccessRateEvaluator(Evaluator[InputT, OutputT]):
 
         total = len(tool_spans)
         failed = sum(
-            1 for s in tool_spans
+            1
+            for s in tool_spans
             if "error" in str(getattr(s, "attributes", {})).lower()
             or "failed" in str(getattr(s, "attributes", {})).lower()
         )
         success_rate = (total - failed) / total if total > 0 else 1.0
 
         if success_rate < 0.5:
-            return [EvaluationOutput(score=0.0, test_pass=False,
-                                     reason=f"❌ Tool success rate: {success_rate:.0%} ({failed}/{total} failed).")]
+            return [
+                EvaluationOutput(
+                    score=0.0,
+                    test_pass=False,
+                    reason=f"❌ Tool success rate: {success_rate:.0%} ({failed}/{total} failed).",
+                )
+            ]
         if success_rate < 0.8:
-            return [EvaluationOutput(score=0.5, test_pass=True,
-                                     reason=f"⚠️ Tool success rate: {success_rate:.0%} ({failed}/{total} failed).")]
-        return [EvaluationOutput(score=1.0, test_pass=True,
-                                 reason=f"✅ Tool success rate: {success_rate:.0%} ({total} calls).")]
+            return [
+                EvaluationOutput(
+                    score=0.5,
+                    test_pass=True,
+                    reason=f"⚠️ Tool success rate: {success_rate:.0%} ({failed}/{total} failed).",
+                )
+            ]
+        return [
+            EvaluationOutput(
+                score=1.0, test_pass=True, reason=f"✅ Tool success rate: {success_rate:.0%} ({total} calls)."
+            )
+        ]
 
     async def evaluate_async(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         return self.evaluate(evaluation_case)

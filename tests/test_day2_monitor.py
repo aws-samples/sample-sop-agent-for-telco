@@ -1,13 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for the workshop branch monitor."""
-import pytest
-from unittest.mock import patch, MagicMock
 
+from unittest.mock import MagicMock, patch
+
+import pytest
 from monitor import (
-    resolve_sop,
     _eval_condition,
     evaluate_thresholds,
+    resolve_sop,
 )
 
 

@@ -15,7 +15,6 @@ import sys as _sys
 import time as _time
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import boto3
 from sop_executor import (
@@ -509,12 +508,12 @@ class CorrectorNode(MultiAgentBase):
 
 def create_sop_agent(
     sop_path: str,
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     model_name: str = "haiku",
     fix_mode: bool = False,
     no_steering: bool = False,
-    eval_ctx: Optional[dict] = None,
+    eval_ctx: dict | None = None,
 ) -> Agent:
     """Create a scoped agent for a single SOP."""
     model_id = MODELS.get(model_name, model_name)
@@ -655,7 +654,7 @@ def _derive_timeout(metas: list[dict], eval_mode: bool, auto_correct: bool) -> i
 
 def build_sop_graph(
     sop_paths: list[str],
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     default_model: str = "haiku",
     fix_mode: bool = False,
@@ -773,7 +772,7 @@ def build_sop_graph(
 
 def build_eval_loop(
     sop_path: str,
-    profile: Optional[str] = None,
+    profile: str | None = None,
     region: str = "us-east-1",
     model_name: str = "haiku",
     fix_mode: bool = False,

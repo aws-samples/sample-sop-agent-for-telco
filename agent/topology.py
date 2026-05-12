@@ -11,7 +11,6 @@ and use the same interface regardless of backend.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from config import NodeConfig, load_config
 
@@ -22,7 +21,7 @@ class TopologyProvider(ABC):
     """Interface for topology queries. Implement for each backend."""
 
     @abstractmethod
-    def get_node(self, node_id: str) -> Optional[dict]:
+    def get_node(self, node_id: str) -> dict | None:
         """Get node by SSM ID, OAM IP, or name."""
 
     @abstractmethod
@@ -63,7 +62,7 @@ class YamlTopology(TopologyProvider):
             "bmc_type": n.bmc.type,
         }
 
-    def get_node(self, node_id: str) -> Optional[dict]:
+    def get_node(self, node_id: str) -> dict | None:
         for n in self.config.nodes:
             if node_id in (n.name, n.ssm_id, n.oam_ip, n.bmc.ip):
                 return self._node_to_dict(n)
@@ -118,7 +117,7 @@ class NeptuneTopology(TopologyProvider):
             self._g = traversal().withRemote(conn)
         return self._g
 
-    def get_node(self, node_id: str) -> Optional[dict]:
+    def get_node(self, node_id: str) -> dict | None:
         g = self._connect()
         results = g.V().has("id", node_id).valueMap(True).toList()
         return self._to_dict(results[0]) if results else None
@@ -155,7 +154,7 @@ class NeptuneTopology(TopologyProvider):
 
 # ── Factory ──
 
-_provider: Optional[TopologyProvider] = None
+_provider: TopologyProvider | None = None
 
 
 def get_provider() -> TopologyProvider:

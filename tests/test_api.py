@@ -1,11 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for the workshop branch API."""
-import pytest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
 sys.modules.setdefault("strands", MagicMock())
 sys.modules.setdefault("strands.models", MagicMock())
 sys.modules.setdefault("strands.models.bedrock", MagicMock())

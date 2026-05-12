@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """SOP Correction Agent — patches SOPs based on eval failures."""
+
 import logging
 from pathlib import Path
 
@@ -30,9 +31,7 @@ MAX_CORRECTIONS_PER_SESSION = 3
 
 def build_correction_prompt(sop_content: str, failures: list[dict]) -> str:
     """Build the prompt for the correction agent."""
-    failure_text = "\n".join(
-        f"- [{f['evaluator']}] {f['reason']}" for f in failures
-    )
+    failure_text = "\n".join(f"- [{f['evaluator']}] {f['reason']}" for f in failures)
     return f"""## Evaluation Failures
 
 {failure_text}
@@ -51,11 +50,13 @@ def extract_failures(reports: list) -> list[dict]:
     for report in reports:
         for i, passed in enumerate(report.test_passes):
             if not passed:
-                failures.append({
-                    "evaluator": report.evaluator_name,
-                    "reason": report.reasons[i],
-                    "score": report.scores[i],
-                })
+                failures.append(
+                    {
+                        "evaluator": report.evaluator_name,
+                        "reason": report.reasons[i],
+                        "score": report.scores[i],
+                    }
+                )
     return failures
 
 
@@ -101,9 +102,9 @@ def correct_sop(
     prompt = build_correction_prompt(sop_content, failures)
 
     # Run correction agent (haiku — cheap and fast)
+    import boto3
     from strands import Agent
     from strands.models import BedrockModel
-    import boto3
 
     session = boto3.Session(profile_name=profile, region_name=region)
     model = BedrockModel(
@@ -120,7 +121,7 @@ def correct_sop(
 
     # Extract markdown from response (strip any preamble)
     if "# " in result:
-        result = result[result.index("# "):]
+        result = result[result.index("# ") :]
 
     # Write corrected SOP
     Path(sop_path).write_text(result)
@@ -136,12 +137,14 @@ def correct_sop(
 def _git_commit_sop(sop_path: str, failures: list[dict]):
     """Git add + commit the corrected SOP."""
     import subprocess
+
     summary = failures[0]["reason"][:60] if failures else "eval correction"
     try:
         subprocess.run(["git", "add", sop_path], check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", f"fix(sop): auto-correct from eval — {summary}"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         logger.info(f"Committed SOP correction: {sop_path}")
     except subprocess.CalledProcessError as e:

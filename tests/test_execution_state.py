@@ -1,10 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for app_state (workshop branch equivalent of execution_state)."""
+
 import pytest
 from app_state import (
-    _alarms,
     _active_alarm_names,
+    _alarms,
     _executions,
     push_alarm,
 )

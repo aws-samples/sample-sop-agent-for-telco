@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 """In-memory application state for FastAPI (replace with persistent store at scale)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # ── Collections (mutable singletons; imported by api + monitor) ──
 _alarms: list[dict] = []
@@ -14,7 +14,7 @@ _pending_approvals: dict[str, dict] = {}
 
 def push_alarm(alarm: dict) -> None:
     """Called by monitor to push new alarms."""
-    alarm["timestamp"] = datetime.now(timezone.utc).isoformat()
+    alarm["timestamp"] = datetime.now(UTC).isoformat()
     _active_alarm_names.add(alarm["name"])
     for i, a in enumerate(_alarms):
         if a["name"] == alarm["name"]:
@@ -33,13 +33,13 @@ def clear_alarms(active_names: set) -> None:
 
 def push_execution(execution: dict) -> None:
     """Called by monitor/executor to log execution results."""
-    execution["timestamp"] = datetime.now(timezone.utc).isoformat()
+    execution["timestamp"] = datetime.now(UTC).isoformat()
     _executions.append(execution)
 
 
 def push_correlation(result: dict) -> None:
     """Called by monitor to store correlation decisions."""
-    result["timestamp"] = datetime.now(timezone.utc).isoformat()
+    result["timestamp"] = datetime.now(UTC).isoformat()
     _correlations.append(result)
     if len(_correlations) > 200:
         _correlations.pop(0)
@@ -53,7 +53,7 @@ def push_pending_approval(alarm_name: str, sop_path: str, alarm: dict) -> None:
         "severity": alarm.get("severity", ""),
         "source": alarm.get("source", ""),
         "service_impact": alarm.get("service_impact", ""),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -63,9 +63,14 @@ _activity: list[dict] = []
 
 def push_activity(stage: str, message: str, detail: str = "", status: str = "info") -> None:
     """Push structured activity event. Stages: collect|detect|correlate|resolve|enrich|execute|reeval"""
-    _activity.append({
-        "stage": stage, "message": message, "detail": detail, "status": status,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    _activity.append(
+        {
+            "stage": stage,
+            "message": message,
+            "detail": detail,
+            "status": status,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+    )
     if len(_activity) > 500:
         _activity.pop(0)
