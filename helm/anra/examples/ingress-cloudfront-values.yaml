@@ -1,0 +1,24 @@
+# Example: ALB Ingress for Amazon CloudFront origin (merge with your site values, e.g. site-002-values.yaml)
+#
+# Prerequisite: AWS Load Balancer Controller in the cluster
+#   https://kubernetes-sigs.github.io/aws-load-balancer-controller/
+#
+# Deploy:
+#   helm upgrade anra helm/anra -n anra -f helm/anra/examples/site-002-values.yaml \
+#     -f helm/anra/examples/ingress-cloudfront-values.yaml
+#
+# Then get the ALB hostname for Terraform (infra/terraform/cloudfront):
+#   kubectl get ingress anra -n anra -o jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}'
+
+ingress:
+  enabled: true
+
+webui:
+  service:
+    type: ClusterIP
+
+# Optional HTTPS on ALB (recommended before CloudFront → ALB HTTPS origin):
+# ingress:
+#   annotations:
+#     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+#     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REGION:ACCOUNT:certificate/UUID

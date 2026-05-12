@@ -1,0 +1,106 @@
+# Open5GS Alarm Reference
+# Built from observed log patterns during deployment on EKS Hybrid.
+# Open5GS does not publish a formal alarm registry — these are
+# derived from source code log messages and real operational experience.
+
+vendor: open5gs
+version: "2.7.7"
+nf_types: [AMF, SMF, UPF, NRF, SCP, AUSF, UDM, UDR, PCF, NSSF, BSF]
+
+alarm_lookup:
+  type: log
+  pattern: "WARNING|ERROR|FATAL"
+
+diagnostics:
+  - name: nf_pods
+    command: "kubectl get pods -n {namespace} --no-headers"
+  - name: nf_logs
+    command: "kubectl logs -l app.kubernetes.io/name={nf_name} -n {namespace} --tail=30"
+  - name: nf_events
+    command: "kubectl get events -n {namespace} --sort-by=.lastTimestamp --field-selector type=Warning"
+
+alarms:
+  registration_reject:
+    log_pattern: "Registration reject"
+    nf: AMF
+    severity: warning
+    description: "AMF rejected UE registration"
+    probable_cause: "Subscriber not found in UDR/MongoDB, K/OPC mismatch, or PLMN not allowed"
+    reaction: "Check subscriber exists in MongoDB. Verify K/OPC match UE config. Check PLMN in AMF config."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=amf -n {namespace} --tail=20 | grep -i reject"
+      - "kubectl exec {mongodb_pod} -n {namespace} -- mongosh open5gs --eval 'db.subscribers.find({},{imsi:1,_id:0})'"
+
+  suci_not_found:
+    log_pattern: "Cannot find SUCI"
+    nf: AMF
+    severity: warning
+    description: "AMF cannot derive UE identity from SUCI"
+    probable_cause: "UDR unreachable, SBI mesh broken, or subscriber not provisioned"
+    reaction: "Check UDR pod status. Verify SBI mesh (NRF registrations). Check subscriber in MongoDB."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=amf -n {namespace} --tail=20 | grep -i SUCI"
+      - "kubectl logs -l app.kubernetes.io/name=udr -n {namespace} --tail=10"
+
+  pfcp_failure:
+    log_pattern: "pfcp.*failed|PFCP.*failed"
+    nf: SMF
+    severity: critical
+    description: "SMF PFCP transaction to UPF failed"
+    probable_cause: "UPF unreachable, network path broken, UPF crashed, or PFCP heartbeat timeout"
+    reaction: "Check UPF pod status. Verify SMF config has correct UPF hostNetwork IP. Check network path."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=smf -n {namespace} --tail=20 | grep -i PFCP"
+      - "kubectl get pod -l app=open5gs-upf-host -n {namespace} -o wide"
+
+  upf_heartbeat_lost:
+    log_pattern: "No Heartbeat from SMF"
+    nf: UPF
+    severity: critical
+    description: "UPF lost PFCP heartbeat from SMF"
+    probable_cause: "SMF crashed, network partition between EC2 and edge, or PFCP association expired"
+    reaction: "Check SMF pod status. Verify network path EC2→edge. Restart UPF to re-associate."
+    diagnostics:
+      - "kubectl logs -l app=open5gs-upf-host -n {namespace} --tail=20 | grep -i heartbeat"
+      - "kubectl logs -l app.kubernetes.io/name=smf -n {namespace} --tail=10 | grep PFCP"
+
+  upf_traffic_buffered:
+    log_pattern: "User Traffic Buffered"
+    nf: UPF
+    severity: warning
+    description: "UPF is buffering user plane traffic — GTP-U path congested or broken"
+    probable_cause: "GTP-U tunnel not established, ogstun interface down, or downstream routing broken"
+    reaction: "Check ogstun interface on UPF host. Verify GTP-U tunnel. Check UPF logs for session errors."
+    diagnostics:
+      - "kubectl logs -l app=open5gs-upf-host -n {namespace} --tail=20 | grep -i buffer"
+
+  scp_connection_timeout:
+    log_pattern: "Connection timer expired"
+    nf: SCP
+    severity: warning
+    description: "SCP connection to an NF timed out — SBI mesh degraded"
+    probable_cause: "Target NF crashed, SCP caching stale endpoints, DNS resolution failure"
+    reaction: "Check target NF pod status. If multiple NFs affected, nuclear restart all pods to reset NRF/SCP cache."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=scp -n {namespace} --tail=20 | grep -i timeout"
+      - "kubectl get pods -n {namespace} --no-headers | grep -v Running"
+
+  nrf_nf_not_found:
+    log_pattern: "Not found \\["
+    nf: NRF
+    severity: warning
+    description: "NRF cannot find a previously registered NF — registration expired or NF crashed"
+    probable_cause: "NF pod restarted with new ID, NRF registration TTL expired, or NF deregistered"
+    reaction: "Check if the NF pod is running. If NF restarted, it should re-register automatically. If not, restart NRF."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=nrf -n {namespace} --tail=20 | grep 'Not found'"
+
+  sbi_mesh_stale:
+    log_pattern: "NF has already been added|NF EndPoint.*updated"
+    nf: SCP
+    severity: warning
+    description: "SBI mesh has stale NF endpoints — NFs re-registering after restart"
+    probable_cause: "Multiple NF restarts caused SCP to cache old endpoints. SBI routing is unreliable."
+    reaction: "Nuclear restart: kubectl delete pods --all -n {namespace}. Wait 90s for NRF to re-register all NFs."
+    diagnostics:
+      - "kubectl logs -l app.kubernetes.io/name=scp -n {namespace} --tail=30 | grep -i 'already been added\\|EndPoint.*updated'"

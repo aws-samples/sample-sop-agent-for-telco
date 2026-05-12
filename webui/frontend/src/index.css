@@ -1,31 +1,61 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@keyframes gradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+:root {
+  /* AWS Builder Center Color Palette */
+  --primary-background: #FFFFFF;
+  --secondary-background: #F8F9FA;
+  --global-navbar-background: #232F3E;
+  --global-navbar-foreground: #FFFFFF;
+  --accent-background: #00A1C9;
+  --accent-foreground: #FFFFFF;
+  --accent-hover: #008CBA;
+  --primary-foreground: #16191F;
+  --secondary-foreground: #545B64;
+  --success-background: #1D8102;
+  --success-foreground: #FFFFFF;
+  --warning-background: #FF9900;
+  --warning-foreground: #000000;
+  --danger-background: #D13212;
+  --danger-foreground: #FFFFFF;
+  --info-background: #0073BB;
+  --info-foreground: #FFFFFF;
+  --sidebar-active-bg: rgba(0, 161, 201, 0.15);
+  --sidebar-active-border: #00A1C9;
+  
+  /* Typography */
+  --font-family: "Amazon Ember", "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-sm: 12px;
+  --font-size-xs: 11px;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Border Radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.16);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient 3s ease infinite;
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--primary-foreground);
+  background: var(--secondary-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -34,22 +64,355 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
-/* Custom scrollbar */
+#root {
+  min-height: 100vh;
+}
+
+.dashboard-layout {
+  min-height: 100vh;
+}
+
+/* AWS Builder Center-style Cards */
+.ant-card {
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid #E5E5E8;
+  transition: box-shadow 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.ant-card-head {
+  border-bottom: 1px solid #E5E5E8;
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--primary-foreground);
+}
+
+.ant-card-body {
+  padding: 20px;
+}
+
+/* AWS Builder Center-style Buttons */
+.ant-btn {
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  font-size: var(--font-size-base);
+  height: 36px;
+  padding: 0 16px;
+  transition: all 0.2s ease;
+}
+
+.ant-btn-primary {
+  background: #00A1C9;
+  border-color: #00A1C9;
+  color: #FFFFFF;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: #008CBA;
+  border-color: #008CBA;
+}
+
+/* AWS Builder Center-style Tables */
+.ant-table {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+}
+
+.ant-table-thead > tr > th {
+  background: #FAFAFA;
+  color: var(--primary-foreground);
+  font-weight: 600;
+  border-bottom: 2px solid #E5E5E8;
+  padding: 12px 16px;
+}
+
+.ant-table-tbody > tr > td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #F8F8FA;
+}
+
+/* AWS Builder Center-style Sidebar Menu */
+.ant-menu-dark {
+  background: transparent;
+}
+
+.ant-menu-dark .ant-menu-item {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 400;
+  margin: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  height: 40px;
+  line-height: 40px;
+}
+
+.ant-menu-dark .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.ant-menu-dark .ant-menu-item-selected {
+  background: rgba(0, 161, 201, 0.2);
+  color: #00D4FF;
+  font-weight: 500;
+}
+
+.ant-menu-dark .ant-menu-item-selected::after {
+  border-right: 3px solid #00A1C9;
+}
+
+/* AWS Builder Center-style Stats Cards */
+.stat-card {
+  background: #FFFFFF;
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid #E5E5E8;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-card-title {
+  font-size: 13px;
+  color: var(--secondary-foreground);
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--primary-foreground);
+  margin-bottom: 4px;
+}
+
+.stat-card-change {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stat-card-change.positive {
+  color: #27700E;
+}
+
+.stat-card-change.negative {
+  color: #D13212;
+}
+
+/* AWS Builder Center-style Charts */
+.chart-container {
+  background: #FFFFFF;
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid #E5E5E8;
+  width: 100%;
+  height: 400px;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-foreground);
+  margin-bottom: 16px;
+}
+
+/* Metric Cards */
+.metric-card {
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Anomaly Severity Colors */
+.anomaly-high {
+  color: #D13212;
+}
+
+.anomaly-medium {
+  color: #FF9800;
+}
+
+.anomaly-low {
+  color: #4CAF50;
+}
+
+/* AWS Builder Center-style Badges */
+.ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.ant-badge-status-success {
+  background-color: #4CAF50;
+}
+
+.ant-badge-status-error {
+  background-color: #D13212;
+}
+
+.ant-badge-status-warning {
+  background-color: #FF9800;
+}
+
+.ant-badge-status-processing {
+  background-color: #2196F3;
+}
+
+/* AWS Builder Center-style Tags */
+.ant-tag {
+  border-radius: 16px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+}
+
+/* AWS Builder Center-style Pagination */
+.ant-pagination {
+  font-family: var(--font-family);
+}
+
+.ant-pagination-item {
+  border-radius: var(--border-radius-sm);
+  border: 1px solid #D5D5D8;
+}
+
+.ant-pagination-item-active {
+  background: #00A1C9;
+  border-color: #00A1C9;
+}
+
+.ant-pagination-item-active a {
+  color: #FFFFFF;
+}
+
+/* AWS Builder Center-style Alerts */
+.ant-alert {
+  border-radius: var(--border-radius-md);
+  border: 1px solid;
+  font-family: var(--font-family);
+}
+
+.ant-alert-success {
+  background: #E8F5E9;
+  border-color: #4CAF50;
+}
+
+.ant-alert-error {
+  background: #FFEBEE;
+  border-color: #D13212;
+}
+
+.ant-alert-warning {
+  background: #FFF3E0;
+  border-color: #FF9800;
+}
+
+.ant-alert-info {
+  background: #E3F2FD;
+  border-color: #2196F3;
+}
+
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(31, 41, 55, 0.5);
-  border-radius: 4px;
+  background: #F8F8FA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.5);
+  background: #D5D5D8;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.7);
+  background: #AAB7B8;
+}
+
+/* Loading States */
+.ant-spin {
+  color: #00A1C9;
+}
+
+/* AWS Builder Center Theme Class */
+.aws-builder-theme {
+  font-family: var(--font-family);
+}
+
+/* Pulse Animation for Live Status Indicator */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ant-card-body {
+    padding: 16px;
+  }
+  
+  .stat-card {
+    padding: 16px;
+  }
+  
+  .chart-container {
+    padding: 16px;
+  }
+}
+
+/* Draggable Modal Header Cursor */
+.ant-modal-header {
+  cursor: grab;
+}
+
+.ant-modal-header:active {
+  cursor: grabbing;
+}
+
+.ant-modal-title {
+  cursor: grab;
+}
+
+.ant-modal-title:active {
+  cursor: grabbing;
 }

@@ -1,6 +1,0 @@
-# Semgrep ignore file
-# Test files - security findings in tests are acceptable
-tests/
-
-# Node modules
-node_modules/

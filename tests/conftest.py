@@ -23,4 +23,5 @@ if "strands" not in sys.modules:
 
 # Add project paths
 sys.path.insert(0, str(Path(__file__).parent.parent / "sop-agent"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "agent"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "webui" / "backend"))

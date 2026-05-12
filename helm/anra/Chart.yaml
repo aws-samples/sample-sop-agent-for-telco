@@ -1,0 +1,11 @@
+apiVersion: v2
+name: anra
+description: Autonomous Network Remediation Agent for 5G RAN/Core on Amazon EKS
+version: 0.2.0
+appVersion: "0.2.0"
+keywords:
+  - 5g
+  - ran
+  - remediation
+  - eks
+  - bedrock

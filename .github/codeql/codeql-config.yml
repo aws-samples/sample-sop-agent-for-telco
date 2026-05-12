@@ -1,0 +1,7 @@
+name: "CodeQL Config"
+queries:
+  - uses: security-and-quality
+paths-ignore:
+  - '.github/**'
+  - 'node_modules/**'
+  - 'webui/frontend/build/**'

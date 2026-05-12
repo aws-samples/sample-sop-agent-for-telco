@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: open5gs-subscriber-seed
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: mongo:6
+          command:
+            - mongosh
+            - mongodb://open5gs-mongodb:27017/open5gs
+            - --eval
+            - |
+              db.subscribers.updateOne(
+                {"imsi": "999700000000001"},
+                {$set: {
+                  "imsi": "999700000000001",
+                  "msisdn": [],
+                  "security": {"k": "00112233445566778899aabbccddeeff", "amf": "8000", "op": null, "opc": "63bfa50ee6523365ff14c1f45f88737d"},
+                  "ambr": {"downlink": {"value": 1, "unit": 3}, "uplink": {"value": 1, "unit": 3}},
+                  "slice": [{"sst": 1, "default_indicator": true, "session": [{"name": "srsapn", "type": 3,
+                    "ambr": {"downlink": {"value": 1, "unit": 3}, "uplink": {"value": 1, "unit": 3}},
+                    "qos": {"index": 9, "arp": {"priority_level": 8, "pre_emption_capability": 1, "pre_emption_vulnerability": 1}}}]}]
+                }},
+                {upsert: true}
+              );
+              print("Subscriber 999700000000001 seeded");

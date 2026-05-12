@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "sop-agent"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "agent"))
 
 from model_discovery import (
     _CANDIDATE_MODELS,

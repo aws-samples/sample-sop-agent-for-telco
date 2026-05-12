@@ -25,6 +25,9 @@ module "eks" {
   cluster_endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
 
+  # Skip IAM session context lookup — Cloud9 SSM role can't call iam:GetRole on itself
+  authentication_mode = "API_AND_CONFIG_MAP"
+
   cluster_addons = {
     aws-ebs-csi-driver = {
       most_recent              = true

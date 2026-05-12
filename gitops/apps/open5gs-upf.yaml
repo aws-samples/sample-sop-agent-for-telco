@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: open5gs-upf
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: ssh://git@ssh.gitlab.aws.dev/awaizkh/autonomous-network-remediation-agent.git
+    targetRevision: main
+    path: gitops/base/open5gs-upf
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: open5gs
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,80 @@
+# ANRA Helm Values — agent only
+replicaCount: 1
+
+image:
+  repository: ""  # Set during deploy: ECR URI
+  tag: latest
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: anra-sa
+  annotations: {}
+
+nodeSelector:
+  role: region
+
+bedrock:
+  region: us-west-2
+  profile: ""
+
+approval:
+  mode: manual
+
+# Site topology
+config:
+  cluster:
+    name: ""
+    context: ""
+    region: us-west-1
+  nodes: []
+  topology:
+    provider: yaml
+  alarmReferences:
+    - alarm-references/generic-5g.json
+
+# Secrets
+secrets:
+  influxdbToken: ""
+  bmcPassword: ""
+
+# Monitoring stack (deployed alongside ANRA when enabled)
+# For production, replace with managed services:
+#   - InfluxDB → Amazon Timestream for InfluxDB
+#   - Telegraf → Amazon CloudWatch Container Insights
+#   - Grafana → Amazon Managed Grafana
+monitoring:
+  influxdb:
+    enabled: true
+    org: anra
+    bucket: metrics
+    token: anra-workshop-token
+  telegraf:
+    enabled: true
+  influxdbUrl: "http://influxdb:8086"
+  influxdbOrg: anra
+  influxdbBucket: metrics
+  alertmanagerUrl: ""
+
+# Dashboard
+webui:
+  enabled: true
+  port: 8080
+  service:
+    type: LoadBalancer
+    # Internal LB prevents Epoxy auto-mitigation of public endpoints
+    # Access via SSM port-forwarding from jump host
+
+# Optional AWS ALB Ingress (AWS Load Balancer Controller) — use as origin for Amazon CloudFront.
+# When enabled, switch webui.service.type to ClusterIP unless you need NodePort for other access.
+ingress:
+  enabled: false
+  # Must match the IngressClass installed by AWS Load Balancer Controller (commonly "alb")
+  className: alb
+  # Optional. If empty, a single default rule (ALB DNS only) is used.
+  host: ""
+  # Extra ALB annotations (e.g. certificate-arn, listen-ports) — see docs/CLOUDFRONT.md
+  annotations: {}
+
+ssm:
+  region: us-west-1
