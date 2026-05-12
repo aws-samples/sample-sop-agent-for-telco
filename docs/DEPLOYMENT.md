@@ -32,7 +32,7 @@ Deploy the Strands SOP Agent to EKS for NFV validation workflows.
 
 1. **EKS Cluster** for hosting the SOP Agent
 2. **AWS Load Balancer Controller** installed (for ALB Ingress)
-3. **Bedrock model access** enabled (Haiku, Sonnet, Opus)
+3. **Bedrock model access** enabled (at least one Anthropic Claude model — the agent auto-discovers available models at startup)
 4. **ECR repository** with the agent image
 
 ## Step 1: Push Image to ECR

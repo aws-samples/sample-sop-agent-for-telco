@@ -8,7 +8,7 @@ AI-powered Standard Operating Procedure (SOP) executor for telco network functio
 
 Reads SOPs from markdown files and executes them autonomously:
 1. Parses SOP steps and expected outputs
-2. Selects optimal Claude model based on complexity (Haiku → Sonnet → Opus)
+2. Dynamically discovers available Claude models and selects by complexity tier (fast → balanced → powerful)
 3. Executes commands via kubectl, SSH, shell tools
 4. Evaluates results against expected outputs
 5. Auto-corrects failures with more capable models
@@ -51,10 +51,7 @@ The deploy script will check and install these if missing:
 
 You need:
 - **AWS Account** with Bedrock enabled in your region
-- **Bedrock Model Access** - Enable in [Bedrock Console](https://console.aws.amazon.com/bedrock/home#/modelaccess):
-  - Claude 3.5 Haiku
-  - Claude Sonnet 4
-  - Claude Opus 4
+- **Bedrock Model Access** - At least one Anthropic Claude model enabled (the agent auto-discovers available models at startup). Visit [Bedrock Console](https://console.aws.amazon.com/bedrock/) to submit the Anthropic use case form if prompted.
 - **EKS Cluster** (existing or the script can guide you to create one)
 
 ## Manual Deployment

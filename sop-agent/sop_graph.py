@@ -29,6 +29,7 @@ from sop_executor import (
     get_tools_for_sop, get_sop_eval_meta,
     setup_eval_telemetry, collect_eval_session,
 )
+from model_discovery import discover_models, resolve_model_key
 
 # Ensure evals directory is importable
 import sys as _sys
@@ -42,11 +43,12 @@ logger = logging.getLogger(__name__)
 
 # Model fallback chain: if a model is deprecated/legacy, try the next one
 _MODEL_FALLBACKS = {
-    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "us.anthropic.claude-sonnet-4-20250514-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": "us.anthropic.claude-opus-4-20250514-v1:0",
-    "us.anthropic.claude-opus-4-20250514-v1:0": "us.anthropic.claude-opus-4-6-v1",
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "us.anthropic.claude-sonnet-4-6",
+    "us.anthropic.claude-sonnet-4-20250514-v1:0": "us.anthropic.claude-sonnet-4-6",
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": "us.anthropic.claude-sonnet-4-6",
+    "us.anthropic.claude-opus-4-20250514-v1:0": "us.anthropic.claude-sonnet-4-6",
+    "us.anthropic.claude-opus-4-6-v1": "us.anthropic.claude-sonnet-4-6",
 }
 
 # Corrector always uses the best available model — no point retrying with a weaker one
@@ -416,7 +418,8 @@ class CorrectorNode(MultiAgentBase):
                 prompt = build_correction_prompt(sop_content, failures)
 
                 session = boto3.Session(profile_name=self.profile if self.profile else None, region_name=self.region)
-                model = _create_model(MODELS[_CORRECTOR_MODEL], session)
+                corrector_model_id = resolve_model_key(_CORRECTOR_MODEL, boto_session=session, region=self.region)
+                model = _create_model(corrector_model_id, session)
                 agent = Agent(model=model, system_prompt=CORRECTOR_PROMPT, callback_handler=None)
 
                 loop = asyncio.get_event_loop()
@@ -480,8 +483,8 @@ def create_sop_agent(
     eval_ctx: Optional[dict] = None,
 ) -> Agent:
     """Create a scoped agent for a single SOP."""
-    model_id = MODELS.get(model_name, model_name)
     session = boto3.Session(profile_name=profile if profile else None, region_name=region)
+    model_id = resolve_model_key(model_name, boto_session=session, region=region)
     model = _create_model(model_id, session)
 
     system_prompt = SYSTEM_PROMPT_FIX if fix_mode else SYSTEM_PROMPT_REPORT

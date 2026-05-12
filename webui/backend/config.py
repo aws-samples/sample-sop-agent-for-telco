@@ -6,7 +6,7 @@ import os
 SOP_REPO = os.getenv("SOP_REPO", "/app")
 BEDROCK_PROFILE = os.getenv("BEDROCK_PROFILE") or None  # None = use default credential chain
 BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-west-2")
-BEDROCK_MODEL = os.getenv("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-20250514-v1:0")
+BEDROCK_MODEL = os.getenv("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-6")
 API_KEY = os.getenv("API_KEY", "")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
 AMP_WORKSPACE_URL = os.getenv("AMP_WORKSPACE_URL", "")

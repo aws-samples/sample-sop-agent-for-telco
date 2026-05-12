@@ -604,14 +604,12 @@ def run_post_eval(eval_ctx: dict, sop_path: str, agent_output: str) -> list:
 
 
 # ============== AGENT FACTORY ==============
-MODELS = {
-    "haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-    "sonnet": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "sonnet4.5": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "sonnet3.5": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "opus": "us.anthropic.claude-opus-4-20250514-v1:0",
-    "opus4.6": "us.anthropic.claude-opus-4-6-v1",
-}
+from model_discovery import discover_models, resolve_model_key, get_model_id
+
+# Legacy MODELS dict — kept for backward compatibility with CLI --model flag
+# Values are resolved dynamically at runtime via model_discovery
+MODELS = {"haiku": "fast", "sonnet": "balanced", "sonnet4.5": "balanced",
+           "sonnet3.5": "balanced", "opus": "powerful", "opus4.6": "powerful"}
 
 
 def create_agent(
@@ -639,7 +637,6 @@ def create_agent(
         eval_ctx = {"telemetry": telemetry, "session_id": session_id}
         print(f"{C.CYAN}📊 Eval mode enabled (session: {session_id[:8]}...){C.END}")
 
-    model_id = MODELS.get(model_name, model_name)
     mode_str = "FIX (autonomous)" if fix_mode else "REPORT (read-only)"
     logger.info(f"Initializing agent: profile={profile or 'default'}, region={region}")
     print(f"{C.CYAN}🤖 Initializing Strands Agent with {model_name}{C.END}")
@@ -655,6 +652,12 @@ def create_agent(
     except Exception as e:
         print(f"{C.RED}❌ AWS credentials error: {e}{C.END}")
         raise SystemExit(1)
+
+    # Dynamic model resolution — probes available models and selects best for tier
+    model_id = resolve_model_key(model_name, boto_session=session, region=region)
+    discovered = discover_models(boto_session=session, region=region)
+    print(f"{C.CYAN}🧠 Model: {model_id}{C.END}")
+    print(f"{C.CYAN}{discovered.summary()}{C.END}")
 
     try:
         model = BedrockModel(model_id=model_id, boto_session=session)
