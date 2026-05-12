@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for bootstrap.py deployment script."""
 
-import subprocess  # nosec B404 - required for testing CLI
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -14,7 +14,7 @@ class TestBootstrapCLI:
 
     def test_help_flag(self):
         """Test --help shows usage."""
-        result = subprocess.run(  # nosec B603 B607 - testing own script
+        result = subprocess.run(  # nosec B603,B607
             [sys.executable, str(BOOTSTRAP_PATH), "--help"], capture_output=True, text=True
         )
         assert result.returncode == 0
@@ -22,7 +22,7 @@ class TestBootstrapCLI:
 
     def test_missing_cluster_fails(self):
         """Test that missing --cluster argument fails."""
-        result = subprocess.run(  # nosec B603 B607 - testing own script
+        result = subprocess.run(  # nosec B603,B607
             [sys.executable, str(BOOTSTRAP_PATH)], capture_output=True, text=True
         )
         assert result.returncode != 0
@@ -30,7 +30,7 @@ class TestBootstrapCLI:
 
     def test_dry_run_shows_sop(self):
         """Test --dry-run prints SOP without executing."""
-        result = subprocess.run(  # nosec B603 B607 - testing own script
+        result = subprocess.run(  # nosec B603,B607
             [sys.executable, str(BOOTSTRAP_PATH), "--cluster", "test", "--dry-run"], capture_output=True, text=True
         )
         assert result.returncode == 0
@@ -39,7 +39,7 @@ class TestBootstrapCLI:
 
     def test_cluster_name_substitution(self):
         """Test cluster name is substituted in SOP."""
-        result = subprocess.run(  # nosec B603 B607 - testing own script
+        result = subprocess.run(  # nosec B603,B607
             [sys.executable, str(BOOTSTRAP_PATH), "--cluster", "my-test-cluster", "--dry-run"],
             capture_output=True,
             text=True,
@@ -86,7 +86,7 @@ class TestDeployScript:
     def test_deploy_script_help(self):
         """Test deploy.sh --help works."""
         deploy_path = Path(__file__).parent.parent / "deploy.sh"
-        result = subprocess.run(  # nosec B603 B607 - testing own script
+        result = subprocess.run(  # nosec B603,B607
             ["bash", str(deploy_path), "--help"], capture_output=True, text=True
         )
         assert result.returncode == 0

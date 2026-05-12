@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 # Disable auth for all tests
-os.environ["AUTH_PASSWORD"] = ""  # nosec B105 - intentionally empty to disable auth in tests
+os.environ["AUTH_PASSWORD"] = ""  # nosec B105
 
 # Mock strands if not installed (CI environment)
 if "strands" not in sys.modules:

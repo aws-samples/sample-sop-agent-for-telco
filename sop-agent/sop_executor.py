@@ -124,7 +124,7 @@ def run_cmd(cmd: str, timeout: int = DEFAULT_TIMEOUT, shell: bool = True) -> Cmd
     try:
         result = subprocess.run(
             cmd if shell else shlex.split(cmd),
-            shell=shell,  # nosec B602 - trusted SOP commands from validated sources
+            shell=shell,  # nosec B602
             capture_output=True,
             text=True,
             timeout=timeout,
