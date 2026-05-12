@@ -38,7 +38,7 @@ jobs:
           name: test-results-${{ matrix.python-version }}
           path: report.xml
 
-  lint:
+  code-quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,11 +48,42 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install linters
+      - name: Install tools
+        run: pip install ruff mypy boto3-stubs types-requests
+
+      - name: Ruff lint
+        run: ruff check sop-agent/ webui/backend/ tests/ --output-format=github
+
+      - name: Ruff format check
+        run: ruff format --check sop-agent/ webui/backend/ tests/
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install security tools
         run: pip install bandit semgrep
 
       - name: Bandit security scan
-        run: bandit -r sop-agent/ webui/backend/ -s B602,B603,B404 --format json -o bandit-report.json || true
+        run: |
+          bandit -r sop-agent/ webui/backend/ \
+            -s B602,B603,B404 \
+            --severity-level medium \
+            --confidence-level medium \
+            --format json -o bandit-report.json
+          bandit -r sop-agent/ webui/backend/ \
+            -s B602,B603,B404 \
+            --severity-level high \
+            --confidence-level high
+
+      - name: Semgrep scan
+        run: semgrep scan --config auto --error sop-agent/ webui/backend/
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4

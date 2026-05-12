@@ -1,0 +1,38 @@
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit
+    "T20",   # flake8-print (warn on print statements)
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "S602",   # subprocess with shell=True (intentional in SOP executor)
+    "S603",   # subprocess without shell=True (intentional)
+    "S404",   # import subprocess (intentional)
+    "S101",   # assert (used in tests)
+    "T201",   # print (used for CLI output in agent)
+    "B008",   # function call in default argument (used in FastAPI Depends)
+    "N802",   # function name lowercase (some test class methods)
+    "N803",   # argument name lowercase
+    "UP007",  # Use X | Y for union types (keep Optional for 3.9 compat)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["S101", "S106", "B011"]
+"sop-agent/sop_executor.py" = ["T201"]
+"sop-agent/model_discovery.py" = ["T201"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
