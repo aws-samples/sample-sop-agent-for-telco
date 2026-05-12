@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for execution_logger and new evaluators."""
+
 import json
 import os
 import sys
@@ -23,6 +24,7 @@ def log_dir():
 
 # ── ExecutionLogger tests ──
 
+
 def test_execution_logger_full_lifecycle(log_dir):
     from execution_logger import ExecutionLogger
 
@@ -30,8 +32,9 @@ def test_execution_logger_full_lifecycle(log_dir):
     log.node_start("01-argocd-setup")
     log.tool_call("01-argocd-setup", "kubectl", "get pods -n argocd")
     log.tool_result("01-argocd-setup", "tu-1", "NAME  READY  STATUS\nargocd-server  1/1  Running", False)
-    log.node_complete("01-argocd-setup", "completed", 5000,
-                      {"inputTokens": 100, "outputTokens": 200, "totalTokens": 300})
+    log.node_complete(
+        "01-argocd-setup", "completed", 5000, {"inputTokens": 100, "outputTokens": 200, "totalTokens": 300}
+    )
     log.node_start("eval-01-argocd-setup")
     log.eval_score("eval-01-argocd-setup", "SteeringEffectivenessEvaluator", 1.0, True, "No issues.")
     log.eval_score("eval-01-argocd-setup", "SOPCompletionEvaluator", 0.7, True, "Missing tools: [ssh_command]")
@@ -89,8 +92,9 @@ def test_corrector_snapshot(log_dir):
 
     log = ExecutionLogger(["/app/sops/02.md"])
     log.node_start("correct-02")
-    log.corrector_snapshot("correct-02", "/app/sops/02.md", "# Original SOP\n\nContent here",
-                           [{"reason": "Tool budget exceeded: 134/95"}])
+    log.corrector_snapshot(
+        "correct-02", "/app/sops/02.md", "# Original SOP\n\nContent here", [{"reason": "Tool budget exceeded: 134/95"}]
+    )
     log.complete("completed")
 
     data = json.loads(list(log_dir.glob("execution_*.json"))[0].read_text())
@@ -193,6 +197,7 @@ def _make_tool_spans(total, failed_count, error_msg="connection refused"):
         span.tool_result.error = error_msg if i < failed_count else None
         # Make isinstance check work
         from strands_evals.types.trace import ToolExecutionSpan
+
         span.__class__ = ToolExecutionSpan
         spans.append(span)
 

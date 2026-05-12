@@ -96,6 +96,7 @@ def _create_model(model_id: str, boto_session) -> BedrockModel:
 
 # ── SOP Content Analysis (all derived, nothing hardcoded) ──
 
+
 def parse_sop_metadata(sop_path: str) -> dict:
     """Extract metadata from SOP content: stage, dependencies, complexity.
 
@@ -112,8 +113,14 @@ def parse_sop_metadata(sop_path: str) -> dict:
     try:
         content = Path(sop_path).read_text()
     except (FileNotFoundError, OSError):
-        return {"stem": Path(sop_path).stem, "stage": None, "dep_stages": [],
-                "dep_files": [], "bash_blocks": 0, "lines": 0}
+        return {
+            "stem": Path(sop_path).stem,
+            "stage": None,
+            "dep_stages": [],
+            "dep_files": [],
+            "bash_blocks": 0,
+            "lines": 0,
+        }
 
     stem = Path(sop_path).stem
     lines = content.split("\n")
@@ -213,6 +220,7 @@ def select_model(meta: dict, default: str = "haiku") -> str:
 
 # ── Custom Node: Deterministic Evaluator (no LLM) ──
 
+
 class EvalNode(MultiAgentBase):
     """Run deterministic evaluators on captured traces. Zero LLM cost."""
 
@@ -257,7 +265,7 @@ class EvalNode(MultiAgentBase):
             meta["lines"] = sop_meta.get("lines", 0)
             # Derive execution time from telemetry span timestamps
             spans = []
-            for trace in (session.traces if session else []):
+            for trace in session.traces if session else []:
                 spans.extend(trace.spans)
             if spans:
                 starts = [s.span_info.start_time for s in spans if s.span_info.start_time]
@@ -290,13 +298,17 @@ class EvalNode(MultiAgentBase):
                         has_failures = True
                         fault_type = _classify_failure(report.evaluator_name, reason, fault_type)
                 # Yield structured eval event (backend parses this directly)
-                eval_scores.append({
-                    "evaluator": report.evaluator_name,
-                    "score": report.overall_score,
-                    "passed": report.overall_score >= 0.5,
-                    "reasons": [{"passed": report.test_passes[i], "reason": report.reasons[i]}
-                                for i in range(len(report.reasons))],
-                })
+                eval_scores.append(
+                    {
+                        "evaluator": report.evaluator_name,
+                        "score": report.overall_score,
+                        "passed": report.overall_score >= 0.5,
+                        "reasons": [
+                            {"passed": report.test_passes[i], "reason": report.reasons[i]}
+                            for i in range(len(report.reasons))
+                        ],
+                    }
+                )
             if has_failures:
                 # Include tool error details so the corrector knows WHAT failed
                 tool_errors = []
@@ -330,12 +342,19 @@ class EvalNode(MultiAgentBase):
             state={},
             metrics={"latencyMs": elapsed},
         )
-        yield {"result": MultiAgentResult(
-            status=Status.COMPLETED, execution_time=elapsed,
-            results={self._name: NodeResult(
-                result=agent_result, status=Status.COMPLETED, execution_time=elapsed,
-            )},
-        )}
+        yield {
+            "result": MultiAgentResult(
+                status=Status.COMPLETED,
+                execution_time=elapsed,
+                results={
+                    self._name: NodeResult(
+                        result=agent_result,
+                        status=Status.COMPLETED,
+                        execution_time=elapsed,
+                    )
+                },
+            )
+        }
 
 
 def _classify_failure(evaluator_name: str, reason: str, current: str | None) -> str:
@@ -381,12 +400,11 @@ class CorrectorNode(MultiAgentBase):
             snap_dir = Path(os.environ.get("SOP_REPO", "/app")) / "logs" / "corrector_snapshots"
             snap_dir.mkdir(parents=True, exist_ok=True)
             import json
+
             ts = _time.strftime("%Y%m%d_%H%M%S")
             stem = Path(self.sop_path).stem
             snap_dir.joinpath(f"{stem}_{ts}.md").write_text(content)
-            snap_dir.joinpath(f"{stem}_{ts}_failures.json").write_text(
-                json.dumps(failures, indent=2, default=str)
-            )
+            snap_dir.joinpath(f"{stem}_{ts}_failures.json").write_text(json.dumps(failures, indent=2, default=str))
         except Exception as e:
             logger.warning(f"Failed to save corrector snapshot: {e}")
 
@@ -399,9 +417,7 @@ class CorrectorNode(MultiAgentBase):
         start = _time.time()
         # task may be a list of ContentBlocks or a string — extract text properly
         if isinstance(task, list):
-            eval_output = "\n".join(
-                b["text"] if isinstance(b, dict) else str(b) for b in task
-            )
+            eval_output = "\n".join(b["text"] if isinstance(b, dict) else str(b) for b in task)
         else:
             eval_output = str(task)
         lines = []
@@ -434,14 +450,18 @@ class CorrectorNode(MultiAgentBase):
 
                 # Extract markdown from response
                 if "# " in result:
-                    result = result[result.index("# "):]
+                    result = result[result.index("# ") :]
 
                 # Git-safe write: commit current state before overwriting
                 import subprocess
+
                 try:
                     subprocess.run(["git", "add", self.sop_path], capture_output=True, timeout=10)
-                    subprocess.run(["git", "commit", "-m", f"pre-correct: {Path(self.sop_path).stem}"],
-                                   capture_output=True, timeout=10)
+                    subprocess.run(
+                        ["git", "commit", "-m", f"pre-correct: {Path(self.sop_path).stem}"],
+                        capture_output=True,
+                        timeout=10,
+                    )
                 except Exception:
                     pass  # Not a git repo or nothing to commit — still safe via snapshot
 
@@ -470,15 +490,23 @@ class CorrectorNode(MultiAgentBase):
             state={},
             metrics={"latencyMs": elapsed},
         )
-        yield {"result": MultiAgentResult(
-            status=Status.COMPLETED, execution_time=elapsed,
-            results={self._name: NodeResult(
-                result=agent_result, status=Status.COMPLETED, execution_time=elapsed,
-            )},
-        )}
+        yield {
+            "result": MultiAgentResult(
+                status=Status.COMPLETED,
+                execution_time=elapsed,
+                results={
+                    self._name: NodeResult(
+                        result=agent_result,
+                        status=Status.COMPLETED,
+                        execution_time=elapsed,
+                    )
+                },
+            )
+        }
 
 
 # ── Agent Factory ──
+
 
 def create_sop_agent(
     sop_path: str,
@@ -504,9 +532,14 @@ def create_sop_agent(
 - When steps are independent, call multiple tools in parallel.
 - Do NOT retry a failed command more than twice with the same arguments."""
     tools = get_tools_for_sop(sop_path)
-    steering = None if no_steering else (
-        __import__('adaptive_steering', fromlist=['AdaptiveSteeringHandler'])
-        .AdaptiveSteeringHandler(sop_stem=Path(sop_path).stem, fix_mode=fix_mode)
+    steering = (
+        None
+        if no_steering
+        else (
+            __import__("adaptive_steering", fromlist=["AdaptiveSteeringHandler"]).AdaptiveSteeringHandler(
+                sop_stem=Path(sop_path).stem, fix_mode=fix_mode
+            )
+        )
     )
 
     trace_attrs = None
@@ -521,6 +554,7 @@ def create_sop_agent(
     if steering:
         try:
             from strands.plugins import Plugin
+
             if isinstance(steering, Plugin):
                 kwargs["plugins"] = [steering]
             else:
@@ -540,6 +574,7 @@ def create_sop_agent(
 
 # ── Graph Builders ──
 
+
 def _all_upstreams_passed(terminal_ids: list[str], target: str = ""):
     """AND-join condition: only traverse when ALL upstream terminals have completed.
 
@@ -548,13 +583,18 @@ def _all_upstreams_passed(terminal_ids: list[str], target: str = ""):
     incoming edge, so whenever any upstream completes, the condition is checked.
     It only returns True when ALL upstreams are done.
     """
+
     def check(state: GraphState) -> bool:
-        satisfied = [tid for tid in terminal_ids
-                     if (r := state.results.get(tid)) is not None and r.status == Status.COMPLETED]
+        satisfied = [
+            tid for tid in terminal_ids if (r := state.results.get(tid)) is not None and r.status == Status.COMPLETED
+        ]
         result = len(satisfied) == len(terminal_ids)
         if satisfied:  # Only log when at least one upstream done (avoid noise)
-            logger.info(f"AND-join {target}: {len(satisfied)}/{len(terminal_ids)} satisfied={satisfied} → {'PASS' if result else 'WAIT'}")
+            logger.info(
+                f"AND-join {target}: {len(satisfied)}/{len(terminal_ids)} satisfied={satisfied} → {'PASS' if result else 'WAIT'}"
+            )
         return result
+
     return check
 
 
@@ -564,18 +604,21 @@ def _corrector_made_changes(corrector_id: str):
     When corrector finds no actionable failures (AGENT_FAULT with nothing to
     fix), it outputs "skipping SOP patch" — no point re-running the same SOP.
     """
+
     def check(state: GraphState) -> bool:
         r = state.results.get(corrector_id)
         if not r or r.status != Status.COMPLETED:
             return False
         results = r.get_agent_results()
         return any("SOP patched" in str(ar.message["content"]) for ar in results if ar.message)
+
     return check
 
 
 def _needs_correction(eval_id: str, max_retries: int = 2):
     """Condition: traverse if eval output contains NEEDS_CORRECTION, up to max_retries times."""
     attempts = {"count": 0}
+
     def check(state: GraphState) -> bool:
         r = state.results.get(eval_id)
         if not r or r.status != Status.COMPLETED:
@@ -588,6 +631,7 @@ def _needs_correction(eval_id: str, max_retries: int = 2):
                 logger.warning(f"{eval_id}: max correction retries ({max_retries}) reached, skipping")
                 return False
         return needs
+
     return check
 
 
@@ -599,8 +643,9 @@ def _derive_timeout(metas: list[dict], eval_mode: bool, auto_correct: bool) -> i
     """
     total = 0
     for meta in metas:
-        per_sop = max(120, 60 + meta.get("bash_blocks", 0) * 5 + meta.get("lines", 0) // 2
-                       + meta.get("sleep_seconds", 0))
+        per_sop = max(
+            120, 60 + meta.get("bash_blocks", 0) * 5 + meta.get("lines", 0) // 2 + meta.get("sleep_seconds", 0)
+        )
         if eval_mode:
             per_sop += 30
         total += per_sop
@@ -641,8 +686,12 @@ def build_sop_graph(
 
         model = select_model(meta, default_model)
         agent = create_sop_agent(
-            sop_path, profile=profile, region=region,
-            model_name=model, fix_mode=fix_mode, no_steering=no_steering,
+            sop_path,
+            profile=profile,
+            region=region,
+            model_name=model,
+            fix_mode=fix_mode,
+            no_steering=no_steering,
             eval_ctx=eval_ctx,
         )
         builder.add_node(agent, meta["stem"])
@@ -662,11 +711,9 @@ def build_sop_graph(
                 builder.add_node(corrector, corrector_id)
 
                 # AGENT_FAULT or SOP_FAULT → corrector patches the SOP
-                builder.add_edge(eval_node_id, corrector_id,
-                                 condition=_needs_correction(eval_node_id))
+                builder.add_edge(eval_node_id, corrector_id, condition=_needs_correction(eval_node_id))
                 # After correction → re-run ONLY if corrector actually patched the SOP
-                builder.add_edge(corrector_id, meta["stem"],
-                                 condition=_corrector_made_changes(corrector_id))
+                builder.add_edge(corrector_id, meta["stem"], condition=_corrector_made_changes(corrector_id))
 
     # Determine the "terminal" node for each SOP (for inter-SOP dependency edges)
     # The eval node is always the last to run in the SOP cycle:
@@ -690,6 +737,7 @@ def build_sop_graph(
     stem_set = {m["stem"] for m in metas}
 
     from collections import defaultdict
+
     deps_by_target: dict[str, list[str]] = defaultdict(list)
     for from_stem, to_stem in edges:
         if from_stem in stem_set and to_stem in stem_set:
@@ -716,7 +764,9 @@ def build_sop_graph(
         builder.set_max_node_executions(len(metas) * 9)  # 3 cycles per SOP
     builder.set_graph_id("sop-orchestrator")
     graph = builder.build()
-    logger.info(f"Graph built: {len(graph.nodes)} nodes, {len(graph.edges)} edges, entries={[n.node_id for n in graph.entry_points]}")
+    logger.info(
+        f"Graph built: {len(graph.nodes)} nodes, {len(graph.edges)} edges, entries={[n.node_id for n in graph.entry_points]}"
+    )
     for e in graph.edges:
         logger.debug(f"  Edge: {e.from_node.node_id} -> {e.to_node.node_id} (cond={e.condition is not None})")
     return graph
@@ -746,9 +796,13 @@ def build_eval_loop(
     model = select_model(meta, model_name)
 
     agent = create_sop_agent(
-        sop_path, profile=profile, region=region,
-        model_name=model, fix_mode=fix_mode,
-        no_steering=no_steering, eval_ctx=eval_ctx,
+        sop_path,
+        profile=profile,
+        region=region,
+        model_name=model,
+        fix_mode=fix_mode,
+        no_steering=no_steering,
+        eval_ctx=eval_ctx,
     )
     eval_node = EvalNode(eval_ctx, sop_path, name="eval")
 

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for day2-monitor — alert dedup, fingerprinting, SOP generation dispatch."""
+
 import json
 import sys
 from pathlib import Path
@@ -61,11 +62,13 @@ class TestMonitorState:
 class TestFetchAlerts:
     @patch("monitor._run")
     def test_filters_inactive_and_ignored(self, mock_run):
-        mock_run.return_value = json.dumps([
-            {"status": {"state": "active"}, "labels": {"alertname": "RealAlert", "severity": "warning"}},
-            {"status": {"state": "active"}, "labels": {"alertname": "Watchdog"}},
-            {"status": {"state": "suppressed"}, "labels": {"alertname": "Suppressed"}},
-        ])
+        mock_run.return_value = json.dumps(
+            [
+                {"status": {"state": "active"}, "labels": {"alertname": "RealAlert", "severity": "warning"}},
+                {"status": {"state": "active"}, "labels": {"alertname": "Watchdog"}},
+                {"status": {"state": "suppressed"}, "labels": {"alertname": "Suppressed"}},
+            ]
+        )
         alerts = fetch_active_alerts()
         assert len(alerts) == 1
         assert alerts[0]["labels"]["alertname"] == "RealAlert"
@@ -84,15 +87,19 @@ class TestFetchAlerts:
 class TestFetchEvents:
     @patch("monitor._kubectl")
     def test_parses_events(self, mock_kubectl):
-        mock_kubectl.return_value = json.dumps({
-            "items": [{
-                "reason": "BackOff",
-                "message": "Back-off restarting failed container",
-                "involvedObject": {"name": "app-svc-0"},
-                "count": 5,
-                "lastTimestamp": "2026-04-05T10:00:00Z",
-            }]
-        })
+        mock_kubectl.return_value = json.dumps(
+            {
+                "items": [
+                    {
+                        "reason": "BackOff",
+                        "message": "Back-off restarting failed container",
+                        "involvedObject": {"name": "app-svc-0"},
+                        "count": 5,
+                        "lastTimestamp": "2026-04-05T10:00:00Z",
+                    }
+                ]
+            }
+        )
         events = fetch_k8s_events()
         assert len(events) >= 1
         assert events[0]["reason"] == "BackOff"

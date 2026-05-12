@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for execution_state.py — state machine, history, log rotation."""
+
 from execution_state import AgentStatus, ExecutionHistory, ExecutionState
 
 
@@ -75,6 +76,7 @@ class TestExecutionState:
 
     def test_stale_tool_cleared(self):
         import time
+
         self.state.start_execution("/sops/test.md")
         self.state.current_tool = "kubectl"
         self.state._tool_timestamp = time.time() - 20  # 20s ago = stale
@@ -83,6 +85,7 @@ class TestExecutionState:
 
     def test_fresh_tool_not_cleared(self):
         import time
+
         self.state.start_execution("/sops/test.md")
         self.state.current_tool = "kubectl"
         self.state._tool_timestamp = time.time()  # just now
@@ -101,6 +104,7 @@ class TestExecutionState:
     def test_tool_timestamp_must_be_set_for_stale_check(self):
         """Tool timestamp must be set when current_tool is assigned, otherwise stale check never fires."""
         import time
+
         self.state.start_execution("/sops/test.md")
         self.state.current_tool = "kubectl"
         self.state._tool_timestamp = time.time()
@@ -122,6 +126,7 @@ class TestExecutionState:
     def test_persist_and_restore_history(self, tmp_path):
         """History persists to disk and restores on new instance."""
         import os
+
         hist_file = str(tmp_path / "history.json")
         self.state._HISTORY_FILE = hist_file
         self.state.start_execution("01-argocd-setup.md")
@@ -144,8 +149,10 @@ class TestExecutionState:
         hist_file = str(tmp_path / "history.json")
         self.state._HISTORY_FILE = hist_file
         self.state.history["05-validation.md"] = ExecutionHistory(
-            sop_path="05-validation.md", status=AgentStatus.COMPLETED,
-            start_time="2026-01-01T00:00:00", end_time="2026-01-01T00:01:00",
+            sop_path="05-validation.md",
+            status=AgentStatus.COMPLETED,
+            start_time="2026-01-01T00:00:00",
+            end_time="2026-01-01T00:01:00",
         )
         self.state._persist_history()
 

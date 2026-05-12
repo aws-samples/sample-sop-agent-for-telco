@@ -50,7 +50,9 @@ def _load_failure_patterns(sop_stem: str, log_dir: str = "/app/logs", max_runs: 
                     target = _extract_target(tc.get("tool", ""), tc.get("input", ""))
                     if target:
                         key = f"{tc['tool']}:{target}"
-                        entry = target_failures.setdefault(key, {"tool": tc["tool"], "target": target, "count": 0, "errors": set()})
+                        entry = target_failures.setdefault(
+                            key, {"tool": tc["tool"], "target": target, "count": 0, "errors": set()}
+                        )
                         entry["count"] += 1
                         entry["errors"].add(tc["error"][:100])
         except Exception:
@@ -60,16 +62,20 @@ def _load_failure_patterns(sop_stem: str, log_dir: str = "/app/logs", max_runs: 
     patterns = []
     for key, entry in target_failures.items():
         if entry["count"] >= 2:
-            patterns.append({
-                "tool": entry["tool"],
-                "target": entry["target"],
-                "count": entry["count"],
-                "errors": list(entry["errors"])[:3],
-                "guidance": _build_guidance(entry["tool"], entry["target"], entry["errors"]),
-            })
+            patterns.append(
+                {
+                    "tool": entry["tool"],
+                    "target": entry["target"],
+                    "count": entry["count"],
+                    "errors": list(entry["errors"])[:3],
+                    "guidance": _build_guidance(entry["tool"], entry["target"], entry["errors"]),
+                }
+            )
 
     if patterns:
-        logger.info(f"Loaded {len(patterns)} failure patterns for {sop_stem}: {[p['tool']+':'+p['target'] for p in patterns]}")
+        logger.info(
+            f"Loaded {len(patterns)} failure patterns for {sop_stem}: {[p['tool'] + ':' + p['target'] for p in patterns]}"
+        )
     return patterns
 
 
@@ -84,26 +90,29 @@ def _extract_target(tool: str, tool_input: str) -> str | None:
     # SSH targets: extract IP/hostname
     if tool in ("ssh_command", "ssh_expect") or ("ssh " in inp):
         import re
+
         # Match IP addresses
-        m = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', inp)
+        m = re.search(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", inp)
         if m:
             return m.group(1)
         # Match hostnames after ssh/@
-        m = re.search(r'@([\w.-]+)', inp)
+        m = re.search(r"@([\w.-]+)", inp)
         if m:
             return m.group(1)
 
     # run_command with ssh
     if tool == "run_command" and "ssh " in inp:
         import re
-        m = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', inp)
+
+        m = re.search(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", inp)
         if m:
             return m.group(1)
 
     # SSM targets
     if "ssm" in inp.lower() and "instance-id" in inp:
         import re
-        m = re.search(r'(i-[0-9a-f]+)', inp)
+
+        m = re.search(r"(i-[0-9a-f]+)", inp)
         if m:
             return m.group(1)
 
@@ -114,7 +123,12 @@ def _build_guidance(tool: str, target: str, errors: set) -> str:
     """Build actionable guidance for a known failure pattern."""
     error_summary = "; ".join(list(errors)[:2])
 
-    if "ssh" in tool.lower() or "ssh " in str(errors).lower() or "connection refused" in str(errors).lower() or "permission denied" in str(errors).lower():
+    if (
+        "ssh" in tool.lower()
+        or "ssh " in str(errors).lower()
+        or "connection refused" in str(errors).lower()
+        or "permission denied" in str(errors).lower()
+    ):
         return (
             f"SSH to {target} has failed in multiple previous runs ({error_summary}). "
             f"Do NOT attempt SSH to {target}. Instead, verify from Kubernetes: "
@@ -124,8 +138,7 @@ def _build_guidance(tool: str, target: str, errors: set) -> str:
 
     if "ssm" in str(errors).lower():
         return (
-            f"SSM access to {target} has failed in previous runs. "
-            f"Do NOT attempt SSM. Verify from Kubernetes instead."
+            f"SSM access to {target} has failed in previous runs. Do NOT attempt SSM. Verify from Kubernetes instead."
         )
 
     return (
@@ -158,7 +171,7 @@ class AdaptiveSteeringHandler(SteeringHandler):
         if self.tool_count >= self.tool_budget:
             return Guide(
                 reason=f"Tool call budget exhausted ({self.tool_count}/{self.tool_budget}). "
-                       "Summarize progress and stop. Do NOT call more tools."
+                "Summarize progress and stop. Do NOT call more tools."
             )
 
         tool_name = tool_use.get("name", "")
@@ -170,7 +183,9 @@ class AdaptiveSteeringHandler(SteeringHandler):
             for pattern in self.patterns:
                 if pattern["target"] == target and target not in self._guided_targets:
                     self._guided_targets.add(target)
-                    logger.info(f"Steering {self.sop_stem}: blocking {tool_name} to {target} (failed {pattern['count']}x in history)")
+                    logger.info(
+                        f"Steering {self.sop_stem}: blocking {tool_name} to {target} (failed {pattern['count']}x in history)"
+                    )
                     return Guide(reason=pattern["guidance"])
 
         # Namespace guard
@@ -185,7 +200,9 @@ class AdaptiveSteeringHandler(SteeringHandler):
         if tool_name in ("run_command", "kubectl"):
             cmd = str(tool_use.get("input", {}).get("command", tool_use.get("input", {}).get("args", "")))
             if "port-forward" in cmd and "&" not in cmd:
-                return Guide(reason="port-forward without '&' will hang. Add '&' or use 'timeout 10 kubectl port-forward ...'.")
+                return Guide(
+                    reason="port-forward without '&' will hang. Add '&' or use 'timeout 10 kubectl port-forward ...'."
+                )
 
         # Dangerous command guard (REPORT mode)
         if not self.fix_mode:

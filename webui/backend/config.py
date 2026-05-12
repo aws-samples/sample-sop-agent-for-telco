@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Centralized configuration — all env vars in one place."""
+
 import os
 
 SOP_REPO = os.getenv("SOP_REPO", "/app")

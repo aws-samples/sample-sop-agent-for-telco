@@ -1,13 +1,16 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for api.py — API endpoints and functionality."""
+
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 # Patch subprocess before importing api
-with patch("subprocess.check_output", return_value=""), \
-     patch("subprocess.run", return_value=MagicMock(stdout="", stderr="", returncode=0)):
+with (
+    patch("subprocess.check_output", return_value=""),
+    patch("subprocess.run", return_value=MagicMock(stdout="", stderr="", returncode=0)),
+):
     from api import EventBuffer, _app_stats_cache, app, verify_credentials
 
 # Override auth dependency for tests
@@ -17,6 +20,7 @@ client = TestClient(app)
 
 
 # ── API Endpoints ──
+
 
 class TestSOPEndpoints:
     def test_list_sops(self):
@@ -57,6 +61,7 @@ class TestSOPEndpoints:
 
 # ── App Stats ──
 
+
 class TestAppStats:
     """Test application stats endpoint."""
 
@@ -76,6 +81,7 @@ class TestAppStats:
 
 # ── Security: kubectl allowlist & shell blocklist ──
 
+
 class TestChatToolSecurity:
     """Test the command safety checks added in Phase 1."""
 
@@ -93,6 +99,7 @@ class TestChatToolSecurity:
 
 
 # ── Graph Endpoint ──
+
 
 class TestGraphEndpoint:
     """Test /ws/execute-graph WebSocket endpoint structure."""
@@ -112,6 +119,7 @@ class TestGraphEndpoint:
 
 
 # ── EventBuffer ──
+
 
 class TestEventBuffer:
     def test_append_and_since(self):
@@ -147,17 +155,23 @@ class TestEventBuffer:
 
 # ── Document Upload / SOP Generation ──
 
+
 class TestGenerateSOP:
     """Test POST /api/generate-sop endpoint."""
 
     def test_upload_txt_generates_sop(self, tmp_path, monkeypatch):
         """Uploading a .txt file creates an SOP in the sops directory."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
 
         # Mock the agent call to avoid hitting Bedrock
-        monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: f"# Generated SOP\n\nFrom: {fname}\n\n## Procedure\n\n{text[:100]}")
+        monkeypatch.setattr(
+            api,
+            "_generate_sop_with_agent",
+            lambda text, fname: f"# Generated SOP\n\nFrom: {fname}\n\n## Procedure\n\n{text[:100]}",
+        )
 
         resp = client.post(
             "/api/generate-sop",
@@ -177,6 +191,7 @@ class TestGenerateSOP:
     def test_upload_md_generates_sop(self, tmp_path, monkeypatch):
         """Uploading a .md file works."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: f"# SOP from {fname}")
@@ -191,6 +206,7 @@ class TestGenerateSOP:
     def test_upload_pdf_extracts_text(self, tmp_path, monkeypatch):
         """Uploading a .pdf attempts text extraction."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: f"# SOP from {fname}\n\n{text[:80]}")
@@ -210,6 +226,7 @@ class TestGenerateSOP:
 
         import api
         from docx import Document
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: f"# SOP\n\n{text[:80]}")
@@ -224,7 +241,13 @@ class TestGenerateSOP:
 
         resp = client.post(
             "/api/generate-sop",
-            files={"file": ("guide.docx", buf.read(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "file": (
+                    "guide.docx",
+                    buf.read(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert resp.status_code == 200
         content = (tmp_path / "sops" / "guide.md").read_text()
@@ -233,6 +256,7 @@ class TestGenerateSOP:
     def test_upload_rejects_unsupported_type(self, tmp_path, monkeypatch):
         """Uploading a .zip should be rejected."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
 
         resp = client.post(
@@ -245,6 +269,7 @@ class TestGenerateSOP:
     def test_upload_avoids_overwrite(self, tmp_path, monkeypatch):
         """If SOP name already exists, appends a counter."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         (tmp_path / "sops" / "existing.md").write_text("# Existing")
@@ -262,6 +287,7 @@ class TestGenerateSOP:
     def test_upload_saves_to_uploads_dir(self, tmp_path, monkeypatch):
         """Uploaded file is saved to uploads/ directory."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
         monkeypatch.setattr(api, "_generate_sop_with_agent", lambda text, fname: "# SOP")
@@ -276,11 +302,13 @@ class TestGenerateSOP:
     def test_agent_fallback_on_error(self, tmp_path, monkeypatch):
         """If agent fails, fallback placeholder SOP is created."""
         import api
+
         monkeypatch.setattr(api, "SOP_REPO", str(tmp_path))
         (tmp_path / "sops").mkdir()
 
         def _fail(text, fname):
             raise RuntimeError("Bedrock unavailable")
+
         monkeypatch.setattr(api, "_generate_sop_with_agent", _fail)
 
         resp = client.post(

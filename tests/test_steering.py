@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 
 """Tests for SOPSteeringHooks — steering hooks for SOP executor agent."""
+
 import os
 import sys
 
@@ -247,7 +248,8 @@ class TestSOPCompletionEvaluator:
         spans = [_make_tool_span("check_pod_status"), _make_tool_span("kubectl_exec")]
         session = _make_session(spans)
         case = EvaluationData(
-            input="test", actual_output="All checks passed",
+            input="test",
+            actual_output="All checks passed",
             actual_trajectory=session,
             metadata={"required_tools": ["check_pod_status", "kubectl_exec"]},
         )
@@ -258,7 +260,8 @@ class TestSOPCompletionEvaluator:
         spans = [_make_tool_span("kubectl")]
         session = _make_session(spans)
         case = EvaluationData(
-            input="test", actual_output="done",
+            input="test",
+            actual_output="done",
             actual_trajectory=session,
             metadata={"required_tools": ["kubectl", "check_pod_status"]},
         )
@@ -271,7 +274,8 @@ class TestSOPCompletionEvaluator:
         spans = [_make_tool_span("kubectl_exec"), _make_tool_span("check_pod_status")]
         session = _make_session(spans)
         case = EvaluationData(
-            input="test", actual_output="All checks passed",
+            input="test",
+            actual_output="All checks passed",
             actual_trajectory=session,
             metadata={"required_tools": ["kubectl"]},
         )
@@ -280,7 +284,8 @@ class TestSOPCompletionEvaluator:
 
     def test_empty_output_fails(self):
         case = EvaluationData(
-            input="test", actual_output="",
+            input="test",
+            actual_output="",
             actual_trajectory=_make_session([]),
             metadata={},
         )

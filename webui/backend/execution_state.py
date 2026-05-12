@@ -3,6 +3,7 @@
 """
 Agent execution state management
 """
+
 import os
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -16,17 +17,20 @@ class AgentStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
+
 @dataclass
 class LogEntry:
     timestamp: str
     message: str
     type: str = "stdout"
 
+
 @dataclass
 class ExecutionStep:
     name: str
     status: str  # 'success', 'failed', 'running'
     timestamp: str
+
 
 @dataclass
 class ExecutionHistory:
@@ -44,6 +48,7 @@ class ExecutionHistory:
             self.logs = []
         if self.steps is None:
             self.steps = []
+
 
 @dataclass
 class ExecutionState:
@@ -95,7 +100,7 @@ class ExecutionState:
 
         # Save to history using SOP name as key
         if self.current_sop:
-            sop_name = self.current_sop.split('/')[-1] if '/' in self.current_sop else self.current_sop
+            sop_name = self.current_sop.split("/")[-1] if "/" in self.current_sop else self.current_sop
             self.history[sop_name] = ExecutionHistory(
                 sop_path=self.current_sop,
                 status=self.status,
@@ -104,26 +109,18 @@ class ExecutionState:
                 logs=self.logs.copy(),
                 last_output=self.last_output,
                 exit_code=exit_code,
-                steps=self.steps.copy()
+                steps=self.steps.copy(),
             )
         self._persist_history()
 
     def add_step(self, name: str, status: str) -> None:
         """Add or update an execution step"""
-        step = ExecutionStep(
-            name=name,
-            status=status,
-            timestamp=datetime.now().isoformat()
-        )
+        step = ExecutionStep(name=name, status=status, timestamp=datetime.now().isoformat())
         self.steps.append(step)
 
     def add_log(self, message: str, log_type: str = "stdout") -> None:
         """Add a log entry"""
-        log_entry = LogEntry(
-            timestamp=datetime.now().isoformat(),
-            message=message,
-            type=log_type
-        )
+        log_entry = LogEntry(timestamp=datetime.now().isoformat(), message=message, type=log_type)
         self.logs.append(log_entry)
         self.last_output = message
 
@@ -138,18 +135,19 @@ class ExecutionState:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         import time
+
         # Clear stale tool after 10s of no new tool call
         if self.current_tool and self._tool_timestamp and (time.time() - self._tool_timestamp > 10):
             self.current_tool = None
         result = asdict(self)
         # Remove internal fields, expose clean versions
-        for key in ('_tool_timestamp', '_tools_used', '_pending_eval_name', '_pending_eval_node', '_eval_scores'):
+        for key in ("_tool_timestamp", "_tools_used", "_pending_eval_name", "_pending_eval_node", "_eval_scores"):
             result.pop(key, None)
-        result['tools_used'] = list(set(self._tools_used or []))
-        result['eval_scores'] = self._eval_scores or {}
-        result['status'] = self.status.value
-        result['history'] = {
-            name: {**asdict(hist), 'status': hist.status.value if hasattr(hist.status, 'value') else str(hist.status)}
+        result["tools_used"] = list(set(self._tools_used or []))
+        result["eval_scores"] = self._eval_scores or {}
+        result["status"] = self.status.value
+        result["history"] = {
+            name: {**asdict(hist), "status": hist.status.value if hasattr(hist.status, "value") else str(hist.status)}
             for name, hist in self.history.items()
         }
         return result
@@ -159,16 +157,20 @@ class ExecutionState:
     def _persist_history(self) -> None:
         """Save history + graph node states to disk for survival across restarts."""
         import json
+
         try:
             os.makedirs(os.path.dirname(self._HISTORY_FILE), exist_ok=True)
             data = {
                 name: {
-                    'sop_path': h.sop_path, 'status': h.status.value if hasattr(h.status, 'value') else str(h.status),
-                    'start_time': h.start_time, 'end_time': h.end_time, 'exit_code': h.exit_code,
+                    "sop_path": h.sop_path,
+                    "status": h.status.value if hasattr(h.status, "value") else str(h.status),
+                    "start_time": h.start_time,
+                    "end_time": h.end_time,
+                    "exit_code": h.exit_code,
                 }
                 for name, h in self.history.items()
             }
-            with open(self._HISTORY_FILE, 'w', encoding='utf-8') as f:
+            with open(self._HISTORY_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f)
         except Exception:
             pass
@@ -176,19 +178,23 @@ class ExecutionState:
     def _restore_history(self) -> None:
         """Load persisted history on startup."""
         import json
+
         try:
-            with open(self._HISTORY_FILE, encoding='utf-8') as f:
+            with open(self._HISTORY_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             for name, h in data.items():
-                status_str = h.get('status', 'completed')
-                status = AgentStatus.COMPLETED if status_str == 'completed' else AgentStatus.FAILED
+                status_str = h.get("status", "completed")
+                status = AgentStatus.COMPLETED if status_str == "completed" else AgentStatus.FAILED
                 self.history[name] = ExecutionHistory(
-                    sop_path=h.get('sop_path', name), status=status,
-                    start_time=h.get('start_time'), end_time=h.get('end_time'),
-                    exit_code=h.get('exit_code'),
+                    sop_path=h.get("sop_path", name),
+                    status=status,
+                    start_time=h.get("start_time"),
+                    end_time=h.get("end_time"),
+                    exit_code=h.get("exit_code"),
                 )
         except Exception:
             pass
+
 
 # Global execution state instance
 execution_state = ExecutionState()

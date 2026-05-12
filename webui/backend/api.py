@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 #!/usr/bin/env python3
 """FastAPI backend for SOP Executor with WebSocket support."""
+
 import asyncio
 import io
 import json
@@ -24,10 +25,13 @@ from pydantic import BaseModel
 
 class _RunIdFilter(logging.Filter):
     """Injects run_id into every log record for correlation."""
+
     run_id = "-"
+
     def filter(self, record):
         record.run_id = self.run_id
         return True
+
 
 _run_id_filter = _RunIdFilter()
 _log_fmt = "%(asctime)s [%(levelname)s] [%(run_id)s] %(message)s"
@@ -55,6 +59,7 @@ from execution_state import AgentStatus, ExecutionHistory, execution_state
 
 security = HTTPBasic()
 
+
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     """Verify HTTP Basic Auth credentials."""
     if not AUTH_PASSWORD:
@@ -62,8 +67,13 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username.encode("utf8"), AUTH_USERNAME.encode("utf8"))
     correct_password = secrets.compare_digest(credentials.password.encode("utf8"), AUTH_PASSWORD.encode("utf8"))
     if not (correct_username and correct_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"})
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
     return True
+
 
 from contextlib import asynccontextmanager
 
@@ -80,6 +90,7 @@ async def lifespan(app):
                 full["status"] = "interrupted"
                 full["end_time"] = datetime.now().isoformat()
                 import json
+
                 log_path = Path(os.environ.get("SOP_REPO", "/app")) / "logs" / f"execution_{run_id}.json"
                 log_path.write_text(json.dumps(full, indent=2, default=str))
                 logging.info(f"Marked interrupted execution: {run_id}")
@@ -92,6 +103,7 @@ async def lifespan(app):
         except Exception:
             pass
     logging.info("Backend shutdown complete")
+
 
 app = FastAPI(title="SOP Executor API", lifespan=lifespan)
 
@@ -118,20 +130,24 @@ class SOPFile(BaseModel):
     size: int
     modified: str
 
+
 class SOPContent(BaseModel):
     path: str
     content: str
+
 
 class ExecuteRequest(BaseModel):
     sop_path: str
     fix_mode: bool = False
     model: str = "haiku"
 
+
 class EventBuffer:
     """Ring buffer for execution events. Allows WebSocket reconnect + replay."""
 
     def __init__(self, maxlen: int = 2000):
         from collections import deque
+
         self._events: deque[dict] = deque(maxlen=maxlen)
         self._seq = 0  # monotonic sequence number
 
@@ -176,6 +192,7 @@ class ConnectionManager:
         for ws in dead:
             self.disconnect(ws)
 
+
 manager = ConnectionManager()
 event_buffer = EventBuffer()
 _graph_task: asyncio.Task | None = None
@@ -193,30 +210,34 @@ except ImportError:
     build_sop_graph = build_eval_loop = None
 _sop_lock = asyncio.Lock()
 
+
 @app.get("/api/status", dependencies=[Depends(verify_credentials)])
 async def get_agent_status():
     """Get current agent execution status."""
     return execution_state.to_dict()
+
 
 @app.get("/api/sop/{sop_name}/history", dependencies=[Depends(verify_credentials)])
 async def get_sop_history(sop_name: str):
     """Get last execution history for a specific SOP."""
     # Try exact match first, then try with .md extension
     history = execution_state.get_sop_history(sop_name)
-    if not history and not sop_name.endswith('.md'):
+    if not history and not sop_name.endswith(".md"):
         history = execution_state.get_sop_history(f"{sop_name}.md")
 
     if history:
         result = asdict(history)
-        result['status'] = history.status.value
+        result["status"] = history.status.value
         return result
     else:
         return {"status": "never_run", "message": "This SOP has not been executed yet"}
+
 
 @app.get("/api/executions", dependencies=[Depends(verify_credentials)])
 async def api_list_executions():
     """List saved execution records (most recent first)."""
     return list_executions()
+
 
 @app.get("/api/executions/{run_id}", dependencies=[Depends(verify_credentials)])
 async def api_get_execution(run_id: str):
@@ -226,10 +247,12 @@ async def api_get_execution(run_id: str):
         raise HTTPException(status_code=404, detail="Execution not found")
     return record
 
+
 @app.get("/api/eval-history/{sop_stem}", dependencies=[Depends(verify_credentials)])
 async def api_eval_history(sop_stem: str):
     """Get eval score history for a specific SOP across runs."""
     return get_eval_history(sop_stem)
+
 
 @app.get("/api/sops", response_model=list[SOPFile], dependencies=[Depends(verify_credentials)])
 async def list_sops():
@@ -242,13 +265,16 @@ async def list_sops():
     for f in sorted(sop_dir.glob("*.md")):
         if not f.name.startswith("archive"):
             stat = f.stat()
-            sops.append(SOPFile(
-                name=f.name,
-                path=str(f),
-                size=stat.st_size,
-                modified=datetime.fromtimestamp(stat.st_mtime).isoformat()
-            ))
+            sops.append(
+                SOPFile(
+                    name=f.name,
+                    path=str(f),
+                    size=stat.st_size,
+                    modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                )
+            )
     return sops
+
 
 @app.get("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
 async def get_sop(sop_name: str):
@@ -258,6 +284,7 @@ async def get_sop(sop_name: str):
         raise HTTPException(status_code=404, detail="SOP not found")
     return {"path": str(sop_path), "content": sop_path.read_text()}
 
+
 @app.post("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
 async def save_sop(sop_name: str, content: SOPContent, _=Depends(verify_credentials)):
     """Save or update SOP content."""
@@ -266,11 +293,14 @@ async def save_sop(sop_name: str, content: SOPContent, _=Depends(verify_credenti
     sop_path.write_text(content.content)
     return {"status": "saved", "path": str(sop_path)}
 
+
 @app.post("/api/sop", dependencies=[Depends(verify_credentials)])
-async def create_sop(name: str, content: str = "# New SOP\n\n## Description\n\nAdd your SOP content here.", _=Depends(verify_credentials)):
+async def create_sop(
+    name: str, content: str = "# New SOP\n\n## Description\n\nAdd your SOP content here.", _=Depends(verify_credentials)
+):
     """Create a new SOP."""
-    if not name.endswith('.md'):
-        name += '.md'
+    if not name.endswith(".md"):
+        name += ".md"
 
     sop_path = Path(SOP_REPO) / "sops" / name
     if sop_path.exists():
@@ -289,6 +319,7 @@ async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
     sop_path.unlink()
     return {"status": "deleted", "name": sop_name}
 
+
 @app.delete("/api/sop/{sop_name}", dependencies=[Depends(verify_credentials)])
 async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
     """Delete an SOP file."""
@@ -297,6 +328,7 @@ async def delete_sop(sop_name: str, _=Depends(verify_credentials)):
         raise HTTPException(status_code=404, detail="SOP not found")
     sop_path.unlink()
     return {"status": "deleted", "name": sop_name}
+
 
 @app.post("/api/generate-sop", dependencies=[Depends(verify_credentials)])
 async def generate_sop(file: UploadFile = File(...)):
@@ -331,6 +363,7 @@ async def generate_sop(file: UploadFile = File(...)):
     elif ext == ".docx":
         try:
             import docx
+
             doc = docx.Document(io.BytesIO(data))
             source_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
         except Exception as e:
@@ -338,6 +371,7 @@ async def generate_sop(file: UploadFile = File(...)):
     elif ext == ".pdf":
         try:
             from PyPDF2 import PdfReader
+
             reader = PdfReader(io.BytesIO(data))
             source_text = "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception as e:
@@ -407,9 +441,7 @@ Key format requirements:
 
         # Truncate very large documents to stay within context
         truncated = source_text[:30000]
-        result = agent(
-            f"Convert this document into an executable SOP:\n\nFilename: {filename}\n\n{truncated}"
-        )
+        result = agent(f"Convert this document into an executable SOP:\n\nFilename: {filename}\n\n{truncated}")
         return str(result)
     except Exception as e:
         logging.error(f"SOP generation agent failed: {e}")
@@ -437,7 +469,19 @@ Key format requirements:
 - Refer to original document: `{filename}`
 """
 
-_metrics_cache = {"data": {"rxGbps": 0, "txGbps": 0, "avgCpu": 0, "maxCpu": 0, "activeSessions": 0, "combined": 0, "nodeCpuPercent": 0}}
+
+_metrics_cache = {
+    "data": {
+        "rxGbps": 0,
+        "txGbps": 0,
+        "avgCpu": 0,
+        "maxCpu": 0,
+        "activeSessions": 0,
+        "combined": 0,
+        "nodeCpuPercent": 0,
+    }
+}
+
 
 def _fetch_metrics_sync():
     """Blocking metrics fetch — runs in background thread."""
@@ -458,14 +502,14 @@ def _fetch_metrics_sync():
             "txGbps": "system_upf_uldl_throughput_send_rate/1e9",
             "avgCpu": "avg(upf_cpu_usage_percent)",
             "maxCpu": "max(upf_cpu_usage_percent)",
-            "activeSessions": "pfcp_upf_current_pdu_session_count_total"
+            "activeSessions": "pfcp_upf_current_pdu_session_count_total",
         }
 
         metrics = {}
         for key, query in queries.items():
             params = urlencode({"query": query})
             url = f"{amp_workspace_url}?{params}"
-            request = AWSRequest(method='GET', url=url)
+            request = AWSRequest(method="GET", url=url)
             SigV4Auth(credentials, "aps", "us-east-1").add_auth(request)
             response = req_lib.get(url, headers=dict(request.headers), timeout=5)
             if response.ok:
@@ -492,6 +536,7 @@ def _fetch_metrics_sync():
     except Exception as e:
         logging.warning(f"Metrics fetch failed: {e}")
 
+
 def _metrics_loop():
     """Background thread that refreshes metrics every 3 seconds."""
     while True:
@@ -501,25 +546,31 @@ def _metrics_loop():
             logging.error(f"Metrics loop error: {e}")
         _time.sleep(3)  # nosemgrep: arbitrary-sleep
 
+
 threading.Thread(target=_metrics_loop, daemon=True).start()
+
 
 @app.get("/api/metrics", dependencies=[Depends(verify_credentials)])
 async def get_metrics():
     """Return cached metrics (updated by background thread)."""
     return _metrics_cache["data"]
 
+
 # Placeholder for application-specific stats - customize for your workload
 _app_stats_cache = {"data": {"requests": 0, "errors": 0, "latency_ms": 0}}
+
 
 @app.get("/api/app-stats", dependencies=[Depends(verify_credentials)])
 async def get_app_stats():
     """Return application-specific stats. Customize for your workload."""
     return _app_stats_cache["data"]
 
+
 @app.get("/api/gitlab-issues", dependencies=[Depends(verify_credentials)])
 async def get_gitlab_issues():
     """Proxy recent GitLab issues for the Day2 monitor dashboard."""
     import httpx
+
     project_id = os.getenv("GITLAB_PROJECT_ID", "")
     token = os.getenv("GITLAB_TOKEN", "")
     if not project_id or not token:
@@ -532,17 +583,27 @@ async def get_gitlab_issues():
                 headers={"PRIVATE-TOKEN": token},
             )
             resp.raise_for_status()
-            return [{"iid": i["iid"], "title": i["title"], "state": i["state"],
-                      "labels": i.get("labels", []), "web_url": i["web_url"],
-                      "created_at": i["created_at"]} for i in resp.json()]
+            return [
+                {
+                    "iid": i["iid"],
+                    "title": i["title"],
+                    "state": i["state"],
+                    "labels": i.get("labels", []),
+                    "web_url": i["web_url"],
+                    "created_at": i["created_at"],
+                }
+                for i in resp.json()
+            ]
     except Exception as e:
         logger.warning(f"GitLab issues fetch failed: {e}")
         return []
+
 
 @app.get("/api/corrections", dependencies=[Depends(verify_credentials)])
 async def get_corrections():
     """Return all corrections from historical execution logs."""
     import glob as g
+
     results = []
     for logfile in sorted(g.glob(str(Path(SOP_REPO) / "logs" / "execution_*.json"))):
         try:
@@ -555,21 +616,33 @@ async def get_corrections():
         run_id = data.get("run_id", "")
         for name, node in data["nodes"].items():
             if name.startswith("correct-") and node:
-                results.append({
-                    "run_id": run_id,
-                    "sop": name.replace("correct-", ""),
-                    "status": node.get("status", ""),
-                    "output": str(node.get("output_summary", "")),
-                    "time": node.get("end_time", ""),
-                })
+                results.append(
+                    {
+                        "run_id": run_id,
+                        "sop": name.replace("correct-", ""),
+                        "status": node.get("status", ""),
+                        "output": str(node.get("output_summary", "")),
+                        "time": node.get("end_time", ""),
+                    }
+                )
     return results
+
 
 @app.get("/api/alarms", dependencies=[Depends(verify_credentials)])
 async def get_alarms():
     """Get alarms from Alertmanager."""
     try:
-        cmd = ["kubectl", "exec", "-n", "monitoring", "prometheus-kube-prometheus-stack-prometheus-0", "--",
-               "wget", "-qO-", "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts"]
+        cmd = [
+            "kubectl",
+            "exec",
+            "-n",
+            "monitoring",
+            "prometheus-kube-prometheus-stack-prometheus-0",
+            "--",
+            "wget",
+            "-qO-",
+            "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2/alerts",
+        ]
         result = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL, timeout=5)
         data = json.loads(result)
 
@@ -602,6 +675,7 @@ async def get_alarms():
         print(f"Failed to fetch alarms: {e}")
         return []
 
+
 async def _emit(event: dict):
     """Append event to buffer and broadcast to all connected WebSockets."""
     event_buffer.append(event)
@@ -615,11 +689,12 @@ async def _flush_text(execution_state, node_id, buf, exec_log=None):
         return
     execution_state.add_log(f"[{node_id}] {text}")
     step_data = {
-        "type": "output", "node_id": node_id,
+        "type": "output",
+        "node_id": node_id,
         "stream": "stdout",
         "message": f"[{node_id}] {text}",
     }
-    _clean = re.sub(r'\x1b\[[0-9;]*m', '', text).strip()
+    _clean = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
     if "└─" in _clean:
         step_data["tool_result"] = _clean
     # Parse eval scores
@@ -627,24 +702,31 @@ async def _flush_text(execution_state, node_id, buf, exec_log=None):
         execution_state._pending_eval_name = _clean
         execution_state._pending_eval_node = node_id
     elif _clean.startswith("Score:") and execution_state._pending_eval_name:
-        score_match = re.search(r'Score:\s*([\d.]+)', _clean)
+        score_match = re.search(r"Score:\s*([\d.]+)", _clean)
         if score_match:
             score_val = float(score_match.group(1))
             step_data["eval_score"] = {
                 "name": execution_state._pending_eval_name,
                 "score": score_val,
-                "node_id": getattr(execution_state, '_pending_eval_node', node_id),
+                "node_id": getattr(execution_state, "_pending_eval_node", node_id),
             }
             execution_state._pending_eval_name = None
     # Parse PASS/FAIL reasons for execution logger
     elif (_clean.startswith("PASS:") or _clean.startswith("FAIL:")) and exec_log:
         passed = _clean.startswith("PASS:")
         reason = _clean[5:].strip()
-        exec_log.eval_score(node_id, execution_state._pending_eval_name or "unknown",
-                            1.0 if passed else 0.0, passed, reason)
+        exec_log.eval_score(
+            node_id, execution_state._pending_eval_name or "unknown", 1.0 if passed else 0.0, passed, reason
+        )
     # Detect tool failures in text output (SSH errors, timeouts, etc.)
-    _FAILURE_PATTERNS = ("Connection refused", "Permission denied", "timed out",
-                         "No route to host", "Connection reset", "command not found")
+    _FAILURE_PATTERNS = (
+        "Connection refused",
+        "Permission denied",
+        "timed out",
+        "No route to host",
+        "Connection reset",
+        "command not found",
+    )
     if exec_log and any(p in _clean for p in _FAILURE_PATTERNS):
         node_data = exec_log.record["nodes"].get(node_id)
         if node_data and node_data["tool_calls"]:
@@ -661,14 +743,23 @@ def _notify_slack(exec_log: ExecutionLogger):
     try:
         s = exec_log.record.get("summary", {})
         import requests as _req
-        _req.post(SLACK_EXECUTION_WEBHOOK, json={"attachments": [{
-            "color": "#dc3545",
-            "title": f"❌ Execution Failed — {exec_log.run_id}",
-            "text": f"SOPs: {', '.join(exec_log.sop_paths)}\n"
-                    f"Nodes: {s.get('completed',0)} completed, {s.get('failed',0)} failed\n"
-                    f"Duration: {s.get('duration_s','?')}s | Tools: {s.get('total_tool_calls',0)}",
-            "footer": "SOP Orchestrator",
-        }]}, timeout=5)
+
+        _req.post(
+            SLACK_EXECUTION_WEBHOOK,
+            json={
+                "attachments": [
+                    {
+                        "color": "#dc3545",
+                        "title": f"❌ Execution Failed — {exec_log.run_id}",
+                        "text": f"SOPs: {', '.join(exec_log.sop_paths)}\n"
+                        f"Nodes: {s.get('completed', 0)} completed, {s.get('failed', 0)} failed\n"
+                        f"Duration: {s.get('duration_s', '?')}s | Tools: {s.get('total_tool_calls', 0)}",
+                        "footer": "SOP Orchestrator",
+                    }
+                ]
+            },
+            timeout=5,
+        )
     except Exception as e:
         logging.warning(f"Slack notification failed: {e}")
 
@@ -690,22 +781,31 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
 
         if len(sop_paths) == 1 and eval_mode:
             graph = build_eval_loop(
-                sop_paths[0], profile=BEDROCK_PROFILE, region=BEDROCK_REGION,
-                model_name=model, fix_mode=fix_mode,
+                sop_paths[0],
+                profile=BEDROCK_PROFILE,
+                region=BEDROCK_REGION,
+                model_name=model,
+                fix_mode=fix_mode,
                 max_corrections=2 if auto_correct else 0,
             )
         else:
             graph = build_sop_graph(
-                sop_paths, profile=BEDROCK_PROFILE, region=BEDROCK_REGION,
-                default_model=model, fix_mode=fix_mode, eval_mode=eval_mode,
+                sop_paths,
+                profile=BEDROCK_PROFILE,
+                region=BEDROCK_REGION,
+                default_model=model,
+                fix_mode=fix_mode,
+                eval_mode=eval_mode,
                 auto_correct=auto_correct,
             )
 
-        await _emit({
-            "type": "graph_ready",
-            "nodes": len(graph.nodes),
-            "node_ids": list(graph.nodes.keys()),
-        })
+        await _emit(
+            {
+                "type": "graph_ready",
+                "nodes": len(graph.nodes),
+                "node_ids": list(graph.nodes.keys()),
+            }
+        )
 
         task = "Execute your assigned SOP. Read it, run each step, and report pass/fail results."
         last_event = {}
@@ -720,11 +820,13 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                     return  # completed successfully
                 except Exception as e:
                     err = str(e)
-                    retryable = any(k in err for k in ("ended prematurely", "ReadTimeout", "ConnectionError", "ThrottlingException"))
+                    retryable = any(
+                        k in err for k in ("ended prematurely", "ReadTimeout", "ConnectionError", "ThrottlingException")
+                    )
                     if attempt < max_retries and retryable:
                         wait = 5 * (attempt + 1)
-                        logging.warning(f"Bedrock stream error (attempt {attempt+1}): {err}. Retrying in {wait}s...")
-                        exec_log.add_error(f"Stream retry {attempt+1}: {err}")
+                        logging.warning(f"Bedrock stream error (attempt {attempt + 1}): {err}. Retrying in {wait}s...")
+                        exec_log.add_error(f"Stream retry {attempt + 1}: {err}")
                         await asyncio.sleep(wait)
                     else:
                         raise
@@ -737,10 +839,13 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                 node_id = event.get("node_id", "")
                 execution_state.current_tool = node_id
                 exec_log.node_start(node_id)
-                await _emit({
-                    "type": "node_start", "node_id": node_id,
-                    "message": f"▶ Starting: {node_id}",
-                })
+                await _emit(
+                    {
+                        "type": "node_start",
+                        "node_id": node_id,
+                        "message": f"▶ Starting: {node_id}",
+                    }
+                )
 
             elif etype == "multiagent_node_stream":
                 node_id = event.get("node_id", "")
@@ -749,7 +854,7 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                 tool_use = inner.get("current_tool_use", {})
                 if tool_use and tool_use.get("name"):
                     tool_name = tool_use["name"]
-                    if not hasattr(execution_state, '_last_tool') or execution_state._last_tool != (node_id, tool_name):
+                    if not hasattr(execution_state, "_last_tool") or execution_state._last_tool != (node_id, tool_name):
                         # Flush text buffer before tool call
                         if node_id in _text_buf and _text_buf[node_id].strip():
                             await _flush_text(execution_state, node_id, _text_buf, exec_log)
@@ -757,12 +862,15 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                         execution_state.current_tool = tool_name
                         execution_state._tool_timestamp = _time.time()
                         exec_log.tool_call(node_id, tool_name, str(tool_use.get("input", ""))[:500])
-                        await _emit({
-                            "type": "output", "node_id": node_id,
-                            "stream": "stdout",
-                            "message": f"[{node_id}] 🔧 TOOL: {tool_name}",
-                            "tool_call": {"node_id": node_id, "tool": tool_name},
-                        })
+                        await _emit(
+                            {
+                                "type": "output",
+                                "node_id": node_id,
+                                "stream": "stdout",
+                                "message": f"[{node_id}] 🔧 TOOL: {tool_name}",
+                                "tool_call": {"node_id": node_id, "tool": tool_name},
+                            }
+                        )
                 # Capture tool results — SDK yields {message: {content: [{toolResult: {...}}]}}
                 msg = inner.get("message")
                 if msg and isinstance(msg, dict):
@@ -781,23 +889,35 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                         _text_buf[node_id] = _text_buf.get(node_id, "") + text
                         buf = _text_buf[node_id]
                         # Flush on sentence boundaries
-                        if any(buf.rstrip().endswith(c) for c in (".", "!", "|", "**", "---")) or "\n" in text or len(buf) > 200:
+                        if (
+                            any(buf.rstrip().endswith(c) for c in (".", "!", "|", "**", "---"))
+                            or "\n" in text
+                            or len(buf) > 200
+                        ):
                             await _flush_text(execution_state, node_id, _text_buf, exec_log)
                 # Structured eval scores from EvalNode (no regex parsing needed)
                 if "eval_score" in inner:
                     es = inner["eval_score"]
-                    exec_log.eval_score(node_id, es["evaluator"], es["score"], es["passed"],
-                                        "; ".join(r["reason"] for r in es.get("reasons", [])))
-                    await _emit({
-                        "type": "output", "node_id": node_id,
-                        "stream": "stdout",
-                        "message": f"[{node_id}] {es['evaluator']}: {es['score']:.2f}",
-                        "eval_score": {
-                            "name": es["evaluator"],
-                            "score": es["score"],
+                    exec_log.eval_score(
+                        node_id,
+                        es["evaluator"],
+                        es["score"],
+                        es["passed"],
+                        "; ".join(r["reason"] for r in es.get("reasons", [])),
+                    )
+                    await _emit(
+                        {
+                            "type": "output",
                             "node_id": node_id,
-                        },
-                    })
+                            "stream": "stdout",
+                            "message": f"[{node_id}] {es['evaluator']}: {es['score']:.2f}",
+                            "eval_score": {
+                                "name": es["evaluator"],
+                                "score": es["score"],
+                                "node_id": node_id,
+                            },
+                        }
+                    )
 
             elif etype == "multiagent_node_stop":
                 node_id = event.get("node_id", "")
@@ -807,7 +927,9 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                 node_result = event.get("node_result")
                 status = "completed"
                 if node_result and hasattr(node_result, "status"):
-                    status = node_result.status.value if hasattr(node_result.status, "value") else str(node_result.status)
+                    status = (
+                        node_result.status.value if hasattr(node_result.status, "value") else str(node_result.status)
+                    )
 
                 # Detect agent-reported failures: node "completed" but agent output says CRITICAL FAILURE / CANNOT EXECUTE
                 if status == "completed" and node_result:
@@ -815,8 +937,15 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                         results = node_result.get_agent_results() if hasattr(node_result, "get_agent_results") else []
                         for ar in results:
                             if ar.message:
-                                txt = str(ar.message.get("content", "")) if isinstance(ar.message, dict) else str(ar.message)
-                                if any(m in txt for m in ("CRITICAL FAILURE", "CANNOT EXECUTE", "COMPLETELY FAILED", "Cannot fork")):
+                                txt = (
+                                    str(ar.message.get("content", ""))
+                                    if isinstance(ar.message, dict)
+                                    else str(ar.message)
+                                )
+                                if any(
+                                    m in txt
+                                    for m in ("CRITICAL FAILURE", "CANNOT EXECUTE", "COMPLETELY FAILED", "Cannot fork")
+                                ):
                                     status = "failed"
                                     break
                     except Exception:
@@ -833,15 +962,18 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                 output_summary = None
                 if node_result:
                     try:
-                        for ar in (node_result.get_agent_results() if hasattr(node_result, "get_agent_results") else []):
+                        for ar in node_result.get_agent_results() if hasattr(node_result, "get_agent_results") else []:
                             if ar.message:
-                                content = ar.message.get("content", "") if isinstance(ar.message, dict) else str(ar.message)
+                                content = (
+                                    ar.message.get("content", "") if isinstance(ar.message, dict) else str(ar.message)
+                                )
                                 output_summary = str(content)[:2000]
                                 break
                     except Exception:
                         pass
-                exec_log.node_complete(node_id, "success" if status == "completed" else "failed",
-                                       exec_time, token_usage, output_summary)
+                exec_log.node_complete(
+                    node_id, "success" if status == "completed" else "failed", exec_time, token_usage, output_summary
+                )
                 execution_state.add_step(node_id, "success" if status == "completed" else "failed")
                 # Save per-SOP history (skip eval/correct nodes)
                 if not node_id.startswith("eval") and not node_id.startswith("correct"):
@@ -850,17 +982,23 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                     now = datetime.now()
                     start = datetime.fromtimestamp(now.timestamp() - exec_time / 1000) if exec_time else now
                     execution_state.history[sop_name] = ExecutionHistory(
-                        sop_path=sop_name, status=node_status,
-                        start_time=start.isoformat(), end_time=now.isoformat(),
+                        sop_path=sop_name,
+                        status=node_status,
+                        start_time=start.isoformat(),
+                        end_time=now.isoformat(),
                         exit_code=0 if status == "completed" else 1,
                     )
                     execution_state._persist_history()
-                await _emit({
-                    "type": "node_complete", "node_id": node_id,
-                    "status": status, "execution_time_ms": exec_time,
-                    "token_usage": token_usage,
-                    "message": f"{'✅' if status == 'completed' else '❌'} {node_id} ({exec_time}ms)",
-                })
+                await _emit(
+                    {
+                        "type": "node_complete",
+                        "node_id": node_id,
+                        "status": status,
+                        "execution_time_ms": exec_time,
+                        "token_usage": token_usage,
+                        "message": f"{'✅' if status == 'completed' else '❌'} {node_id} ({exec_time}ms)",
+                    }
+                )
 
             elif etype == "multiagent_handoff":
                 from_ids = event.get("from_node_ids", [])
@@ -880,14 +1018,19 @@ async def _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct):
                 completed = [s for s in node_states.values() if s == "completed"]
                 failed = [s for s in node_states.values() if s not in ("completed", "skipped")]
                 final_status = "failed" if failed else "completed"
-                logging.info(f"Graph complete: {len(completed)} completed, {len(failed)} failed, {len(node_states) - len(completed) - len(failed)} skipped")
-                await _emit({
-                    "type": "graph_complete", "status": final_status,
-                    "execution_time_ms": getattr(result, "execution_time", 0) if result else 0,
-                    "completed_nodes": len(completed),
-                    "failed_nodes": len(failed),
-                    "node_states": node_states,
-                })
+                logging.info(
+                    f"Graph complete: {len(completed)} completed, {len(failed)} failed, {len(node_states) - len(completed) - len(failed)} skipped"
+                )
+                await _emit(
+                    {
+                        "type": "graph_complete",
+                        "status": final_status,
+                        "execution_time_ms": getattr(result, "execution_time", 0) if result else 0,
+                        "completed_nodes": len(completed),
+                        "failed_nodes": len(failed),
+                        "node_states": node_states,
+                    }
+                )
 
         success = True
         if last_event.get("type") == "multiagent_result":
@@ -952,9 +1095,7 @@ async def execute_graph(websocket: WebSocket):
         else:
             # Start new execution in background
             await _sop_lock.acquire()
-            _graph_task = asyncio.create_task(
-                _run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct)
-            )
+            _graph_task = asyncio.create_task(_run_graph(sop_paths, fix_mode, model, eval_mode, auto_correct))
 
         # Keep WebSocket alive until client disconnects or execution ends.
         # Events are delivered via broadcast from _emit().
@@ -988,8 +1129,9 @@ async def chat_websocket(websocket: WebSocket):
     import subprocess as _sp
 
     import boto3
+
     session = boto3.Session(profile_name=BEDROCK_PROFILE, region_name=BEDROCK_REGION)
-    bedrock = session.client('bedrock-runtime')
+    bedrock = session.client("bedrock-runtime")
     system_prompt = (
         "You are an AI assistant for a 5G App (User Plane Function) deployment on AWS Outposts with EKS. "
         "You help engineers with Vendor App operations, Kubernetes troubleshooting, ArgoCD, SR-IOV networking, "
@@ -999,20 +1141,47 @@ async def chat_websocket(websocket: WebSocket):
         "For kubectl, the App namespace is 'nec-app'. Monitoring is in 'monitoring'. ArgoCD is in 'argocd'."
     )
     tools = [
-        {"toolSpec": {"name": "kubectl", "description": "Run a kubectl command against the EKS cluster. Example: 'get pods -n nec-app'", "inputSchema": {"json": {"type": "object", "properties": {"command": {"type": "string", "description": "kubectl arguments (without 'kubectl' prefix)"}}, "required": ["command"]}}}},
-        {"toolSpec": {"name": "shell", "description": "Run a shell command. Use for non-kubectl tasks like checking logs, files, system info.", "inputSchema": {"json": {"type": "object", "properties": {"command": {"type": "string", "description": "Shell command to execute"}}, "required": ["command"]}}}}
+        {
+            "toolSpec": {
+                "name": "kubectl",
+                "description": "Run a kubectl command against the EKS cluster. Example: 'get pods -n nec-app'",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "command": {"type": "string", "description": "kubectl arguments (without 'kubectl' prefix)"}
+                        },
+                        "required": ["command"],
+                    }
+                },
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "shell",
+                "description": "Run a shell command. Use for non-kubectl tasks like checking logs, files, system info.",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {"command": {"type": "string", "description": "Shell command to execute"}},
+                        "required": ["command"],
+                    }
+                },
+            }
+        },
     ]
 
     # Blocked patterns for safety
-    _BLOCKED_SHELL = re.compile(r'rm\s+-rf\s+/($|\s|[a-z])|mkfs|dd\s+if=|>\s*/dev/sd|chmod\s+-R\s+777\s+/', re.I)
-    _BLOCKED_KUBECTL = re.compile(r'^(delete|drain|cordon|replace|patch|edit|apply|create)\b', re.I)
-    _ALLOWED_KUBECTL = re.compile(r'^(get|describe|logs|top|explain|api-resources|version)\b', re.I)
+    _BLOCKED_SHELL = re.compile(r"rm\s+-rf\s+/($|\s|[a-z])|mkfs|dd\s+if=|>\s*/dev/sd|chmod\s+-R\s+777\s+/", re.I)
+    _BLOCKED_KUBECTL = re.compile(r"^(delete|drain|cordon|replace|patch|edit|apply|create)\b", re.I)
+    _ALLOWED_KUBECTL = re.compile(r"^(get|describe|logs|top|explain|api-resources|version)\b", re.I)
 
     def run_tool(name, inp):
         import shlex
+
         try:
             if name == "kubectl":
-                args = inp['command'].strip()
+                args = inp["command"].strip()
                 if not _ALLOWED_KUBECTL.match(args):
                     return f"Blocked: only read-only kubectl commands allowed (get, describe, logs, top). Got: {args.split()[0]}"
                 cmd = ["kubectl"] + shlex.split(args)
@@ -1045,7 +1214,7 @@ async def chat_websocket(websocket: WebSocket):
                     system=[{"text": system_prompt}],
                     messages=messages,
                     toolConfig={"tools": tools},
-                    inferenceConfig={"maxTokens": 2048, "temperature": 0.3}
+                    inferenceConfig={"maxTokens": 2048, "temperature": 0.3},
                 )
 
                 full_text = []
@@ -1057,7 +1226,11 @@ async def chat_websocket(websocket: WebSocket):
                     if "contentBlockStart" in event:
                         start = event["contentBlockStart"].get("start", {})
                         if "toolUse" in start:
-                            current_tool = {"id": start["toolUse"]["toolUseId"], "name": start["toolUse"]["name"], "input_json": ""}
+                            current_tool = {
+                                "id": start["toolUse"]["toolUseId"],
+                                "name": start["toolUse"]["name"],
+                                "input_json": "",
+                            }
                     elif "contentBlockDelta" in event:
                         delta = event["contentBlockDelta"]["delta"]
                         if "text" in delta:
@@ -1077,7 +1250,9 @@ async def chat_websocket(websocket: WebSocket):
                 if full_text:
                     assistant_content.append({"text": "".join(full_text)})
                 for tu in tool_uses:
-                    assistant_content.append({"toolUse": {"toolUseId": tu["id"], "name": tu["name"], "input": _json.loads(tu["input_json"])}})
+                    assistant_content.append(
+                        {"toolUse": {"toolUseId": tu["id"], "name": tu["name"], "input": _json.loads(tu["input_json"])}}
+                    )
 
                 if assistant_content:
                     messages.append({"role": "assistant", "content": assistant_content})
@@ -1087,7 +1262,9 @@ async def chat_websocket(websocket: WebSocket):
                     tool_results = []
                     for tu in tool_uses:
                         inp = _json.loads(tu["input_json"])
-                        await websocket.send_json({"response": f"\n🔧 Running: `{tu['name']} {inp.get('command','')}`\n", "done": False})
+                        await websocket.send_json(
+                            {"response": f"\n🔧 Running: `{tu['name']} {inp.get('command', '')}`\n", "done": False}
+                        )
                         result = run_tool(tu["name"], inp)
                         await websocket.send_json({"response": f"```\n{result[:1000]}\n```\n", "done": False})
                         tool_results.append({"toolResult": {"toolUseId": tu["id"], "content": [{"text": result}]}})
@@ -1104,16 +1281,19 @@ async def chat_websocket(websocket: WebSocket):
     except Exception as e:
         logging.error(f"Chat error: {e}")
 
+
 # Serve frontend static files (for Docker deployment)
 _dist_dir = Path(__file__).parent.parent / "frontend" / "dist"
 if _dist_dir.exists():
     from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
+
     app.mount("/assets", StaticFiles(directory=str(_dist_dir / "assets")), name="assets")
     # Serve static files from dist root (images, slides, etc.)
     for _f in _dist_dir.iterdir():
         if _f.is_file() and _f.name != "index.html":
             pass  # handled by catch-all below
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         if full_path.startswith(("api/", "ws/", "health")):
@@ -1123,6 +1303,8 @@ if _dist_dir.exists():
             return FileResponse(str(file_path))
         return FileResponse(str(_dist_dir / "index.html"))
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

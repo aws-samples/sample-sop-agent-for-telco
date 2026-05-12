@@ -34,18 +34,18 @@ logger = logging.getLogger(__name__)
 # ============== ANSI Colors ==============
 @dataclass
 class Colors:
-    HEADER: str = '\033[95m'
-    BLUE: str = '\033[94m'
-    CYAN: str = '\033[96m'
-    GREEN: str = '\033[92m'
-    YELLOW: str = '\033[93m'
-    RED: str = '\033[91m'
-    MAGENTA: str = '\033[35m'
-    ORANGE: str = '\033[38;5;208m'
-    PINK: str = '\033[38;5;213m'
-    LIME: str = '\033[38;5;118m'
-    BOLD: str = '\033[1m'
-    END: str = '\033[0m'
+    HEADER: str = "\033[95m"
+    BLUE: str = "\033[94m"
+    CYAN: str = "\033[96m"
+    GREEN: str = "\033[92m"
+    YELLOW: str = "\033[93m"
+    RED: str = "\033[91m"
+    MAGENTA: str = "\033[35m"
+    ORANGE: str = "\033[38;5;208m"
+    PINK: str = "\033[38;5;213m"
+    LIME: str = "\033[38;5;118m"
+    BOLD: str = "\033[1m"
+    END: str = "\033[0m"
 
 
 C = Colors()
@@ -55,6 +55,7 @@ TOOL_COLORS = [C.CYAN, C.YELLOW, C.MAGENTA, C.ORANGE, C.PINK, C.LIME, C.GREEN, C
 @dataclass
 class ToolColorManager:
     """Thread-safe color rotation for tool calls."""
+
     _idx: int = field(default=0, repr=False)
 
     def next_color(self) -> str:
@@ -71,7 +72,7 @@ _color_mgr = ToolColorManager()
 
 # ============== Output Helpers ==============
 def banner(text: str, color: str = C.CYAN) -> None:
-    print(f"\n{color}{C.BOLD}{'═'*60}\n  {text}\n{'═'*60}{C.END}\n")
+    print(f"\n{color}{C.BOLD}{'═' * 60}\n  {text}\n{'═' * 60}{C.END}\n")
 
 
 def tool_call(name: str, args: str = "") -> None:
@@ -109,7 +110,7 @@ class CmdResult:
             out += f"\nEXIT_CODE: {self.returncode}"
         out = out or "No output"
         if len(out) > self.MAX_OUTPUT:
-            out = f"... (truncated {len(out) - self.MAX_OUTPUT} chars)\n" + out[-self.MAX_OUTPUT:]
+            out = f"... (truncated {len(out) - self.MAX_OUTPUT} chars)\n" + out[-self.MAX_OUTPUT :]
         return out
 
 
@@ -126,7 +127,7 @@ def run_cmd(cmd: str, timeout: int = DEFAULT_TIMEOUT, shell: bool = True) -> Cmd
             shell=shell,  # nosec B602 - trusted SOP commands from validated sources
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
         )
         return CmdResult(result.stdout, result.stderr, result.returncode)
     except subprocess.TimeoutExpired:
@@ -175,9 +176,9 @@ def parse_sop(content: str) -> str:
     sections = {"prerequisites": [], "steps": [], "success_criteria": [], "troubleshooting": ""}
 
     for section, pattern in [
-        ("prerequisites", r'## Prerequisites?\s*\n(.*?)(?=\n##|\Z)'),
-        ("success_criteria", r'## Success Criteria\s*\n(.*?)(?=\n##|\Z)'),
-        ("troubleshooting", r'## Troubleshooting\s*\n(.*?)(?=\n##|\Z)'),
+        ("prerequisites", r"## Prerequisites?\s*\n(.*?)(?=\n##|\Z)"),
+        ("success_criteria", r"## Success Criteria\s*\n(.*?)(?=\n##|\Z)"),
+        ("troubleshooting", r"## Troubleshooting\s*\n(.*?)(?=\n##|\Z)"),
     ]:
         match = re.search(pattern, content, re.DOTALL)
         if match:
@@ -186,12 +187,9 @@ def parse_sop(content: str) -> str:
                 sections[section] = text
             else:
                 lines = text.split("\n")
-                sections[section] = [
-                    ln.strip("- ").strip() for ln in lines
-                    if ln.strip().startswith("-") or ln.strip()
-                ]
+                sections[section] = [ln.strip("- ").strip() for ln in lines if ln.strip().startswith("-") or ln.strip()]
 
-    sections["steps"] = re.findall(r'```bash\n(.*?)```', content, re.DOTALL)
+    sections["steps"] = re.findall(r"```bash\n(.*?)```", content, re.DOTALL)
     tool_result(f"{len(sections['steps'])} steps, {len(sections['success_criteria'])} criteria")
     return str(sections)
 
@@ -240,7 +238,7 @@ def check_pod_status(namespace: str) -> str:
     tool_call("check_pod_status", f"ns={namespace}")
     result = run_cmd(f"kubectl get pods -n {namespace} -o wide")
     if result.stdout:
-        lines = len(result.stdout.strip().split('\n')) - 1
+        lines = len(result.stdout.strip().split("\n")) - 1
     else:
         lines = 0
     tool_result(f"Found {lines} pods")
@@ -286,8 +284,12 @@ def ssh_command(host: str, command: str, user: str = os.getenv("SSH_DEFAULT_USER
 
 @tool
 def ssh_expect(
-    host: str, start_cmd: str, prompt: str, commands: str,
-    user: str = os.getenv("SSH_DEFAULT_USER", "nec"), timeout: int = 120
+    host: str,
+    start_cmd: str,
+    prompt: str,
+    commands: str,
+    user: str = os.getenv("SSH_DEFAULT_USER", "nec"),
+    timeout: int = 120,
 ) -> str:
     """Run interactive commands on remote host using expect.
 
@@ -304,8 +306,8 @@ def ssh_expect(
     tool_call("ssh_expect", f"host={ssh_target} cmds={commands[:50]}...")
 
     # Build expect script dynamically
-    cmd_list = [c.strip() for c in commands.split(';') if c.strip()]
-    expect_sends = '\n'.join([f'expect "{prompt}"\nsend "{c}\\r"' for c in cmd_list])
+    cmd_list = [c.strip() for c in commands.split(";") if c.strip()]
+    expect_sends = "\n".join([f'expect "{prompt}"\nsend "{c}\\r"' for c in cmd_list])
 
     expect_script = f'''expect -c '
 set timeout {timeout}
@@ -382,7 +384,9 @@ list_sops, read_sop, parse_sop, run_command, kubectl, kubectl_exec,
 get_pod_name, check_pod_status, get_pod_logs, describe_node, argocd_sync, argocd_status
 """
 
-SYSTEM_PROMPT_REPORT = SYSTEM_PROMPT_BASE + """
+SYSTEM_PROMPT_REPORT = (
+    SYSTEM_PROMPT_BASE
+    + """
 ## MODE: REPORT ONLY
 
 You are in REPORT mode. DO NOT attempt to fix or remediate any failures.
@@ -392,8 +396,11 @@ You are in REPORT mode. DO NOT attempt to fix or remediate any failures.
 - Provide a final summary of all issues found
 
 Your job is to FIND and REPORT problems, not fix them."""
+)
 
-SYSTEM_PROMPT_FIX = SYSTEM_PROMPT_BASE + """
+SYSTEM_PROMPT_FIX = (
+    SYSTEM_PROMPT_BASE
+    + """
 ## MODE: AUTONOMOUS FIX
 
 You are in FIX mode. Autonomously remediate all failures found.
@@ -413,6 +420,7 @@ You are in FIX mode. Autonomously remediate all failures found.
 | BGP neighbors down | Wait 30s and retry (convergence time) |
 
 Your job is to FIND and FIX problems autonomously. Do not ask for permission."""
+)
 
 
 @tool
@@ -431,9 +439,19 @@ def telcocli(command: str) -> str:
 
 # ============== TOOL SETS ==============
 BASE_TOOLS = [
-    list_sops, read_sop, parse_sop, run_command, kubectl, kubectl_exec,
-    get_pod_name, check_pod_status, get_pod_logs, describe_node,
-    ssh_command, ssh_expect, telcocli,
+    list_sops,
+    read_sop,
+    parse_sop,
+    run_command,
+    kubectl,
+    kubectl_exec,
+    get_pod_name,
+    check_pod_status,
+    get_pod_logs,
+    describe_node,
+    ssh_command,
+    ssh_expect,
+    telcocli,
 ]
 
 ARGOCD_TOOLS = [argocd_sync, argocd_status]
@@ -538,6 +556,7 @@ class SOPSteeringHooks:
 def setup_eval_telemetry():
     """Initialize in-memory OTel tracing for post-execution evaluation."""
     from strands_evals.telemetry import StrandsEvalsTelemetry
+
     telemetry = StrandsEvalsTelemetry().setup_in_memory_exporter()
     logger.info("Eval telemetry enabled (in-memory span exporter)")
     return telemetry
@@ -546,6 +565,7 @@ def setup_eval_telemetry():
 def collect_eval_session(telemetry, session_id: str):
     """Map captured spans into an eval session for evaluators."""
     from strands_evals.mappers import StrandsInMemorySessionMapper
+
     spans = telemetry.in_memory_exporter.get_finished_spans()
     mapper = StrandsInMemorySessionMapper()
     return mapper.map_to_session(spans, session_id=session_id)
@@ -580,6 +600,7 @@ def get_sop_eval_meta(sop_path: str) -> dict:
 def run_post_eval(eval_ctx: dict, sop_path: str, agent_output: str) -> list:
     """Run post-execution evaluators on captured trace. Returns list of EvaluationReport."""
     import sys
+
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "evals"))
     from evaluators import SOPCompletionEvaluator, SteeringEffectivenessEvaluator
     from strands_evals import Case, Experiment
@@ -608,8 +629,14 @@ from model_discovery import discover_models, resolve_model_key
 
 # Legacy MODELS dict — kept for backward compatibility with CLI --model flag
 # Values are resolved dynamically at runtime via model_discovery
-MODELS = {"haiku": "fast", "sonnet": "balanced", "sonnet4.5": "balanced",
-           "sonnet3.5": "balanced", "opus": "powerful", "opus4.6": "powerful"}
+MODELS = {
+    "haiku": "fast",
+    "sonnet": "balanced",
+    "sonnet4.5": "balanced",
+    "sonnet3.5": "balanced",
+    "opus": "powerful",
+    "opus4.6": "powerful",
+}
 
 
 def create_agent(
@@ -646,7 +673,7 @@ def create_agent(
     try:
         session = boto3.Session(profile_name=profile, region_name=region)
         # Verify credentials
-        sts = session.client('sts')
+        sts = session.client("sts")
         identity = sts.get_caller_identity()
         print(f"{C.CYAN}🔑 Account: {identity['Account']}{C.END}")
     except Exception as e:
@@ -676,8 +703,11 @@ def create_agent(
             "gen_ai.conversation.id": eval_ctx["session_id"],
         }
     agent = Agent(
-        model=model, tools=tools, system_prompt=system_prompt,
-        hooks=hooks, trace_attributes=trace_attrs or None,
+        model=model,
+        tools=tools,
+        system_prompt=system_prompt,
+        hooks=hooks,
+        trace_attributes=trace_attrs or None,
     )
     print(f"{C.GREEN}✅ Agent ready with {len(tools)} tools{C.END}")
     return agent, eval_ctx
@@ -686,23 +716,28 @@ def create_agent(
 # ============== MAIN ==============
 def main() -> None:
     import argparse
+
     parser = argparse.ArgumentParser(description="SOP Executor Agent - Demo")
     parser.add_argument("sop", nargs="+", help="SOP filename(s) to execute")
     parser.add_argument("--profile", "-p", help="AWS profile for Bedrock")
     parser.add_argument("--region", "-r", default=AWS_REGION, help="AWS region")
     parser.add_argument(
-        "--model", "-m", default="haiku", choices=list(MODELS.keys()),
-        help="Model: haiku (fast), sonnet3.5, sonnet (default: haiku)"
+        "--model",
+        "-m",
+        default="haiku",
+        choices=list(MODELS.keys()),
+        help="Model: haiku (fast), sonnet3.5, sonnet (default: haiku)",
     )
     parser.add_argument(
-        "--fix", "-f", action="store_true",
-        help="Autonomous fix mode - remediate failures automatically"
+        "--fix", "-f", action="store_true", help="Autonomous fix mode - remediate failures automatically"
     )
     parser.add_argument("--mode", choices=["sop", "gitops"], default="sop")
     parser.add_argument("--repo", default=SOP_REPO, help="SOP repository path")
     parser.add_argument("--no-steering", action="store_true", help="Disable steering hooks")
     parser.add_argument("--eval", action="store_true", help="Enable post-execution evaluation")
-    parser.add_argument("--auto-correct", action="store_true", help="Auto-correct SOP from eval failures (requires --eval)")
+    parser.add_argument(
+        "--auto-correct", action="store_true", help="Auto-correct SOP from eval failures (requires --eval)"
+    )
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation for auto-correct commits")
     args = parser.parse_args()
 
@@ -717,8 +752,12 @@ def main() -> None:
     sop_path = sop_paths[0] if sop_paths else ""
 
     agent, eval_ctx = create_agent(
-        profile=args.profile, region=args.region, model_name=args.model,
-        fix_mode=args.fix, sop_path=sop_path, no_steering=args.no_steering,
+        profile=args.profile,
+        region=args.region,
+        model_name=args.model,
+        fix_mode=args.fix,
+        sop_path=sop_path,
+        no_steering=args.no_steering,
         eval_mode=args.eval,
     )
 
@@ -734,10 +773,15 @@ def main() -> None:
         import asyncio
 
         from sop_graph import build_sop_graph
+
         graph = build_sop_graph(
-            sop_paths=sop_paths, profile=args.profile, region=args.region,
-            default_model=args.model, fix_mode=args.fix,
-            eval_mode=args.eval, auto_correct=args.auto_correct,
+            sop_paths=sop_paths,
+            profile=args.profile,
+            region=args.region,
+            default_model=args.model,
+            fix_mode=args.fix,
+            eval_mode=args.eval,
+            auto_correct=args.auto_correct,
         )
         task = "Execute your assigned SOP. Read it, run each step, and report pass/fail results."
         result = asyncio.run(graph.invoke_async(task))
@@ -750,7 +794,7 @@ def main() -> None:
         banner("📂 Interactive Mode", C.BLUE)
         prompt = f"List SOPs in {args.repo}/sops/ and ask which to execute."
 
-    print(f"{C.CYAN}{'─'*60}{C.END}\n")
+    print(f"{C.CYAN}{'─' * 60}{C.END}\n")
 
     try:
         result = agent(prompt)
@@ -778,6 +822,7 @@ def main() -> None:
                     try:
                         sys.path.insert(0, os.path.join(_script_dir, "..", "evals"))
                         from sop_corrector import correct_sop, extract_failures
+
                         failures = extract_failures(reports)
                         print(f"{C.YELLOW}Found {len(failures)} failure(s) to correct{C.END}")
                         for f in failures:
@@ -790,8 +835,10 @@ def main() -> None:
                                 return
 
                         corrected = correct_sop(
-                            reports, sop_path,
-                            profile=args.profile, region=args.region,
+                            reports,
+                            sop_path,
+                            profile=args.profile,
+                            region=args.region,
                             auto_commit=args.yes,
                         )
                         if corrected:
@@ -812,6 +859,7 @@ def main() -> None:
         print(f"{C.RED}Error type: {type(e).__name__}{C.END}")
         print(f"{C.RED}Error: {e}{C.END}")
         import traceback
+
         traceback.print_exc()
         logger.exception("Agent execution failed")
         raise SystemExit(1)
@@ -828,6 +876,7 @@ if __name__ == "__main__":
         print(f"{C.RED}❌ Unexpected error type: {type(e).__name__}{C.END}")
         print(f"{C.RED}❌ Unexpected error: {e}{C.END}")
         import traceback
+
         traceback.print_exc()
         logger.exception("Unhandled exception")
         raise SystemExit(1)

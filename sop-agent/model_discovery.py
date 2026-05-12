@@ -46,6 +46,7 @@ _CANDIDATE_MODELS = [
 @dataclass
 class DiscoveredModels:
     """Result of model discovery — the best available model per tier."""
+
     fast: str | None = None
     fast_name: str | None = None
     balanced: str | None = None
@@ -161,11 +162,14 @@ def _probe_model(client, model_id: str) -> bool:
     Returns True if the model responds, False if unavailable.
     """
     import json as _json
-    body = _json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1,
-        "messages": [{"role": "user", "content": "hi"}],
-    })
+
+    body = _json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "hi"}],
+        }
+    )
     try:
         client.invoke_model(
             modelId=model_id,
@@ -261,6 +265,7 @@ def resolve_model_key(key: str, boto_session: boto3.Session | None = None, regio
 # CLI entry point for testing
 if __name__ == "__main__":
     import sys
+
     logging.basicConfig(level=logging.DEBUG if "--debug" in sys.argv else logging.INFO)
 
     profile = os.getenv("BEDROCK_PROFILE") or os.getenv("AWS_PROFILE")

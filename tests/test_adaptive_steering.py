@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 
 """Tests for AdaptiveSteeringHandler."""
+
 import json
 import sys
 import tempfile
@@ -15,23 +16,29 @@ from adaptive_steering import AdaptiveSteeringHandler, Guide, Proceed, _extract_
 
 # ── Target extraction ──
 
+
 def test_extract_ssh_ip():
     assert _extract_target("ssh_command", "ssh ec2-user@100.77.0.105 'systemctl status'") == "100.77.0.105"
+
 
 def test_extract_run_command_ssh():
     assert _extract_target("run_command", "ssh -i /root/.ssh/id_rsa 100.77.0.105") == "100.77.0.105"
 
+
 def test_extract_ssh_hostname():
     assert _extract_target("ssh_command", "ssh ec2-user@bastion.internal 'ls'") == "bastion.internal"
 
+
 def test_extract_no_target_kubectl():
     assert _extract_target("kubectl", "get pods -n aws-app") is None
+
 
 def test_extract_ssm():
     assert _extract_target("run_command", "aws ssm start-session --target instance-id i-0abc123") == "i-0abc123"
 
 
 # ── Pattern loading ──
+
 
 @pytest.fixture
 def log_dir_with_history():
@@ -47,11 +54,21 @@ def log_dir_with_history():
                 "06-monitoring": {
                     "tool_calls": [
                         {"tool": "kubectl", "input": "get pods -n monitoring", "result": "OK", "error": None},
-                        {"tool": "ssh_command", "input": "ssh ec2-user@100.77.0.105 systemctl status", "result": None, "error": "Connection refused"},
-                        {"tool": "run_command", "input": "ssh -i /root/.ssh/id_rsa 100.77.0.105", "result": None, "error": "Permission denied"},
+                        {
+                            "tool": "ssh_command",
+                            "input": "ssh ec2-user@100.77.0.105 systemctl status",
+                            "result": None,
+                            "error": "Connection refused",
+                        },
+                        {
+                            "tool": "run_command",
+                            "input": "ssh -i /root/.ssh/id_rsa 100.77.0.105",
+                            "result": None,
+                            "error": "Permission denied",
+                        },
                     ]
                 }
-            }
+            },
         }
         (log_path / f"execution_2026040{i}_120000.json").write_text(json.dumps(record))
 
@@ -81,6 +98,7 @@ def test_no_patterns_without_logs():
 
 
 # ── Steering decisions ──
+
 
 @pytest.mark.asyncio
 async def test_guide_on_known_failure(log_dir_with_history):

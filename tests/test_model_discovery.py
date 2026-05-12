@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Unit tests for model_discovery module."""
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -66,8 +67,7 @@ class TestProbeModel:
 
     def test_returns_false_on_resource_not_found(self, mock_client):
         error = ClientError(
-            {"Error": {"Code": "ResourceNotFoundException", "Message": "use case details"}},
-            "InvokeModel"
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "use case details"}}, "InvokeModel"
         )
         error.__class__.__name__ = "ResourceNotFoundException"
         mock_client.invoke_model.side_effect = error
@@ -75,25 +75,20 @@ class TestProbeModel:
 
     def test_returns_false_on_validation_exception(self, mock_client):
         error = mock_client.exceptions.ValidationException(
-            {"Error": {"Code": "ValidationException", "Message": "use inference profile"}},
-            "InvokeModel"
+            {"Error": {"Code": "ValidationException", "Message": "use inference profile"}}, "InvokeModel"
         )
         mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "some-model") is False
 
     def test_returns_false_on_access_denied(self, mock_client):
         error = mock_client.exceptions.AccessDeniedException(
-            {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
-            "InvokeModel"
+            {"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "InvokeModel"
         )
         mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "some-model") is False
 
     def test_returns_true_on_throttling(self, mock_client):
-        error = ClientError(
-            {"Error": {"Code": "ThrottlingException", "Message": "rate exceeded"}},
-            "InvokeModel"
-        )
+        error = ClientError({"Error": {"Code": "ThrottlingException", "Message": "rate exceeded"}}, "InvokeModel")
         error.__class__.__name__ = "ThrottlingException"
         mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "us.anthropic.claude-sonnet-4-6") is True
@@ -161,6 +156,7 @@ class TestDiscoverModels:
 
     def test_partial_availability(self, mock_session):
         """Only balanced tier available — fast and powerful fail."""
+
         def selective_probe(client, model_id):
             return "sonnet" in model_id
 
@@ -244,9 +240,12 @@ class TestDiscoveredModels:
 
     def test_summary_shows_available_models(self):
         m = DiscoveredModels(
-            fast="haiku-id", fast_name="Haiku 4.5",
-            balanced="sonnet-id", balanced_name="Sonnet 4.6",
-            region="us-west-2", discovery_time_ms=1234,
+            fast="haiku-id",
+            fast_name="Haiku 4.5",
+            balanced="sonnet-id",
+            balanced_name="Sonnet 4.6",
+            region="us-west-2",
+            discovery_time_ms=1234,
         )
         summary = m.summary()
         assert "Haiku 4.5" in summary

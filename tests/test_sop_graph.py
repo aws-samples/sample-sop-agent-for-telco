@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for graph-based SOP orchestrator — Phase 1."""
+
 import os
 import sys
 from pathlib import Path
@@ -34,6 +35,7 @@ def _real_sop(name: str) -> str:
 
 
 # ── parse_sop_metadata ──
+
 
 class TestParseSopMetadata:
     def test_extracts_stage_number_from_filename(self):
@@ -69,6 +71,7 @@ class TestParseSopMetadata:
 
 # ── resolve_dependencies ──
 
+
 class TestResolveDependencies:
     def _all_metas(self):
         return [parse_sop_metadata(str(p)) for p in sorted(SOPS_DIR.glob("*.md"))]
@@ -96,6 +99,7 @@ class TestResolveDependencies:
 
 
 # ── select_model ──
+
 
 class TestSelectModel:
     def test_simple_sop_gets_haiku(self):
@@ -129,6 +133,7 @@ class TestSelectModel:
 
 # ── _all_upstreams_passed condition (AND-join) ──
 
+
 class TestAllUpstreamsPassed:
     def _make_state(self, results: dict):
         state = MagicMock(spec=["results"])
@@ -136,24 +141,30 @@ class TestAllUpstreamsPassed:
         return state
 
     def test_returns_true_when_all_completed(self):
-        nr_a = MagicMock(); nr_a.status = Status.COMPLETED
-        nr_b = MagicMock(); nr_b.status = Status.COMPLETED
+        nr_a = MagicMock()
+        nr_a.status = Status.COMPLETED
+        nr_b = MagicMock()
+        nr_b.status = Status.COMPLETED
         state = self._make_state({"node_a": nr_a, "node_b": nr_b})
         assert _all_upstreams_passed(["node_a", "node_b"])(state) is True
 
     def test_returns_false_when_one_missing(self):
-        nr_a = MagicMock(); nr_a.status = Status.COMPLETED
+        nr_a = MagicMock()
+        nr_a.status = Status.COMPLETED
         state = self._make_state({"node_a": nr_a})
         assert _all_upstreams_passed(["node_a", "node_b"])(state) is False
 
     def test_returns_false_when_one_failed(self):
-        nr_a = MagicMock(); nr_a.status = Status.COMPLETED
-        nr_b = MagicMock(); nr_b.status = Status.FAILED
+        nr_a = MagicMock()
+        nr_a.status = Status.COMPLETED
+        nr_b = MagicMock()
+        nr_b.status = Status.FAILED
         state = self._make_state({"node_a": nr_a, "node_b": nr_b})
         assert _all_upstreams_passed(["node_a", "node_b"])(state) is False
 
     def test_single_node_works(self):
-        nr = MagicMock(); nr.status = Status.COMPLETED
+        nr = MagicMock()
+        nr.status = Status.COMPLETED
         state = self._make_state({"node_a": nr})
         assert _all_upstreams_passed(["node_a"])(state) is True
 
@@ -164,18 +175,21 @@ class TestAllUpstreamsPassed:
 
 # ── build_sop_graph (structure only, no execution) ──
 
+
 class TestBuildSopGraph:
     """Test graph construction logic without actually building Graph objects."""
 
     def test_model_selection_uses_content(self):
         """Verify that build_sop_graph would select different models per SOP complexity."""
         from sop_graph import parse_sop_metadata, select_model
+
         deploy = parse_sop_metadata(_real_sop("01-deploy-nginx.md"))
         assert select_model(deploy, "haiku") == "haiku"
 
     def test_entry_points_are_nodes_without_incoming_edges(self):
         """Verify entry point detection logic."""
         from sop_graph import parse_sop_metadata, resolve_dependencies
+
         sop_paths = [str(p) for p in sorted(SOPS_DIR.glob("*.md"))]
         metas = [parse_sop_metadata(p) for p in sop_paths]
         edges = resolve_dependencies(metas)
@@ -188,6 +202,7 @@ class TestBuildSopGraph:
 
 # ── build_eval_loop (structure only) ──
 
+
 class TestBuildEvalLoop:
     def test_eval_loop_needs_correction_condition(self):
         """Test the needs_correction condition logic directly."""
@@ -198,7 +213,9 @@ class TestBuildEvalLoop:
         mock_result = MagicMock()
         mock_result.status = Status.COMPLETED
         mock_agent_result = MagicMock()
-        mock_agent_result.message.content = [ContentBlock(text="SteeringEff: 1.0\nSOPCompl: 0.4\n  FAIL: missing tools\nNEEDS_CORRECTION")]
+        mock_agent_result.message.content = [
+            ContentBlock(text="SteeringEff: 1.0\nSOPCompl: 0.4\n  FAIL: missing tools\nNEEDS_CORRECTION")
+        ]
         mock_result.get_agent_results.return_value = [mock_agent_result]
         mock_state.results = {"eval": mock_result}
 
@@ -231,9 +248,13 @@ class TestBuildEvalLoop:
 
 # ── Failure Classification ──
 
+
 class TestClassifyFailure:
     def test_repeated_failures_is_agent_fault(self):
-        assert _classify_failure("SteeringEffectivenessEvaluator", "Repeated failures: {ssh:timeout: 4}", None) == "AGENT_FAULT"
+        assert (
+            _classify_failure("SteeringEffectivenessEvaluator", "Repeated failures: {ssh:timeout: 4}", None)
+            == "AGENT_FAULT"
+        )
 
     def test_budget_exceeded_is_agent_fault(self):
         assert _classify_failure("SteeringEffectivenessEvaluator", "Tool budget exceeded: 96/95", None) == "AGENT_FAULT"
@@ -242,13 +263,22 @@ class TestClassifyFailure:
         assert _classify_failure("SOPCompletionEvaluator", "Empty agent output — likely crashed", None) == "AGENT_FAULT"
 
     def test_critical_failure_is_agent_fault(self):
-        assert _classify_failure("SOPCompletionEvaluator", "Agent reported failure: 'CRITICAL FAILURE'", None) == "AGENT_FAULT"
+        assert (
+            _classify_failure("SOPCompletionEvaluator", "Agent reported failure: 'CRITICAL FAILURE'", None)
+            == "AGENT_FAULT"
+        )
 
     def test_missing_tools_is_sop_fault(self):
-        assert _classify_failure("SOPCompletionEvaluator", "Missing required tools: ['check_pod_status']", None) == "SOP_FAULT"
+        assert (
+            _classify_failure("SOPCompletionEvaluator", "Missing required tools: ['check_pod_status']", None)
+            == "SOP_FAULT"
+        )
 
     def test_success_pattern_is_sop_fault(self):
-        assert _classify_failure("SOPCompletionEvaluator", "Success pattern 'BGP established' not found in output", None) == "SOP_FAULT"
+        assert (
+            _classify_failure("SOPCompletionEvaluator", "Success pattern 'BGP established' not found in output", None)
+            == "SOP_FAULT"
+        )
 
     def test_sop_fault_takes_priority(self):
         """Once SOP_FAULT is set, it should not be downgraded to AGENT_FAULT."""
@@ -260,6 +290,7 @@ class TestClassifyFailure:
 
 
 # ── EvalNode Streaming ──
+
 
 class TestEvalNodeStreaming:
     @pytest.fixture
@@ -280,9 +311,11 @@ class TestEvalNodeStreaming:
         async def fake_executor(_, fn, *args):
             return [mock_report]
 
-        with patch("sop_graph.collect_eval_session", return_value=MagicMock()), \
-             patch("sop_graph.get_sop_eval_meta", return_value={}), \
-             patch("asyncio.get_event_loop") as mock_loop:
+        with (
+            patch("sop_graph.collect_eval_session", return_value=MagicMock()),
+            patch("sop_graph.get_sop_eval_meta", return_value={}),
+            patch("asyncio.get_event_loop") as mock_loop,
+        ):
             mock_loop.return_value.run_in_executor = fake_executor
             async for event in eval_node.stream_async("test output"):
                 events.append(event)
@@ -312,9 +345,11 @@ class TestEvalNodeStreaming:
         async def fake_executor(_, fn, *args):
             return [mock_report]
 
-        with patch("sop_graph.collect_eval_session", return_value=MagicMock()), \
-             patch("sop_graph.get_sop_eval_meta", return_value={}), \
-             patch("asyncio.get_event_loop") as mock_loop:
+        with (
+            patch("sop_graph.collect_eval_session", return_value=MagicMock()),
+            patch("sop_graph.get_sop_eval_meta", return_value={}),
+            patch("asyncio.get_event_loop") as mock_loop,
+        ):
             mock_loop.return_value.run_in_executor = fake_executor
             async for event in eval_node.stream_async("test"):
                 if "result" in event:
@@ -336,9 +371,11 @@ class TestEvalNodeStreaming:
         async def fake_executor(_, fn, *args):
             return [mock_report]
 
-        with patch("sop_graph.collect_eval_session", return_value=MagicMock()), \
-             patch("sop_graph.get_sop_eval_meta", return_value={}), \
-             patch("asyncio.get_event_loop") as mock_loop:
+        with (
+            patch("sop_graph.collect_eval_session", return_value=MagicMock()),
+            patch("sop_graph.get_sop_eval_meta", return_value={}),
+            patch("asyncio.get_event_loop") as mock_loop,
+        ):
             mock_loop.return_value.run_in_executor = fake_executor
             async for event in eval_node.stream_async("test"):
                 if "data" in event:
@@ -349,6 +386,7 @@ class TestEvalNodeStreaming:
 
 
 # ── CorrectorNode ──
+
 
 class TestCorrectorNode:
     def test_corrector_node_has_stream_async(self):
@@ -368,7 +406,9 @@ class TestCorrectorNode:
             {"text": "Original Task: execute SOPs"},
             {"text": "\nInputs from previous nodes:"},
             {"text": "\nFrom eval-01:"},
-            {"text": "  - eval-01: ExecutionTimeEvaluator\n  Score: 0.00\n  FAIL: Timeout-level: 525s vs 193s budget (2.7x)\nNEEDS_CORRECTION:AGENT_FAULT"},
+            {
+                "text": "  - eval-01: ExecutionTimeEvaluator\n  Score: 0.00\n  FAIL: Timeout-level: 525s vs 193s budget (2.7x)\nNEEDS_CORRECTION:AGENT_FAULT"
+            },
         ]
 
         events = []
@@ -377,8 +417,9 @@ class TestCorrectorNode:
 
         data_lines = [e["data"] for e in events if "data" in e]
         # Should NOT say "No actionable failures" — it should find the FAIL line
-        assert not any("No actionable failures" in l for l in data_lines), \
+        assert not any("No actionable failures" in l for l in data_lines), (
             f"Corrector failed to parse FAIL lines from ContentBlocks: {data_lines}"
+        )
 
     @pytest.mark.asyncio
     async def test_corrector_skips_when_no_failures(self, tmp_path):
@@ -402,11 +443,13 @@ class TestCorrectorMadeChanges:
     def _make_state(self, node_id, text):
         from strands.agent.agent_result import AgentResult
         from strands.types.content import ContentBlock, Message
+
         state = MagicMock()
         ar = AgentResult(
             stop_reason="end_turn",
             message=Message(role="assistant", content=[ContentBlock(text=text)]),
-            state={}, metrics={},
+            state={},
+            metrics={},
         )
         nr = MagicMock()
         nr.status = Status.COMPLETED
@@ -441,10 +484,12 @@ class TestNeedsCorrectionRetryLimit:
     def _make_state(self, eval_id, text):
         from strands.agent.agent_result import AgentResult
         from strands.types.content import ContentBlock, Message
+
         ar = AgentResult(
             stop_reason="end_turn",
             message=Message(role="assistant", content=[ContentBlock(text=text)]),
-            state={}, metrics={},
+            state={},
+            metrics={},
         )
         result_mock = MagicMock()
         result_mock.status = Status.COMPLETED
@@ -456,8 +501,8 @@ class TestNeedsCorrectionRetryLimit:
     def test_allows_corrections_up_to_limit(self):
         cond = _needs_correction("eval-01", max_retries=2)
         state = self._make_state("eval-01", "FAIL: something\nNEEDS_CORRECTION:AGENT_FAULT")
-        assert cond(state) is True   # attempt 1
-        assert cond(state) is True   # attempt 2
+        assert cond(state) is True  # attempt 1
+        assert cond(state) is True  # attempt 2
         assert cond(state) is False  # attempt 3 — capped
 
     def test_no_correction_needed_doesnt_count(self):
@@ -465,4 +510,4 @@ class TestNeedsCorrectionRetryLimit:
         passing = self._make_state("eval-01", "PASS: all good")
         assert cond(passing) is False  # no correction needed, counter stays 0
         failing = self._make_state("eval-01", "NEEDS_CORRECTION:AGENT_FAULT")
-        assert cond(failing) is True   # attempt 1 — still allowed
+        assert cond(failing) is True  # attempt 1 — still allowed
