@@ -57,64 +57,65 @@ def _make_client_with_exceptions():
 
 
 class TestProbeModel:
-    """Tests for _probe_model."""
+    """Tests for _probe_model (uses invoke_model API)."""
 
     def test_returns_true_on_success(self, mock_client):
-        mock_client.converse.return_value = {"output": {"message": {"content": [{"text": "hi"}]}}}
+        mock_client.invoke_model.return_value = {"body": MagicMock()}
         assert _probe_model(mock_client, "us.anthropic.claude-sonnet-4-6") is True
 
     def test_returns_false_on_resource_not_found(self, mock_client):
         error = ClientError(
             {"Error": {"Code": "ResourceNotFoundException", "Message": "use case details"}},
-            "Converse"
+            "InvokeModel"
         )
         error.__class__.__name__ = "ResourceNotFoundException"
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "us.anthropic.claude-sonnet-4-6") is False
 
     def test_returns_false_on_validation_exception(self, mock_client):
         error = mock_client.exceptions.ValidationException(
-            {"Error": {"Code": "ValidationException", "Message": "use case form"}},
-            "Converse"
+            {"Error": {"Code": "ValidationException", "Message": "use inference profile"}},
+            "InvokeModel"
         )
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "some-model") is False
 
     def test_returns_false_on_access_denied(self, mock_client):
         error = mock_client.exceptions.AccessDeniedException(
             {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
-            "Converse"
+            "InvokeModel"
         )
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "some-model") is False
 
     def test_returns_true_on_throttling(self, mock_client):
         error = ClientError(
             {"Error": {"Code": "ThrottlingException", "Message": "rate exceeded"}},
-            "Converse"
+            "InvokeModel"
         )
         error.__class__.__name__ = "ThrottlingException"
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "us.anthropic.claude-sonnet-4-6") is True
 
     def test_returns_false_on_legacy_marker(self, mock_client):
         error = Exception("Legacy model - not available")
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "old-model") is False
 
     def test_returns_false_on_use_case_in_message(self, mock_client):
         error = Exception("Model use case details have not been submitted")
-        mock_client.converse.side_effect = error
+        mock_client.invoke_model.side_effect = error
         assert _probe_model(mock_client, "some-model") is False
 
-    def test_sends_minimal_request(self, mock_client):
-        mock_client.converse.return_value = {}
+    def test_sends_minimal_invoke_model_request(self, mock_client):
+        mock_client.invoke_model.return_value = {"body": MagicMock()}
         _probe_model(mock_client, "test-model")
-        mock_client.converse.assert_called_once_with(
-            modelId="test-model",
-            messages=[{"role": "user", "content": [{"text": "hi"}]}],
-            inferenceConfig={"maxTokens": 1},
-        )
+        mock_client.invoke_model.assert_called_once()
+        call_kwargs = mock_client.invoke_model.call_args[1]
+        assert call_kwargs["modelId"] == "test-model"
+        assert call_kwargs["contentType"] == "application/json"
+        assert call_kwargs["accept"] == "application/json"
+        assert "anthropic_version" in call_kwargs["body"]
 
 
 class TestDiscoverModels:
@@ -123,7 +124,7 @@ class TestDiscoverModels:
     def test_discovers_all_three_tiers(self, mock_session):
         client = MagicMock()
         client.exceptions = MagicMock()
-        client.converse.return_value = {"output": {}}
+        client.invoke_model.return_value = {"body": MagicMock()}
         mock_session.client.return_value = client
 
         result = discover_models(boto_session=mock_session, region="us-west-2")
@@ -138,7 +139,7 @@ class TestDiscoverModels:
         client = MagicMock()
         client.exceptions = MagicMock()
         # All succeed
-        client.converse.return_value = {"output": {}}
+        client.invoke_model.return_value = {"body": MagicMock()}
         mock_session.client.return_value = client
 
         result = discover_models(boto_session=mock_session, region="us-west-2")
