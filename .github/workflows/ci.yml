@@ -237,3 +237,44 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           kubectl logs deployment/anra -n ${{ env.NAMESPACE }} --tail=50 >> $GITHUB_STEP_SUMMARY 2>&1 || true
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ── Create SIM Ticket on CI Failure ──
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, code-quality, security]
+    if: failure()
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Determine failed jobs
+        id: failures
+        run: |
+          FAILED_JOBS=""
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then FAILED_JOBS="unit-tests"; fi
+          if [[ "${{ needs.code-quality.result }}" == "failure" ]]; then FAILED_JOBS="${FAILED_JOBS:+$FAILED_JOBS, }code-quality"; fi
+          if [[ "${{ needs.security.result }}" == "failure" ]]; then FAILED_JOBS="${FAILED_JOBS:+$FAILED_JOBS, }security"; fi
+          echo "jobs=$FAILED_JOBS" >> $GITHUB_OUTPUT
+
+      - name: Publish failure to SNS → Taskei ticket
+        run: |
+          aws sns publish \
+            --topic-arn arn:aws:sns:us-west-2:833185305196:ci-failure-notifications \
+            --subject "[CI FAILURE] ${{ github.workflow }} — ${{ steps.failures.outputs.jobs }}" \
+            --message '{
+              "repository": "${{ github.repository }}",
+              "workflow": "${{ github.workflow }}",
+              "ref": "${{ github.ref_name }}",
+              "sha": "${{ github.sha }}",
+              "actor": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "jobs_failed": ["${{ steps.failures.outputs.jobs }}"],
+              "event": "${{ github.event_name }}",
+              "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+            }' \
+            --region us-west-2
+          echo "✓ Failure notification sent → SNS → Lambda → Taskei ticket"
