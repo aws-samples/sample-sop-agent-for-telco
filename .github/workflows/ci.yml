@@ -189,7 +189,18 @@ jobs:
       - name: Configure kubectl
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
 
+      - name: Verify secrets are configured
+        run: |
+          if [[ -z "${{ secrets.E2E_AUTH_USER }}" || -z "${{ secrets.E2E_AUTH_PASS }}" ]]; then
+            echo "::error::E2E_AUTH_USER and E2E_AUTH_PASS secrets must be set in the 'staging' environment"
+            exit 1
+          fi
+          echo "✓ E2E secrets configured"
+
       - name: Deploy to staging
+        env:
+          AUTH_USER: ${{ secrets.E2E_AUTH_USER }}
+          AUTH_PASS: ${{ secrets.E2E_AUTH_PASS }}
         run: |
           helm upgrade --install anra helm/anra/ \
             --namespace ${{ env.NAMESPACE }} --create-namespace \
@@ -202,6 +213,12 @@ jobs:
             --set monitoring.telegraf.enabled=false \
             --set "nodeSelector=" \
             --wait --timeout 120s
+          # Inject auth + AWS creds (not managed by Helm in test cluster)
+          kubectl set env deployment/anra -n ${{ env.NAMESPACE }} \
+            AUTH_USERNAME="${AUTH_USER}" \
+            AUTH_PASSWORD="${AUTH_PASS}" \
+            AWS_DEFAULT_REGION=${{ env.AWS_REGION }}
+          kubectl rollout status deployment/anra -n ${{ env.NAMESPACE }} --timeout=90s
 
       - name: Run E2E tests
         env:

@@ -8,7 +8,8 @@
 # Requires: kubectl configured with cluster access, curl
 # Expects the deployment to already be running (deployed by CI or manually).
 
-set -euo pipefail
+set -uo pipefail
+# Note: NOT using set -e — we track pass/fail counts and exit at the end
 
 NAMESPACE="${NAMESPACE:-sop-agent}"
 TIMEOUT="${TIMEOUT:-120}"
