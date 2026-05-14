@@ -33,4 +33,6 @@ COPY --from=frontend /app/webui/frontend/dist ./static/
 
 EXPOSE 8080
 
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["python3", "entrypoint.py"]
