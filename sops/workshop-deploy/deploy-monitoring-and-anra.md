@@ -1,87 +1,187 @@
-# Deploy Monitoring Stack and ANRA Agent
-
-**Duration:** ~5 minutes
-**Target:** EKS cluster (anra namespace)
+# Deploy ANRA with Monitoring Stack
 
 ## Overview
-Deploy the ANRA agent with bundled InfluxDB and Telegraf monitoring. One Helm install deploys the full Day 2 stack: metrics collection, storage, alarm detection, and autonomous remediation.
+
+This SOP deploys the ANRA (Autonomous Network Remediation Agent) with bundled InfluxDB and Telegraf monitoring on an EKS cluster. A single Helm install provisions the complete Day 2 stack: metrics collection, time-series storage, alarm detection, and autonomous remediation. The SOP also configures the IAM assume-role chain required for ANRA to access Amazon Bedrock through the jumphost role.
+
+Use this SOP after the 5G Core has been deployed and end-to-end connectivity has been validated. Estimated duration: 5 minutes.
+
+## Parameters
+
+- **bedrock_region** (optional, default: `"us-west-2"`): AWS region for Bedrock model invocation
+- **image_tag** (optional, default: `"v3"`): Container image tag for the ANRA agent
+- **auth_username** (optional, default: `"admin"`): HTTP Basic Auth username for the dashboard
+- **auth_password** (optional, default: `"anra2026"`): HTTP Basic Auth password for the dashboard
+
+**Constraints for parameter acquisition:**
+- You MUST detect the AWS account ID using `aws sts get-caller-identity`
+- You MUST detect the cluster name and region from the current kubectl context
+- You SHOULD use the default values for optional parameters unless explicitly overridden
 
 ## Prerequisites
-- 5G Core deployed (deploy-5g-core.md completed)
-- E2E validated (validate-e2e.md completed)
+
+- 5G Core deployed (`deploy-5g-core.md` completed successfully)
+- End-to-end connectivity validated (`validate-e2e.md` completed successfully)
+- `helm`, `kubectl`, and `aws` CLI tools available on the jump host
+- `anra-workshop-jumphost` IAM role exists in the account
 
 ## Steps
 
-### Step 1: Deploy ANRA with monitoring stack
+### 1. Deploy ANRA via Helm
+
+Install the ANRA agent with bundled InfluxDB and Telegraf using the Helm chart. The deployment includes the `BEDROCK_ROLE_ARN` environment variable so the container entrypoint can configure the assume-role chain at startup.
+
+**Constraints:**
+- You MUST resolve `ACCOUNT_ID`, `CLUSTER_NAME`, and `REGION` before running helm
+- You MUST pass `--set env.BEDROCK_ROLE_ARN` with the jumphost role ARN
+- You MUST use `image.tag=v3` to ensure the entrypoint with assume-role support is used
+- You MUST set `--timeout 120s` to accommodate slow pulls of the public image
+- You MUST NOT skip this step even if a previous deployment exists; helm upgrade is idempotent
+
 ```tool: shell
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && CLUSTER_NAME=$(kubectl config current-context | awk -F/ '{print $NF}') && REGION=$(kubectl config current-context | awk -F: '{print $4}') && helm upgrade --install anra helm/anra --namespace anra --create-namespace --set image.repository=public.ecr.aws/a4u0k5h0/anra-workshop --set image.tag=v3 --set bedrock.region=us-west-2 --set approval.mode=auto --set config.cluster.name=$CLUSTER_NAME --set config.cluster.region=$REGION --set env.AUTH_USERNAME=admin --set env.AUTH_PASSWORD=anra2026 --set env.BEDROCK_ROLE_ARN=arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost --timeout 120s
 ```
-**Expected**: `STATUS: deployed`
 
-### Step 1b: Ensure BEDROCK_ROLE_ARN is set on ANRA pod (idempotent safety check)
+**Expected:** `STATUS: deployed`
+
+### 2. Ensure BEDROCK_ROLE_ARN environment variable is set
+
+This is an idempotent safety check. If the helm command in Step 1 was modified or stripped of long flags during execution, this step explicitly sets the required environment variable on the deployment.
+
+**Constraints:**
+- You MUST run this step even if Step 1 succeeded, to guarantee the env var is present
+- You MUST use the same role ARN format as Step 1
+- You SHOULD verify the deployment rolled out successfully after this step
+
 ```tool: shell
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && kubectl set env deploy/anra -n anra BEDROCK_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost"
 ```
-**Expected**: `deployment.apps/anra env updated` (or unchanged)
 
-### Step 1c: Configure assume-role IAM policies for Bedrock access
+**Expected:** `deployment.apps/anra env updated` or no change if already set
+
+### 3. Configure IAM assume-role policies
+
+ANRA pods run with the EKS node group role, which Workshop Studio SCPs do not permit Bedrock access. This step adds a trust relationship allowing the node role to assume the jumphost role (which has Bedrock permissions), and adds an inline policy on the node role granting `sts:AssumeRole`.
+
+**Constraints:**
+- You MUST update the trust policy on `anra-workshop-jumphost` to include the node group role as a trusted principal
+- You MUST add an inline policy on the node group role allowing `sts:AssumeRole` on the jumphost role
+- You MUST preserve the existing EC2 service trust principal in the trust policy
+- You MUST NOT remove or replace any existing inline policies on the node role; use a unique policy name
+
 ```tool: shell
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && NODE_ROLE=$(aws iam list-roles --query 'Roles[?contains(RoleName,`node-group`)].RoleName' --output text) && cat > /tmp/trust.json << EOF
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::${ACCOUNT_ID}:role/${NODE_ROLE}"},"Action":"sts:AssumeRole"}]}
 EOF
 aws iam update-assume-role-policy --role-name anra-workshop-jumphost --policy-document file:///tmp/trust.json && aws iam put-role-policy --role-name "$NODE_ROLE" --policy-name AllowAssumeJumphost --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"sts:AssumeRole\",\"Resource\":\"arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost\"}]}"
 ```
-**Expected**: Trust policy and inline policy applied successfully
 
-> **Note:** This deploys 3 components: ANRA agent, InfluxDB (metrics store), Telegraf (NF metrics collector). Auth is enabled for public access.
+**Expected:** Both `update-assume-role-policy` and `put-role-policy` complete without errors
 
-### Step 2: Wait for all pods
+### 4. Wait for all pods to become ready
+
+**Constraints:**
+- You MUST wait for both ANRA and InfluxDB pods to reach `Ready` condition
+- You MUST use a timeout of at least 120 seconds to allow for image pull and startup
+- You SHOULD NOT proceed if any pod fails to become ready
+
 ```tool: kubectl
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=anra -n anra --timeout=120s && kubectl wait --for=condition=ready pod -l app=influxdb -n anra --timeout=120s
 ```
-**Expected**: All conditions met
 
-### Step 3: Verify monitoring stack
+**Expected:** All conditions met
+
+### 5. Verify monitoring stack pods are running
+
+**Constraints:**
+- You MUST verify three pods exist: `anra`, `influxdb`, and `telegraf-core`
+- You MUST verify all three pods show `Running` status
+- You SHOULD investigate any pod not in `Running` state before proceeding
+
 ```tool: kubectl
 kubectl get pods -n anra --no-headers | awk '{print $1, $3}' | column -t
 ```
-**Expected**: anra, influxdb, telegraf-core all Running
 
-### Step 4: Verify service is internal LoadBalancer
-```tool: kubectl
-kubectl get svc anra -n anra -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-internal}' && echo " (internal)"
-```
-**Expected**: `true (internal)`
+**Expected:** anra, influxdb, telegraf-core all Running
 
-> **Note:** The Helm chart creates an internal LoadBalancer by default. Access the dashboard via SSM port-forwarding from the jump host.
+### 6. Start port forwarding for public dashboard access
 
-### Step 5: Start port forward for public access
+The ANRA service uses an internal ClusterIP. To make the dashboard accessible from the internet via the jump host's public IP, start a `kubectl port-forward` bound to all interfaces. The CloudFormation security group already permits inbound traffic on port 8080.
+
+**Constraints:**
+- You MUST bind the port forward to `0.0.0.0` (not `localhost`) to allow external access
+- You MUST run the port forward in the background (`&`) so the SOP can complete
+- You SHOULD output the public dashboard URL using the EC2 instance metadata service
+
 ```tool: shell
 kubectl port-forward deploy/anra -n anra 8080:8080 --address 0.0.0.0 &
 sleep 5 && echo "Dashboard accessible at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080"
 ```
-**Expected**: Dashboard URL with public IP. Login: admin / anra2026
 
-### Step 6: Verify ANRA is monitoring
+**Expected:** Dashboard URL printed in the form `http://<public-ip>:8080`. Login: `admin` / `anra2026`
+
+### 7. Verify ANRA monitoring is active
+
+**Constraints:**
+- You MUST verify the ANRA agent has loaded its configuration and started the monitor loop
+- You SHOULD look for log messages indicating alarm definitions were loaded
+- You SHOULD report the monitoring status as part of the final summary
+
 ```tool: shell
 sleep 10 && kubectl logs deploy/anra -n anra --tail=10 | grep -iE "monitor|alarm|poll|config"
 ```
-**Expected**: Log messages showing monitoring active, alarm definitions loaded
 
-## Verification
-Access the ANRA dashboard and verify:
-- **Dashboard** page shows cluster topology
-- **Alarms** page shows demo trigger buttons
-- **SOPs** page lists available SOPs
+**Expected:** Log messages confirming monitor is running and alarm definitions are loaded
+
+## Examples
+
+### Successful deployment summary
+
+After running this SOP, you should see:
+- 3 pods Running in the `anra` namespace
+- IAM trust policy on `anra-workshop-jumphost` includes the node group role
+- ANRA pod environment includes `BEDROCK_ROLE_ARN`
+- Dashboard reachable at `http://<jump-host-public-ip>:8080`
+- Ask ANRA chat responds to queries (validates Bedrock access via assume-role chain)
+
+## Troubleshooting
+
+### Ask ANRA returns AccessDeniedException for ConverseStream
+
+**Cause:** The pod is not assuming the jumphost role. Either `BEDROCK_ROLE_ARN` is not set, the trust policy is missing, or the inline policy on the node role is missing.
+
+**Resolution:** Re-run Steps 2 and 3, then restart the ANRA pod:
+```bash
+kubectl delete pod -n anra -l app.kubernetes.io/name=anra
+```
+
+### Helm install times out
+
+**Cause:** Image pull from ECR Public is slow on first deployment.
+
+**Resolution:** Re-run Step 1; helm upgrade is idempotent. Increase `--timeout` to `300s` if needed.
+
+### Port 8080 already in use
+
+**Cause:** A previous `kubectl port-forward` is still running.
+
+**Resolution:** Kill the existing port forward before starting a new one:
+```bash
+pkill -f "port-forward.*anra"
+sleep 3
+kubectl port-forward deploy/anra -n anra 8080:8080 --address 0.0.0.0 &
+```
 
 ## Production Alternatives
+
 | Workshop (in-cluster) | Production (AWS managed) |
 |---|---|
 | InfluxDB pod | Amazon Timestream for InfluxDB |
 | Telegraf pod | Amazon CloudWatch Container Insights |
-| LoadBalancer | Amazon CloudFront + ALB with WAF |
-| Basic Auth | Amazon Cognito |
+| Public IP + Basic Auth | Amazon CloudFront + ALB + WAF + Cognito |
+| Assume-role workaround | Native IRSA with Bedrock policy attached |
 
 ## Related SOPs
+
 - **Previous:** `workshop-deploy/validate-e2e.md`
-- **Next:** Trigger alarms from dashboard → watch ANRA auto-remediate
+- **Next:** Trigger alarms from the ANRA dashboard to watch autonomous remediation
