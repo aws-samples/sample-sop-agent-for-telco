@@ -18,6 +18,21 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && CLUST
 ```
 **Expected**: `STATUS: deployed`
 
+### Step 1b: Ensure BEDROCK_ROLE_ARN is set on ANRA pod (idempotent safety check)
+```tool: shell
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && kubectl set env deploy/anra -n anra BEDROCK_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost"
+```
+**Expected**: `deployment.apps/anra env updated` (or unchanged)
+
+### Step 1c: Configure assume-role IAM policies for Bedrock access
+```tool: shell
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && NODE_ROLE=$(aws iam list-roles --query 'Roles[?contains(RoleName,`node-group`)].RoleName' --output text) && cat > /tmp/trust.json << EOF
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::${ACCOUNT_ID}:role/${NODE_ROLE}"},"Action":"sts:AssumeRole"}]}
+EOF
+aws iam update-assume-role-policy --role-name anra-workshop-jumphost --policy-document file:///tmp/trust.json && aws iam put-role-policy --role-name "$NODE_ROLE" --policy-name AllowAssumeJumphost --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"sts:AssumeRole\",\"Resource\":\"arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost\"}]}"
+```
+**Expected**: Trust policy and inline policy applied successfully
+
 > **Note:** This deploys 3 components: ANRA agent, InfluxDB (metrics store), Telegraf (NF metrics collector). Auth is enabled for public access.
 
 ### Step 2: Wait for all pods
