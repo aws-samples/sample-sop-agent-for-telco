@@ -14,7 +14,7 @@ Deploy the ANRA agent with bundled InfluxDB and Telegraf monitoring. One Helm in
 
 ### Step 1: Deploy ANRA with monitoring stack
 ```tool: shell
-helm upgrade --install anra helm/anra --namespace anra --create-namespace --set image.repository=public.ecr.aws/a4u0k5h0/anra-workshop --set image.tag=v3 --set bedrock.region=us-west-2 --set approval.mode=auto --set config.cluster.name=anra-v6 --set config.cluster.region=ap-northeast-3 --set env.AUTH_USERNAME=admin --set env.AUTH_PASSWORD=anra2026 --timeout 120s
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && CLUSTER_NAME=$(kubectl config current-context | awk -F/ '{print $NF}') && REGION=$(kubectl config current-context | awk -F: '{print $4}') && helm upgrade --install anra helm/anra --namespace anra --create-namespace --set image.repository=public.ecr.aws/a4u0k5h0/anra-workshop --set image.tag=v3 --set bedrock.region=us-west-2 --set approval.mode=auto --set config.cluster.name=$CLUSTER_NAME --set config.cluster.region=$REGION --set env.AUTH_USERNAME=admin --set env.AUTH_PASSWORD=anra2026 --set env.BEDROCK_ROLE_ARN=arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost --timeout 120s
 ```
 **Expected**: `STATUS: deployed`
 
@@ -40,11 +40,12 @@ kubectl get svc anra -n anra -o jsonpath='{.metadata.annotations.service\.beta\.
 
 > **Note:** The Helm chart creates an internal LoadBalancer by default. Access the dashboard via SSM port-forwarding from the jump host.
 
-### Step 5: Get dashboard URL
+### Step 5: Start port forward for public access
 ```tool: shell
-sleep 30 && kubectl get svc anra -n anra -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' && echo ":8080"
+kubectl port-forward deploy/anra -n anra 8080:8080 --address 0.0.0.0 &
+sleep 5 && echo "Dashboard accessible at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080"
 ```
-**Expected**: Load balancer hostname + port 8080. Login: admin / anra2026
+**Expected**: Dashboard URL with public IP. Login: admin / anra2026
 
 ### Step 6: Verify ANRA is monitoring
 ```tool: shell
