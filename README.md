@@ -25,6 +25,10 @@ Reads SOPs from markdown files and executes them autonomously:
 
 ## Architecture
 
+The agent has two complementary deployment patterns:
+
+### ANDA — Day 1: SOP-Driven Network Deployment
+
 ![SOP Agent architecture: Operator interacts with the Web Interface (FastAPI + React UI), which routes through the Strands Agents SDK (SOP Graph, SOP Executor, Adaptive Steering). The executor uses MCP tools (kubectl, SSH, Shell) to operate on Amazon EKS. Adaptive Steering selects Claude Haiku for simple tasks, Sonnet for complex tasks, and Opus for fix-mode escalation via Amazon Bedrock.](docs/images/architecture.png)
 
 **Components:**
@@ -36,6 +40,16 @@ Reads SOPs from markdown files and executes them autonomously:
   - **Adaptive Steering** — selects optimal Claude model based on step complexity
 - **Amazon Bedrock** — hosts Claude Haiku ($1/1M tokens) → Sonnet ($6/1M) → Opus ($30/1M) for adaptive cost optimization
 - **Amazon EKS** — target cluster running network functions (Helm charts, Services, NF Pods)
+
+### ANRA — Day 2: Autonomous Remediation
+
+![ANRA Day 2 architecture: 5G Edge Site (srsRAN gNB, Open5GS UPF, Dell iDRAC) and 5G Core (Open5GS NFs on EC2) feed metrics through Telegraf collectors (RAN WebSocket, HW Redfish, Core kubectl) into InfluxDB. ANRA Agent (Monitor, Correlator, SOP Executor) consumes the metrics, detects alarms, performs topology-aware root cause analysis, and remediates via kubectl/SSM. AWS Services include IRSA pod-level auth and Amazon Bedrock for SOP generation. A dashboard exposes alarms, SOPs, topology, and chat.](docs/images/anra-architecture.png)
+
+**Closed-loop operation:**
+
+![Agent observability loop: Detect (Telegraf Collector → ANRA Monitor) → Correlate (NetworkX Topology → Root Cause Analysis) → Execute (SOP Select/Generate → Adaptive Steering → Strands Agent) → Evaluate (Strands Evals SDK → Pass check). On failure, retries with a stronger model; if max retries hit, opens a Git Issue for human approval. Successful executions are added to Execution History which feeds Adaptive Steering pattern recognition.](docs/images/observability-loop.png)
+
+ANRA continuously detects alarms via Telegraf metrics, performs topology-aware root cause analysis using a NetworkX graph, executes remediation SOPs autonomously, and evaluates outcomes via the Strands Evals SDK. Failed executions are retried with stronger models; persistent failures escalate to Git Issues for human approval. Successful patterns are recorded in execution history and used by Adaptive Steering on subsequent runs.
 
 ## Quick Start
 
