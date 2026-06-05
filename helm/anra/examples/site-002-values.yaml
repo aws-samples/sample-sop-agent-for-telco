@@ -2,12 +2,12 @@
 # Usage: helm install anra helm/anra -n anra --create-namespace -f helm/anra/examples/site-002-values.yaml
 
 image:
-  repository: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra
+  repository: public.ecr.aws/a4u0k5h0/anra-workshop
   tag: latest
 
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::833542146025:role/AnraRole
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/anra-workshop-anra
 
 bedrock:
   region: us-west-2

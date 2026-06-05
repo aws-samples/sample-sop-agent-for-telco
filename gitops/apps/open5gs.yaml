@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 833542146025.dkr.ecr.us-west-1.amazonaws.com
+    repoURL: https://gradiant.github.io/5g-charts
     chart: helm/open5gs
     targetRevision: 2.3.4
     helm:
