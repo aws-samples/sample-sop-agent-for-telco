@@ -81,34 +81,34 @@ See [sops/TEMPLATE.md](sops/TEMPLATE.md) for a complete template, or the [worksh
 
 ```mermaid
 flowchart TB
-    UI["Web UI (React + Vite)"]
-    API["Backend API (FastAPI) — agent/api.py<br/>Routers: alarms, chat, metrics, sops, health, timeline, webhooks"]
-
-    subgraph CORE["Agent Core"]
-        direction LR
-        GRAPH["SOP Graph (DAG)"]
-        EXEC["SOP Executor"]
-        STEER["Adaptive Steering"]
-    end
-
-    subgraph DAY2["Day-2 Operations"]
-        direction LR
-        MON["Monitor"]
-        CORR["Correlator"]
-        DISC["Model Discovery"]
-    end
-
-    SDK["Strands Agents SDK + Amazon Bedrock"]
+    UI[Web UI]
+    API[Backend API - FastAPI]
+    GRAPH[SOP Graph DAG]
+    EXEC[SOP Executor]
+    STEER[Adaptive Steering]
+    MON[Monitor]
+    CORR[Correlator]
+    DISC[Model Discovery]
+    SDK[Strands Agents SDK + Amazon Bedrock]
+    KUBECTL[kubectl]
+    SSH[SSH]
+    SSM[AWS SSM]
+    REDFISH[Redfish]
 
     UI --> API
-    API --> CORE
-    CORE --> DAY2
-    DAY2 --> SDK
-
-    SDK --> KUBECTL["kubectl"]
-    SDK --> SSH["SSH"]
-    SDK --> SSM["AWS SSM"]
-    SDK --> REDFISH["Redfish"]
+    API --> GRAPH
+    API --> EXEC
+    API --> STEER
+    GRAPH --> SDK
+    EXEC --> SDK
+    STEER --> SDK
+    MON --> SDK
+    CORR --> SDK
+    DISC --> SDK
+    SDK --> KUBECTL
+    SDK --> SSH
+    SDK --> SSM
+    SDK --> REDFISH
 ```
 
 ## Project Structure
