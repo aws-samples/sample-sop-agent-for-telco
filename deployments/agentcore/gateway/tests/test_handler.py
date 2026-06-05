@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -132,9 +132,7 @@ def test_ssm_command_success(monkeypatch):
     monkeypatch.setattr("time.sleep", lambda _: None)
 
     ctx = make_context("anra-tools___ssm_command")
-    response = handler.lambda_handler(
-        {"instance_id": "i-abc123", "command": "systemctl status amf"}, ctx
-    )
+    response = handler.lambda_handler({"instance_id": "i-abc123", "command": "systemctl status amf"}, ctx)
 
     assert response["statusCode"] == 200
     body = json.loads(response["body"])

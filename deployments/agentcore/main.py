@@ -146,10 +146,7 @@ def _run_sop(payload: dict) -> dict:
     )
 
     log.info("Executing SOP: %s (model=%s, fix=%s)", sop_path, model_name, fix_mode)
-    prompt = (
-        f"Execute SOP: {sop_path}\n"
-        "Validate each step against the expected output and remediate as needed."
-    )
+    prompt = f"Execute SOP: {sop_path}\nValidate each step against the expected output and remediate as needed."
     result = agent(prompt)
 
     return {
