@@ -79,37 +79,16 @@ See [sops/TEMPLATE.md](sops/TEMPLATE.md) for a complete template, or the [worksh
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    UI[Web UI]
-    API[Backend API - FastAPI]
-    GRAPH[SOP Graph DAG]
-    EXEC[SOP Executor]
-    STEER[Adaptive Steering]
-    MON[Monitor]
-    CORR[Correlator]
-    DISC[Model Discovery]
-    SDK[Strands Agents SDK + Amazon Bedrock]
-    KUBECTL[kubectl]
-    SSH[SSH]
-    SSM[AWS SSM]
-    REDFISH[Redfish]
+![SOP Agent architecture: Operator interacts with the Web Interface (FastAPI + React UI), which routes through the Strands Agents SDK (SOP Graph, SOP Executor, Adaptive Steering). The executor uses MCP tools (kubectl, SSH, Shell) to operate on Amazon EKS. Adaptive Steering selects Claude Haiku for simple tasks, Sonnet for complex tasks, and Opus for fix-mode escalation via Amazon Bedrock.](docs/images/architecture.png)
 
-    UI --> API
-    API --> GRAPH
-    API --> EXEC
-    API --> STEER
-    GRAPH --> SDK
-    EXEC --> SDK
-    STEER --> SDK
-    MON --> SDK
-    CORR --> SDK
-    DISC --> SDK
-    SDK --> KUBECTL
-    SDK --> SSH
-    SDK --> SSM
-    SDK --> REDFISH
-```
+**Components:**
+- **Web Interface** — FastAPI backend + React UI for operator interaction
+- **Strands Agents SDK** — orchestrates SOP execution with three layers:
+  - **SOP Graph (DAG Engine)** — parses SOPs into a directed acyclic graph
+  - **SOP Executor** — executes steps via MCP tools (kubectl, SSH, Shell)
+  - **Adaptive Steering** — selects optimal Claude model based on step complexity
+- **Amazon Bedrock** — hosts Claude Haiku ($1/1M tokens) → Sonnet ($6/1M) → Opus ($30/1M) for adaptive cost optimization
+- **Amazon EKS** — target cluster running network functions (Helm charts, Services, NF Pods)
 
 ## Project Structure
 
