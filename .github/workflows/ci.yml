@@ -3,29 +3,20 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
-
-env:
-  AWS_REGION: us-west-2
-  ECR_PUBLIC_URI: public.ecr.aws/k6b9y4d0/sample-sop-agent-for-telco
-  EKS_CLUSTER: sop-agent-test
-  NAMESPACE: sop-agent
-  IAM_ROLE: arn:aws:iam::833185305196:role/github-actions-sop-agent
 
 jobs:
   unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +24,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install dependencies
         run: |
@@ -41,8 +33,7 @@ jobs:
           pip install pytest pytest-asyncio pytest-mock
 
       - name: Run tests
-        run: |
-          python -m pytest tests/ -v --tb=short --junitxml=report.xml
+        run: python -m pytest tests/ -v --tb=short --junitxml=report.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -52,17 +43,17 @@ jobs:
           path: report.xml
 
   code-quality:
+    name: Code quality (ruff)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install tools
-        run: pip install ruff mypy boto3-stubs types-requests
+        run: pip install ruff
 
       - name: Ruff lint
         run: ruff check agent/ evals/ tests/ --output-format=github
@@ -71,31 +62,27 @@ jobs:
         run: ruff format --check agent/ evals/ tests/
 
   security:
+    name: Security scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install security tools
         run: pip install bandit semgrep
 
-      - name: Bandit security scan
+      - name: Bandit
         run: |
-          bandit -r agent/ evals/ \
-            -s B602,B603,B404 \
-            --severity-level high \
-            --confidence-level high \
+          bandit -r agent/ evals/ -s B602,B603,B404 \
+            --severity-level high --confidence-level high \
             --format json -o bandit-report.json || true
-          bandit -r agent/ evals/ \
-            -s B602,B603,B404 \
-            --severity-level high \
-            --confidence-level high
+          bandit -r agent/ evals/ -s B602,B603,B404 \
+            --severity-level high --confidence-level high
 
-      - name: Semgrep scan
+      - name: Semgrep
         run: semgrep scan --config auto --error agent/ evals/
 
       - name: Upload Bandit report
@@ -105,176 +92,185 @@ jobs:
           name: bandit-report
           path: bandit-report.json
 
-  # ── Build & Push to Public ECR ──
-  # Runs on PRs (for validation) and on tags (for release)
-  build-and-push:
+  docker-build:
+    name: Docker build
     runs-on: ubuntu-latest
-    needs: [unit-tests, code-quality, security]
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tag }}
-      image-uri: ${{ steps.meta.outputs.uri }}
-
+    needs: [unit-tests]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
         with:
-          role-to-assume: ${{ env.IAM_ROLE }}
-          aws-region: us-east-1
+          context: .
+          push: false
+          load: true
+          tags: anra:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Login to Public ECR
-        run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Save image for downstream jobs
+        run: docker save anra:ci -o /tmp/anra-image.tar
 
-      - name: Docker metadata
-        id: meta
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${{ github.ref_name }}"
-          else
-            TAG="pr-${{ github.event.pull_request.number }}-$(echo ${{ github.sha }} | cut -c1-7)"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "uri=${{ env.ECR_PUBLIC_URI }}:${TAG}" >> $GITHUB_OUTPUT
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anra-image
+          path: /tmp/anra-image.tar
+          retention-days: 1
 
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ env.ECR_PUBLIC_URI }}:${{ steps.meta.outputs.tag }} .
-          docker tag ${{ env.ECR_PUBLIC_URI }}:${{ steps.meta.outputs.tag }} ${{ env.ECR_PUBLIC_URI }}:latest
-
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.ECR_PUBLIC_URI }}:${{ steps.meta.outputs.tag }}
-          # Push :latest only on tags (releases)
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            docker push ${{ env.ECR_PUBLIC_URI }}:latest
-          fi
-
-      - name: Summary
-        run: |
-          echo "### 🐳 Image Published" >> $GITHUB_STEP_SUMMARY
-          echo "- **URI:** \`${{ steps.meta.outputs.uri }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** \`${{ steps.meta.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-
-  # ── End-to-End Tests on EKS ──
-  e2e-test:
+  helm-validate:
+    name: Helm validate
     runs-on: ubuntu-latest
-    needs: [build-and-push]
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    concurrency:
-      group: e2e-${{ github.ref }}
-      cancel-in-progress: true
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.IAM_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: "v1.31.0"
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: "v3.14.0"
 
-      - name: Configure kubectl
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+      - name: Helm lint
+        run: helm lint helm/anra/
 
-      - name: Verify secrets are configured
+      - name: Helm template (default values)
+        run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci --debug > /tmp/rendered.yaml
+
+      - name: Validate rendered YAML
         run: |
-          if [[ -z "${{ secrets.E2E_AUTH_USER }}" || -z "${{ secrets.E2E_AUTH_PASS }}" ]]; then
-            echo "::error::E2E_AUTH_USER and E2E_AUTH_PASS secrets must be set in the 'staging' environment"
-            exit 1
-          fi
-          echo "✓ E2E secrets configured"
+          # Verify no rendering errors and key resources exist
+          grep -q "kind: Deployment" /tmp/rendered.yaml || (echo "Missing Deployment" && exit 1)
+          grep -q "kind: Service" /tmp/rendered.yaml || (echo "Missing Service" && exit 1)
+          grep -q "kind: ServiceAccount" /tmp/rendered.yaml || (echo "Missing ServiceAccount" && exit 1)
+          echo "✓ Helm chart renders all expected resources"
 
-      - name: Deploy to staging
-        env:
-          AUTH_USER: ${{ secrets.E2E_AUTH_USER }}
-          AUTH_PASS: ${{ secrets.E2E_AUTH_PASS }}
+  container-smoke:
+    name: Container smoke test
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: anra-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/anra-image.tar
+
+      - name: Start container
+        run: |
+          docker run -d --name anra-smoke \
+            -p 8080:8080 \
+            -e AUTH_USERNAME=ciuser \
+            -e AUTH_PASSWORD=cipass \
+            -e BEDROCK_REGION=us-west-2 \
+            -e AWS_DEFAULT_REGION=us-west-2 \
+            -e WEBUI_CORS_ORIGINS="*" \
+            -e SOP_REPO=/app/sops \
+            anra:ci
+          # Wait up to 60s for /health to respond
+          for i in $(seq 1 60); do
+            if curl -sf -u ciuser:cipass http://localhost:8080/health > /dev/null; then
+              echo "✓ /health responded after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Check /health
+        run: |
+          STATUS=$(curl -s -u ciuser:cipass http://localhost:8080/health)
+          echo "Health response: $STATUS"
+          echo "$STATUS" | grep -q "ok\|healthy\|ready" || (echo "Unexpected health response" && exit 1)
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs anra-smoke
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f anra-smoke || true
+
+  kind-e2e:
+    name: kind cluster E2E
+    runs-on: ubuntu-latest
+    needs: [docker-build, helm-validate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: anra-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/anra-image.tar
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: anra-test
+          wait: 60s
+
+      - name: Load image into kind
+        run: kind load docker-image anra:ci --name anra-test
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Deploy ANRA via Helm
         run: |
           helm upgrade --install anra helm/anra/ \
-            --namespace ${{ env.NAMESPACE }} --create-namespace \
-            --set image.repository=${{ env.ECR_PUBLIC_URI }} \
-            --set image.tag=${{ needs.build-and-push.outputs.image-tag }} \
-            --set bedrock.region=${{ env.AWS_REGION }} \
+            --namespace anra --create-namespace \
+            --set image.repository=anra \
+            --set image.tag=ci \
+            --set image.pullPolicy=IfNotPresent \
+            --set bedrock.region=us-west-2 \
             --set "webui.corsOrigins=*" \
-            --set secrets.influxdbToken=anra-workshop-token \
+            --set webui.service.type=ClusterIP \
             --set monitoring.influxdb.enabled=false \
             --set monitoring.telegraf.enabled=false \
             --set "nodeSelector=" \
             --wait --timeout 120s
-          # Inject auth + AWS creds (not managed by Helm in test cluster)
-          kubectl set env deployment/anra -n ${{ env.NAMESPACE }} \
-            AUTH_USERNAME="${AUTH_USER}" \
-            AUTH_PASSWORD="${AUTH_PASS}" \
-            AWS_DEFAULT_REGION=${{ env.AWS_REGION }}
-          kubectl rollout status deployment/anra -n ${{ env.NAMESPACE }} --timeout=90s
 
-      - name: Run E2E tests
-        env:
-          AUTH_USER: ${{ secrets.E2E_AUTH_USER }}
-          AUTH_PASS: ${{ secrets.E2E_AUTH_PASS }}
+      - name: Wait for pod ready
         run: |
-          chmod +x scripts/e2e-test.sh
-          ./scripts/e2e-test.sh --timeout 120
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=anra \
+            -n anra --timeout=120s
+
+      - name: Inject test credentials and restart
+        run: |
+          kubectl set env deployment/anra -n anra \
+            AUTH_USERNAME=ciuser \
+            AUTH_PASSWORD=cipass
+          kubectl rollout status deployment/anra -n anra --timeout=90s
+
+      - name: Test API via port-forward
+        run: |
+          kubectl port-forward -n anra svc/anra 8080:8080 &
+          PF_PID=$!
+          sleep 5
+          # Health check
+          curl -sf -u ciuser:cipass http://localhost:8080/health
+          echo ""
+          # SOPs list
+          curl -sf -u ciuser:cipass http://localhost:8080/api/sops | head -c 200
+          echo ""
+          kill $PF_PID || true
 
       - name: Collect logs on failure
         if: failure()
         run: |
-          echo "### Pod Status" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pod Logs (last 50 lines)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          kubectl logs deployment/anra -n ${{ env.NAMESPACE }} --tail=50 >> $GITHUB_STEP_SUMMARY 2>&1 || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # ── Create SIM Ticket on CI Failure ──
-  notify-failure:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, code-quality, security]
-    if: failure()
-
-    steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.IAM_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Determine failed jobs
-        id: failures
-        run: |
-          FAILED_JOBS=""
-          if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then FAILED_JOBS="unit-tests"; fi
-          if [[ "${{ needs.code-quality.result }}" == "failure" ]]; then FAILED_JOBS="${FAILED_JOBS:+$FAILED_JOBS, }code-quality"; fi
-          if [[ "${{ needs.security.result }}" == "failure" ]]; then FAILED_JOBS="${FAILED_JOBS:+$FAILED_JOBS, }security"; fi
-          echo "jobs=$FAILED_JOBS" >> $GITHUB_OUTPUT
-
-      - name: Publish failure to SNS → Taskei ticket
-        run: |
-          aws sns publish \
-            --topic-arn arn:aws:sns:us-west-2:833185305196:ci-failure-notifications \
-            --subject "[CI FAILURE] ${{ github.workflow }} — ${{ steps.failures.outputs.jobs }}" \
-            --message '{
-              "repository": "${{ github.repository }}",
-              "workflow": "${{ github.workflow }}",
-              "ref": "${{ github.ref_name }}",
-              "sha": "${{ github.sha }}",
-              "actor": "${{ github.actor }}",
-              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              "jobs_failed": ["${{ steps.failures.outputs.jobs }}"],
-              "event": "${{ github.event_name }}",
-              "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
-            }' \
-            --region us-west-2
-          echo "✓ Failure notification sent → SNS → Lambda → Taskei ticket"
+          kubectl get pods -n anra -o wide
+          kubectl describe pod -n anra -l app.kubernetes.io/name=anra
+          kubectl logs deployment/anra -n anra --tail=100 || true
