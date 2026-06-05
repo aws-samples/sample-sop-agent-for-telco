@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.aws.amazon.com/bedrock-agentcore/agentcore-schema.json",
+  "name": "anra-agent",
+  "description": "Autonomous Network Remediation Agent (ANRA) — telco SOP execution",
+  "framework": "strands",
+  "entrypoint": "main:app",
+  "deployment": {
+    "type": "direct_code",
+    "platform": "linux/arm64",
+    "python_version": "3.11",
+    "memory_mb": 2048,
+    "timeout_seconds": 900
+  },
+  "runtime": {
+    "lifecycle": {
+      "idleRuntimeSessionTimeout": 3600,
+      "maxLifetime": 28800
+    },
+    "networkConfiguration": {
+      "networkMode": "VPC",
+      "vpcConfig": {
+        "subnetIds": [
+          "REPLACE_WITH_SUBNET_ID_AZ1",
+          "REPLACE_WITH_SUBNET_ID_AZ2"
+        ],
+        "securityGroupIds": [
+          "REPLACE_WITH_SECURITY_GROUP_ID"
+        ]
+      }
+    },
+    "environment": {
+      "BEDROCK_REGION": "us-west-2",
+      "AWS_REGION": "us-west-2",
+      "ANRA_DEFAULT_MODEL": "haiku",
+      "LOG_LEVEL": "INFO",
+      "SOP_REPO": "/var/task"
+    }
+  },
+  "iam": {
+    "executionRoleArn": "REPLACE_WITH_AGENTCORE_EXECUTION_ROLE_ARN"
+  },
+  "observability": {
+    "enabled": true,
+    "tracingEnabled": true
+  },
+  "_comment": "Replace REPLACE_WITH_* placeholders before deployment. Subnets must be in supported AgentCore AZs for the region (apne1-az1/az2/az4 for Tokyo, usw2-az1/az2/az3 for Oregon)."
+}
