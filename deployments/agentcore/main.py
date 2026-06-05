@@ -24,10 +24,13 @@ from pathlib import Path
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-# Make the existing agent/ modules importable. The deployment package is
-# expected to include the agent/ directory at the project root.
-_repo_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(_repo_root / "agent"))
+# Make the existing agent/ modules importable. Two layouts are supported:
+#   1. Repo workspace:  agent/ is at <repo>/agent (parent.parent.parent of this file)
+#   2. Container:       agent/ is at /app/agent (set via PYTHONPATH=/app:/app/agent)
+_here = Path(__file__).resolve().parent
+for candidate in (_here.parent.parent / "agent", Path("/app/agent")):
+    if candidate.exists() and str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
 
 # Configure logging early
 logging.basicConfig(
@@ -108,7 +111,9 @@ def invoke(payload: dict) -> dict:
 
 def _resolve_sop_path(sop_name: str) -> Path | None:
     """Find an SOP markdown file by name, anywhere under the SOP repo."""
-    sop_repo = Path(os.getenv("SOP_REPO", str(_repo_root)))
+    # SOP_REPO defaults to the repo root in dev or /app in container
+    default_repo = "/app" if Path("/app/sops").exists() else str(_here.parent.parent)
+    sop_repo = Path(os.getenv("SOP_REPO", default_repo))
     # Allow either bare name ("deploy-5g-core") or relative path
     if "/" in sop_name:
         candidate = sop_repo / sop_name
