@@ -79,21 +79,36 @@ See [sops/TEMPLATE.md](sops/TEMPLATE.md) for a complete template, or the [worksh
 
 ## Architecture
 
-```
-+---------------------------------------------------------------+
-|                   Web UI (React + Vite)                        |
-+---------------------------------------------------------------+
-|  Backend API (FastAPI)  |  Routers: alarms, chat, metrics,    |
-|  agent/api.py           |  sops, health, timeline, webhooks   |
-+-------------------------+-------------------------------------+
-|  SOP Graph (DAG)  |  SOP Executor  |  Adaptive Steering       |
-+--------------------+----------------+-------------------------+
-|  Monitor (Day2)    |  Correlator    |  Model Discovery         |
-+--------------------+----------------+-------------------------+
-|              Strands Agents SDK + Amazon Bedrock               |
-+-------+----------+----------+-----------+---------------------+
-        |          |          |           |
-     kubectl      SSH        SSM       Redfish
+```mermaid
+flowchart TB
+    UI["Web UI (React + Vite)"]
+    API["Backend API (FastAPI) — agent/api.py<br/>Routers: alarms, chat, metrics, sops, health, timeline, webhooks"]
+
+    subgraph CORE["Agent Core"]
+        direction LR
+        GRAPH["SOP Graph (DAG)"]
+        EXEC["SOP Executor"]
+        STEER["Adaptive Steering"]
+    end
+
+    subgraph DAY2["Day-2 Operations"]
+        direction LR
+        MON["Monitor"]
+        CORR["Correlator"]
+        DISC["Model Discovery"]
+    end
+
+    SDK["Strands Agents SDK + Amazon Bedrock"]
+
+    UI --> API
+    API --> CORE
+    CORE --> DAY2
+    DAY2 --> SDK
+
+    SDK --> KUBECTL["kubectl"]
+    SDK --> SSH["SSH"]
+    SDK --> SSM["AWS SSM"]
+    SDK --> REDFISH["Redfish"]
 ```
 
 ## Project Structure
