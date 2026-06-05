@@ -57,6 +57,14 @@ ENV PYTHONUNBUFFERED=1
 ENV LOG_LEVEL=INFO
 ENV SOP_REPO=/app
 
+# Create a non-root user for the agent process. AgentCore Runtime runs each
+# session in an isolated microVM, but defense-in-depth practice is to never
+# run as root in the container itself.
+RUN groupadd --system --gid 1001 anra && \
+    useradd --system --uid 1001 --gid anra --create-home --home-dir /home/anra anra && \
+    chown -R anra:anra /app /home/anra
+USER anra:anra
+
 # AgentCore Runtime invokes the app on port 8080 with /invocations and /ping endpoints
 EXPOSE 8080
 
