@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  ANRA AgentCore Gateway Lambda — exposes kubectl, ssm, and influxdb_query
+  as MCP tools to AgentCore Gateway. Deployed in a VPC to reach private
+  EKS API and InfluxDB endpoints.
+
+Parameters:
+  EksClusterName:
+    Type: String
+    Description: Name of the EKS cluster the agent operates on
+    Default: anra-workshop
+
+  InfluxdbUrl:
+    Type: String
+    Description: HTTPS URL for InfluxDB v2 API (leave empty if not used yet)
+    Default: ""
+
+  InfluxdbTokenSecretId:
+    Type: String
+    Description: Secrets Manager secret ID storing the InfluxDB token
+    Default: ""
+
+  VpcSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two private subnets (one per AZ) for the Lambda ENIs
+
+  VpcSecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Security group(s) granting egress to EKS API + InfluxDB
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [DEBUG, INFO, WARNING, ERROR]
+
+Globals:
+  Function:
+    Runtime: python3.11
+    MemorySize: 512
+    Timeout: 90
+    Architectures:
+      - arm64
+    Tracing: Active
+
+Resources:
+
+  # ─────────────────────────────────────────────────────────────
+  # IAM role for the Lambda — least-privilege
+  # ─────────────────────────────────────────────────────────────
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: EksDescribeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                  - eks:ListClusters
+                Resource: '*'
+        - PolicyName: SsmRunCommand
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                  - ec2:DescribeInstances
+                Resource: '*'
+        - !If
+            - HasInfluxSecret
+            - PolicyName: ReadInfluxSecret
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action: secretsmanager:GetSecretValue
+                    Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${InfluxdbTokenSecretId}*
+            - !Ref AWS::NoValue
+
+  # ─────────────────────────────────────────────────────────────
+  # Lambda function
+  # ─────────────────────────────────────────────────────────────
+  ToolsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: anra-agentcore-tools
+      Description: AgentCore Gateway Lambda exposing kubectl, ssm, influxdb tools
+      CodeUri: lambda_tools/
+      Handler: handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          EKS_CLUSTER_NAME: !Ref EksClusterName
+          INFLUXDB_URL: !Ref InfluxdbUrl
+          INFLUXDB_TOKEN_SECRET_ID: !Ref InfluxdbTokenSecretId
+          LOG_LEVEL: !Ref LogLevel
+          KUBECTL_TIMEOUT: '60'
+          SSM_TIMEOUT: '60'
+      VpcConfig:
+        SubnetIds: !Ref VpcSubnetIds
+        SecurityGroupIds: !Ref VpcSecurityGroupIds
+
+  # Permission for AgentCore Gateway service to invoke the Lambda
+  GatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ToolsFunction
+      Action: lambda:InvokeFunction
+      Principal: bedrock-agentcore.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+Conditions:
+  HasInfluxSecret: !Not [!Equals [!Ref InfluxdbTokenSecretId, ""]]
+
+Outputs:
+  ToolsFunctionArn:
+    Description: ARN of the AgentCore tools Lambda. Use as the lambda-arn when adding the Gateway target.
+    Value: !GetAtt ToolsFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-ToolsFunctionArn
+
+  ToolsFunctionName:
+    Description: Lambda function name
+    Value: !Ref ToolsFunction

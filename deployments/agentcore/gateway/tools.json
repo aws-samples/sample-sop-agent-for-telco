@@ -1,0 +1,50 @@
+{
+  "inlinePayload": [
+    {
+      "name": "kubectl_command",
+      "description": "Run a kubectl command against the configured EKS cluster. Use for inspecting pods, deployments, services, logs, and applying manifests. Returns stdout, stderr, and exit_code.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "kubectl arguments without the 'kubectl' prefix. Examples: 'get pods -n 5gc', 'logs deploy/amf -n 5gc --tail=50', 'rollout restart deploy/upf -n 5gc'"
+          }
+        },
+        "required": ["command"]
+      }
+    },
+    {
+      "name": "ssm_command",
+      "description": "Execute a shell command on a managed EC2 instance via AWS Systems Manager. Use for host-level diagnostics and remediation on EKS worker nodes or jump hosts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance_id": {
+            "type": "string",
+            "description": "EC2 instance ID, e.g. i-0abc123def456"
+          },
+          "command": {
+            "type": "string",
+            "description": "Shell command to run on the instance. Example: 'systemctl status kubelet'"
+          }
+        },
+        "required": ["instance_id", "command"]
+      }
+    },
+    {
+      "name": "influxdb_query",
+      "description": "Query the InfluxDB time-series metrics store using Flux query language. Use for reading 5G NF metrics, counters, and recent samples for alarm correlation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "flux": {
+            "type": "string",
+            "description": "Flux query string. Example: 'from(bucket:\"metrics\") |> range(start:-5m) |> filter(fn:(r) => r._measurement == \"open5gs_amf\")'"
+          }
+        },
+        "required": ["flux"]
+      }
+    }
+  ]
+}
