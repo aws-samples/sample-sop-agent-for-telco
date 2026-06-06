@@ -1,0 +1,37 @@
+name: Monthly Maintenance
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+
+jobs:
+  rebuild-and-test:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws-samples/sample-sop-agent-for-telco'
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: workshop }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-asyncio pytest-mock
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Check for dependency updates
+        id: updates
+        run: |
+          pip install pip-audit
+          pip-audit --fix --dry-run > /tmp/audit.txt 2>&1 || true
+          if [ -s /tmp/audit.txt ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Monthly maintenance tests failed — manual intervention needed"
