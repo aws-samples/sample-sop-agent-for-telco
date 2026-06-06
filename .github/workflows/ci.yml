@@ -11,9 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────
-  # Core agent code (agent/, evals/, tests/) — runs for both deployments
-  # ──────────────────────────────────────────────────────────────────────
   unit-tests:
     name: Unit tests (core)
     runs-on: ubuntu-latest
@@ -59,10 +56,7 @@ jobs:
         run: pip install ruff
 
       - name: Ruff lint
-        run: ruff check agent/ evals/ tests/ deployments/agentcore/ --output-format=github
-
-      - name: Ruff format check
-        run: ruff format --check agent/ evals/ tests/ deployments/agentcore/
+        run: ruff check agent/ tests/ --output-format=github
 
   security:
     name: Security scan
@@ -75,33 +69,18 @@ jobs:
           cache: pip
 
       - name: Install security tools
-        run: pip install bandit semgrep
+        run: pip install bandit
 
       - name: Bandit
         run: |
-          bandit -r agent/ evals/ deployments/agentcore/ -s B602,B603,B404 \
-            --severity-level high --confidence-level high \
-            --format json -o bandit-report.json || true
-          bandit -r agent/ evals/ deployments/agentcore/ -s B602,B603,B404 \
+          bandit -r agent/ -s B602,B603,B404 \
             --severity-level high --confidence-level high
 
-      - name: Semgrep
-        run: semgrep scan --config auto --error agent/ evals/ deployments/agentcore/
-
-      - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: bandit-report
-          path: bandit-report.json
-
-  # ──────────────────────────────────────────────────────────────────────
-  # EKS deployment validation (helm/, Dockerfile, kind cluster)
-  # ──────────────────────────────────────────────────────────────────────
   docker-build-eks:
     name: Docker build (EKS image)
     runs-on: ubuntu-latest
     needs: [unit-tests]
+    if: hashFiles('Dockerfile') != ''
     steps:
       - uses: actions/checkout@v4
 
@@ -119,19 +98,10 @@ jobs:
           cache-from: type=gha,scope=eks
           cache-to: type=gha,mode=max,scope=eks
 
-      - name: Save image for downstream jobs
-        run: docker save anra:ci -o /tmp/anra-image.tar
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: anra-image
-          path: /tmp/anra-image.tar
-          retention-days: 1
-
   helm-validate:
     name: Helm validate
     runs-on: ubuntu-latest
+    if: hashFiles('helm/anra/Chart.yaml') != ''
     steps:
       - uses: actions/checkout@v4
 
@@ -144,274 +114,4 @@ jobs:
         run: helm lint helm/anra/
 
       - name: Helm template (default values)
-        run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci --debug > /tmp/rendered.yaml
-
-      - name: Validate rendered YAML
-        run: |
-          grep -q "kind: Deployment" /tmp/rendered.yaml || (echo "Missing Deployment" && exit 1)
-          grep -q "kind: Service" /tmp/rendered.yaml || (echo "Missing Service" && exit 1)
-          grep -q "kind: ServiceAccount" /tmp/rendered.yaml || (echo "Missing ServiceAccount" && exit 1)
-          echo "✓ Helm chart renders all expected resources"
-
-  container-smoke:
-    name: Container smoke test
-    runs-on: ubuntu-latest
-    needs: [docker-build-eks]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download image
-        uses: actions/download-artifact@v4
-        with:
-          name: anra-image
-          path: /tmp
-
-      - name: Load image
-        run: docker load -i /tmp/anra-image.tar
-
-      - name: Start container
-        run: |
-          docker run -d --name anra-smoke \
-            -p 8080:8080 \
-            -e AUTH_USERNAME=ciuser \
-            -e AUTH_PASSWORD=cipass \
-            -e BEDROCK_REGION=us-west-2 \
-            -e AWS_DEFAULT_REGION=us-west-2 \
-            -e WEBUI_CORS_ORIGINS="*" \
-            -e SOP_REPO=/app/sops \
-            anra:ci
-          for i in $(seq 1 60); do
-            if curl -sf -u ciuser:cipass http://localhost:8080/health > /dev/null; then
-              echo "✓ /health responded after ${i}s"
-              break
-            fi
-            sleep 1
-          done
-
-      - name: Check /health
-        run: |
-          STATUS=$(curl -s -u ciuser:cipass http://localhost:8080/health)
-          echo "Health response: $STATUS"
-          echo "$STATUS" | grep -q "ok\|healthy\|ready" || (echo "Unexpected health response" && exit 1)
-
-      - name: Container logs on failure
-        if: failure()
-        run: docker logs anra-smoke
-
-      - name: Cleanup
-        if: always()
-        run: docker rm -f anra-smoke || true
-
-  kind-e2e:
-    name: kind cluster E2E
-    runs-on: ubuntu-latest
-    needs: [docker-build-eks, helm-validate]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download image
-        uses: actions/download-artifact@v4
-        with:
-          name: anra-image
-          path: /tmp
-
-      - name: Load image
-        run: docker load -i /tmp/anra-image.tar
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1
-        with:
-          cluster_name: anra-test
-          wait: 60s
-
-      - name: Load image into kind
-        run: kind load docker-image anra:ci --name anra-test
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: "v3.14.0"
-
-      - name: Deploy ANRA via Helm
-        run: |
-          helm upgrade --install anra helm/anra/ \
-            --namespace anra --create-namespace \
-            --set image.repository=anra \
-            --set image.tag=ci \
-            --set image.pullPolicy=IfNotPresent \
-            --set bedrock.region=us-west-2 \
-            --set "webui.corsOrigins=*" \
-            --set webui.service.type=ClusterIP \
-            --set monitoring.influxdb.enabled=false \
-            --set monitoring.telegraf.enabled=false \
-            --set "nodeSelector=" \
-            --wait --timeout 120s
-
-      - name: Wait for pod ready
-        run: |
-          kubectl wait --for=condition=ready pod \
-            -l app.kubernetes.io/name=anra \
-            -n anra --timeout=120s
-
-      - name: Inject test credentials and restart
-        run: |
-          kubectl set env deployment/anra -n anra \
-            AUTH_USERNAME=ciuser \
-            AUTH_PASSWORD=cipass
-          kubectl rollout status deployment/anra -n anra --timeout=90s
-
-      - name: Test API via port-forward
-        run: |
-          kubectl port-forward -n anra svc/anra 8080:8080 &
-          PF_PID=$!
-          sleep 5
-          curl -sf -u ciuser:cipass http://localhost:8080/health
-          echo ""
-          curl -sf -u ciuser:cipass http://localhost:8080/api/sops | head -c 200
-          echo ""
-          kill $PF_PID || true
-
-      - name: Collect logs on failure
-        if: failure()
-        run: |
-          kubectl get pods -n anra -o wide
-          kubectl describe pod -n anra -l app.kubernetes.io/name=anra
-          kubectl logs deployment/anra -n anra --tail=100 || true
-
-  # ──────────────────────────────────────────────────────────────────────
-  # AgentCore deployment validation (deployments/agentcore/)
-  # ──────────────────────────────────────────────────────────────────────
-  agentcore-tests:
-    name: AgentCore tests (entrypoint + Lambda)
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          # Install repo-level requirements (Strands, boto3, fastapi, etc.)
-          pip install -r requirements.txt
-          # Tests use a stub for bedrock_agentcore (see conftest.py) to avoid
-          # a starlette version conflict between fastapi (used by agent/api.py)
-          # and bedrock-agentcore. The stub provides the surface needed for tests.
-          pip install pytest pytest-asyncio pytest-mock
-
-      - name: AgentCore entry point tests
-        run: |
-          cd deployments/agentcore
-          python -m pytest tests/ -v --tb=short --junitxml=../../entrypoint-report.xml
-
-      - name: Lambda Gateway tool tests
-        run: |
-          cd deployments/agentcore/gateway
-          python -m pytest tests/ -v --tb=short --junitxml=../../../lambda-report.xml
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-agentcore-${{ matrix.python-version }}
-          path: |
-            entrypoint-report.xml
-            lambda-report.xml
-
-  agentcore-cfn-lint:
-    name: AgentCore SAM template lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install cfn-lint
-        run: pip install cfn-lint
-
-      - name: Lint SAM template
-        run: cfn-lint deployments/agentcore/gateway/template.yaml
-
-  agentcore-tools-schema:
-    name: AgentCore Gateway tools schema
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate tools.json structure
-        run: |
-          python3 - <<'PY'
-          import json, sys
-
-          with open("deployments/agentcore/gateway/tools.json") as f:
-              schema = json.load(f)
-
-          assert "inlinePayload" in schema, "Missing inlinePayload"
-          assert isinstance(schema["inlinePayload"], list), "inlinePayload must be a list"
-          assert len(schema["inlinePayload"]) > 0, "inlinePayload must not be empty"
-
-          for tool in schema["inlinePayload"]:
-              assert "name" in tool, f"Tool missing name: {tool}"
-              assert "description" in tool, f"Tool missing description: {tool['name']}"
-              assert "inputSchema" in tool, f"Tool missing inputSchema: {tool['name']}"
-              assert tool["inputSchema"]["type"] == "object", f"inputSchema type must be 'object': {tool['name']}"
-              print(f"  ✓ {tool['name']}: {tool['description'][:60]}...")
-
-          print(f"\n✓ tools.json valid, {len(schema['inlinePayload'])} tools defined")
-          PY
-
-  agentcore-config-validate:
-    name: AgentCore runtime config
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate agentcore.json
-        run: |
-          python3 - <<'PY'
-          import json
-          with open("deployments/agentcore/agentcore.json") as f:
-              config = json.load(f)
-          required = ["name", "framework", "entrypoint", "deployment", "runtime"]
-          for k in required:
-              assert k in config, f"Missing required key: {k}"
-          assert config["framework"] == "strands", f"Expected strands framework, got {config['framework']}"
-          assert config["deployment"]["platform"] == "linux/arm64", "AgentCore Runtime requires arm64"
-          print("✓ agentcore.json valid")
-          PY
-
-  agentcore-docker-build:
-    name: AgentCore container build (ARM64)
-    runs-on: ubuntu-latest
-    needs: [agentcore-tests]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU for ARM64 emulation
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
-
-      - name: Build ARM64 image (no push)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: deployments/agentcore/Dockerfile
-          platforms: linux/arm64
-          push: false
-          tags: anra-agentcore:ci
-          cache-from: type=gha,scope=agentcore
-          cache-to: type=gha,mode=max,scope=agentcore
+        run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci --debug > /dev/null

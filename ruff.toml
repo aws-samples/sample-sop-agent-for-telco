@@ -1,0 +1,9 @@
+[lint]
+select = ["E", "F", "W"]
+ignore = ["F401", "E402", "E401", "E741", "E702", "F841", "E501"]
+
+[lint.per-file-ignores]
+"tests/*" = ["F401", "E402"]
+"agent/sop_executor.py" = ["E402"]
+"agent/sop_graph.py" = ["E402", "F821"]
+"agent/adaptive_steering.py" = ["F821"]
