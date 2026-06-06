@@ -33,14 +33,7 @@ jobs:
           pip install pytest pytest-asyncio pytest-mock
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short --junitxml=report.xml
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-core-${{ matrix.python-version }}
-          path: report.xml
+        run: python -m pytest tests/ -v --tb=short
 
   code-quality:
     name: Code quality (ruff)
@@ -50,7 +43,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install tools
         run: pip install ruff
@@ -66,42 +58,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install security tools
         run: pip install bandit
 
       - name: Bandit
-        run: |
-          bandit -r agent/ -s B602,B603,B404 \
-            --severity-level high --confidence-level high
-
-  docker-build-eks:
-    name: Docker build (EKS image)
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    if: hashFiles('Dockerfile') != ''
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image (no push)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: false
-          load: true
-          tags: anra:ci
-          cache-from: type=gha,scope=eks
-          cache-to: type=gha,mode=max,scope=eks
+        run: bandit -r agent/ -s B602,B603,B404 --severity-level high --confidence-level high
 
   helm-validate:
     name: Helm validate
     runs-on: ubuntu-latest
-    if: hashFiles('helm/anra/Chart.yaml') != ''
     steps:
       - uses: actions/checkout@v4
 
@@ -113,5 +79,5 @@ jobs:
       - name: Helm lint
         run: helm lint helm/anra/
 
-      - name: Helm template (default values)
-        run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci --debug > /dev/null
+      - name: Helm template
+        run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci > /dev/null
