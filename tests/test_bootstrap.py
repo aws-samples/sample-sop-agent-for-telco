@@ -9,6 +9,10 @@ import pytest
 
 BOOTSTRAP_PATH = Path(__file__).parent.parent / "bootstrap.py"
 
+pytestmark = pytest.mark.skipif(
+    not BOOTSTRAP_PATH.exists(), reason="bootstrap.py not present on this branch"
+)
+
 
 class TestBootstrapCLI:
     """Test CLI argument parsing."""

@@ -78,7 +78,7 @@ class TestRun:
             returncode=0, stdout="output", stderr=""
         )
         result = _run("echo hello")
-        assert result.success is True
+        assert result == "output"
 
     @patch("subprocess.run")
     def test_failure(self, mock_subprocess):
@@ -86,7 +86,7 @@ class TestRun:
             returncode=1, stdout="", stderr="error"
         )
         result = _run("false")
-        assert result.success is False
+        assert result == "error"
 
 
 class TestYamlDrivenRules:

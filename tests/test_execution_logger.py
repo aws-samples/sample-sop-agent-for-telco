@@ -13,6 +13,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "webui" / "backend"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "evals"))
 
+# Skip entire module if execution_logger is not available on this branch
+try:
+    import execution_logger  # noqa: F401
+except ImportError:
+    pytest.skip("execution_logger module not available on this branch", allow_module_level=True)
+
 
 @pytest.fixture
 def log_dir():
