@@ -158,3 +158,58 @@ alarms:
     sop: examples/day2-remediate/infra/remediate-os-memory-pressure.md
     service_impact: "Node memory pressure — OOM kills imminent"
     probable_cause: "Memory leak in NF, undersized node, or hugepages misconfiguration"
+
+  # ─── Missing-NF detection (NEW) ───
+  - name: amf_missing
+    source: core
+    metric_pattern: "amf_fivegs_*"
+    condition: "absent_for 60s"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "AMF not reporting metrics — pod down or scaled to 0"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"
+
+  - name: smf_missing
+    source: core
+    metric_pattern: "smf_fivegs_*"
+    condition: "absent_for 60s"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "SMF not reporting metrics — cannot establish new PDU sessions"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"
+
+  - name: upf_missing
+    source: core
+    metric_pattern: "upf_fivegs_*"
+    condition: "absent_for 60s"
+    severity: critical
+    sop: workshop-remediate/remediate-upf-pfcp-loss.md
+    service_impact: "UPF not reporting metrics — data plane down"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"
+
+  - name: ausf_missing
+    source: core
+    metric_pattern: "ausf_*"
+    condition: "absent_for 90s"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "AUSF not reporting — UE authentication will fail"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"
+
+  - name: udm_missing
+    source: core
+    metric_pattern: "udm_*"
+    condition: "absent_for 90s"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "UDM not reporting — subscriber data lookups will fail"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"
+
+  - name: nrf_missing
+    source: core
+    metric_pattern: "nrf_*"
+    condition: "absent_for 90s"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "NRF not reporting — NF discovery will fail"
+    probable_cause: "Pod scaled to 0, evicted, crashed, or Telegraf scrape failure"

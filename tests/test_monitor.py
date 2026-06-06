@@ -124,13 +124,13 @@ class TestYamlDrivenRules:
         mock_os.assert_called_once()
 
     def test_yaml_rules_match_legacy_rule_count(self):
-        """anra-config.yaml has 11 alarm rules (RAN + Core + OS)."""
+        """anra-config.yaml has 17 alarm rules (11 RAN+Core+OS + 6 missing-NF)."""
         import sys
         sys.path.insert(0, "agent")
         from config import load_config
 
         cfg = load_config("anra-config.yaml")
-        assert len(cfg.alarms) == 11
+        assert len(cfg.alarms) == 17
 
     def test_yaml_rules_have_complete_metadata(self):
         """Every rule has severity + service_impact."""
@@ -286,5 +286,84 @@ class TestMetricPatternMatching:
             result = evaluate_thresholds()
             assert len(result) == 1
             assert result[0]["name"] == "smf_missing"
+        finally:
+            monitor._startup_time = old_startup
+
+
+class TestMissingNFAlarms:
+    """Tests for Task 1.5 — missing-NF detection rules."""
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_missing_nf_alarm_fires_when_metric_absent(self, mock_cfg, mock_influx):
+        """smf_missing fires when smf_fivegs_* metrics are absent long enough."""
+        import monitor
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="smf_missing", source="core",
+            metric_pattern="smf_fivegs_*", condition="absent_for 60s", severity="critical",
+            service_impact="SMF missing", probable_cause="test",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {}
+
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["smf_fivegs_sessions"] = time.time() - 120
+        try:
+            result = evaluate_thresholds()
+            assert any(a["name"] == "smf_missing" for a in result)
+        finally:
+            monitor._startup_time = old_startup
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_missing_nf_alarm_quiet_when_metric_present(self, mock_cfg, mock_influx):
+        """No alarm when smf_fivegs_* metrics were recently seen."""
+        import monitor
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="smf_missing", source="core",
+            metric_pattern="smf_fivegs_*", condition="absent_for 60s", severity="critical",
+            service_impact="SMF missing", probable_cause="test",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {}
+
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["smf_fivegs_sessions"] = time.time() - 5  # recent
+        try:
+            result = evaluate_thresholds()
+            assert not any(a["name"] == "smf_missing" for a in result)
+        finally:
+            monitor._startup_time = old_startup
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_missing_nf_alarm_quiet_during_grace(self, mock_cfg, mock_influx):
+        """No alarm during startup grace period."""
+        import monitor
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="smf_missing", source="core",
+            metric_pattern="smf_fivegs_*", condition="absent_for 60s", severity="critical",
+            service_impact="SMF missing", probable_cause="test",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {}
+
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 10  # within grace
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["smf_fivegs_sessions"] = time.time() - 120
+        try:
+            result = evaluate_thresholds()
+            assert not any(a["name"] == "smf_missing" for a in result)
         finally:
             monitor._startup_time = old_startup
