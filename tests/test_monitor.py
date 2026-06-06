@@ -85,3 +85,58 @@ class TestRun:
         )
         result = _run("false")
         assert result.success is False
+
+
+class TestYamlDrivenRules:
+    """Tests for Task 1.2 — YAML-driven alarm rules in anra-config.yaml."""
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_evaluate_thresholds_loads_yaml_rules(self, mock_cfg, mock_influx):
+        """Config has alarms → returns rules (does not fall back to legacy)."""
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="test_rule", source="ran",
+            metric_field="cpu", condition="> 80", severity="warning",
+            service_impact="test impact", probable_cause="test cause",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {"cpu": 90.0}
+        result = evaluate_thresholds()
+        assert len(result) == 1
+        assert result[0]["name"] == "test_rule"
+
+    @patch("monitor.evaluate_os_thresholds_legacy")
+    @patch("monitor.evaluate_ran_thresholds_legacy")
+    @patch("config.load_config")
+    def test_evaluate_thresholds_falls_back_when_yaml_empty(self, mock_cfg, mock_ran, mock_os):
+        """No alarms in config → falls back to legacy."""
+        from config import SiteConfig
+
+        mock_cfg.return_value = SiteConfig(alarms=[])
+        mock_ran.return_value = []
+        mock_os.return_value = []
+        evaluate_thresholds()
+        mock_ran.assert_called_once()
+        mock_os.assert_called_once()
+
+    def test_yaml_rules_match_legacy_rule_count(self):
+        """anra-config.yaml has 11 alarm rules (RAN + Core + OS)."""
+        import sys
+        sys.path.insert(0, "agent")
+        from config import load_config
+
+        cfg = load_config("anra-config.yaml")
+        assert len(cfg.alarms) == 11
+
+    def test_yaml_rules_have_complete_metadata(self):
+        """Every rule has severity + service_impact."""
+        import sys
+        sys.path.insert(0, "agent")
+        from config import load_config
+
+        cfg = load_config("anra-config.yaml")
+        for alarm in cfg.alarms:
+            assert alarm.severity in ("warning", "critical"), f"{alarm.name} missing severity"
+            assert alarm.service_impact, f"{alarm.name} missing service_impact"

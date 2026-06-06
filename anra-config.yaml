@@ -53,3 +53,108 @@ alarm_references:
 # Approval mode: auto (execute immediately) | manual (log only) | gitlab
 approval:
   mode: auto
+
+# Alarm rules — extracted from agent/monitor.py:387-449
+# Operators: > < >= <= == absent_for rate any all at_least
+alarms:
+  # ─── RAN alarms (source: ran) ───
+  - name: du_cpu_overload
+    source: ran
+    metric_field: du_du_high_mac_dl_0_cpu_usage_percent
+    condition: "> 80"
+    severity: warning
+    sop: workshop-remediate/remediate-du-cpu-overload.md
+    service_impact: "DU CPU overload — degraded radio performance"
+    probable_cause: "Compute saturation, missing CPU pinning, or hyperthreading interference"
+
+  - name: du_timing_failure
+    source: ran
+    metric_field: cells_0_cell_metrics_error_indication_count
+    condition: "> 500"
+    severity: critical
+    sop: workshop-remediate/remediate-du-timing.md
+    service_impact: "DU timing failure — UE will fail to attach"
+    probable_cause: "PTP sync loss, GPS lost, or fronthaul timing breakdown"
+
+  - name: du_throughput_drop
+    source: ran
+    metric_field: cells_0_ue_list_0_dl_brate
+    condition: "< 500000"
+    severity: warning
+    sop: ""
+    service_impact: "Per-UE downlink rate below 500 Kbps"
+    probable_cause: "RF interference, congested cell, or poor signal"
+
+  # ─── Core alarms (source: core) ───
+  - name: amf_gnb_disconnect
+    source: core
+    metric_field: amf_gnb
+    condition: "< 1"
+    severity: critical
+    sop: workshop-remediate/remediate-amf-gnb-disconnect.md
+    service_impact: "No active gNB connections at AMF"
+    probable_cause: "N2 interface broken, gNB pod down, or routing issue"
+
+  - name: nf_crashloop
+    source: core
+    metric_field: core_nf_health_pct
+    condition: "< 95"
+    severity: critical
+    sop: workshop-remediate/remediate-nf-crashloop.md
+    service_impact: "Degraded core network — dependent NFs may fail"
+    probable_cause: "OOM kill, config error, dependency unavailable, image pull failure"
+
+  - name: sbi_mesh_failure
+    source: core
+    metric_field: alarm_scp_timeout
+    condition: "> 0"
+    severity: critical
+    sop: ""
+    service_impact: "SBI mesh failure — control plane communication broken"
+    probable_cause: "SCP unhealthy, NRF unreachable, or service mesh policy error"
+
+  - name: amf_registration_failure
+    source: core
+    metric_field: amf_fivegs_amffunction_rm_reginitfail
+    condition: "> 0"
+    severity: warning
+    sop: ""
+    service_impact: "UE registration failures at AMF"
+    probable_cause: "AUSF/UDM unreachable, subscriber not provisioned, or auth vector failure"
+
+  - name: amf_auth_rejection
+    source: core
+    metric_field: amf_fivegs_amffunction_amf_authreject
+    condition: "> 0"
+    severity: warning
+    sop: ""
+    service_impact: "Authentication rejections at AMF"
+    probable_cause: "Subscriber credentials invalid, AUSF SUCI decryption error, or replay protection trigger"
+
+  - name: smf_pfcp_failure
+    source: core
+    metric_field: smf_fivegs_smffunction_sm_n4sessionestabfail
+    condition: "> 0"
+    severity: critical
+    sop: workshop-remediate/remediate-upf-pfcp-loss.md
+    service_impact: "Cannot establish new PDU sessions"
+    probable_cause: "UPF unreachable, PFCP association lost, cross-CNI routing broken"
+
+  - name: upf_no_traffic
+    source: core
+    metric_field: upf_fivegs_ep_n3_gtp_indatapktn3upf
+    condition: "== 0"
+    severity: warning
+    sop: ""
+    service_impact: "No N3 GTP traffic at UPF"
+    probable_cause: "No active UE sessions, DU/CU disconnected, or N3 routing failure"
+
+  # ─── OS alarms (source: kubernetes / os_metrics) ───
+  - name: os_memory_pressure
+    source: kubernetes
+    metric_field: node_memory_available_pct
+    condition: "< 5"
+    severity: critical
+    sop: examples/day2-remediate/infra/remediate-os-memory-pressure.md
+    service_impact: "Node memory pressure — OOM kills imminent"
+    probable_cause: "Memory leak in NF, undersized node, or hugepages misconfiguration"
