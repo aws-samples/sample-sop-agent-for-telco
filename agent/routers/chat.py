@@ -90,15 +90,38 @@ MONITORING:
 - Tier 2: {t2} metrics monitored, {t2p}% baselined
 - Tier 3: Bedrock AI classification (on-demand)
 
-SOPs AVAILABLE ({len(sops)}): {sop_list}
+SOPs AVAILABLE ({len(sops)}): {sop_list}"""
 
-Answer concisely using ONLY the data above."""
+        from sop_executor import kubectl, list_sops, read_sop, list_nodes, check_pod_status
+
+        CHAT_TOOLS = [kubectl, list_sops, read_sop, list_nodes, check_pod_status]
 
         agent = Agent(
             model=model,
+            tools=CHAT_TOOLS,
             system_prompt=f"""You are ANRA, the Autonomous Network Remediation Agent.
-You MUST answer using ONLY the data below. Never say you don't have access.
 
+You can answer questions about alarms, SOPs, and current cluster state.
+
+LIVE TOOLS available to you:
+- `kubectl` — for current cluster state (pod counts, names, status, logs)
+- `list_sops`, `read_sop` — to look up SOP procedures
+- `list_nodes`, `check_pod_status` — for node and namespace overviews
+
+When the user asks about LIVE state (pod counts, pod names, namespace status,
+logs, recent events), USE THE TOOLS to get fresh data. Do not answer from
+the snapshot below.
+
+The snapshot below is a SUMMARY of the topology and recent activity, NOT the
+total cluster state. Specifically:
+- "{s.get("nf_count", 0)} NF pods" is the count of 5G Network Functions tracked
+  in topology. The total cluster pod count (including kube-system, monitoring,
+  and ANRA itself) is HIGHER. If asked about total pods, run kubectl.
+
+When you don't know something, say so clearly. Do not invent pod names or
+namespaces — call kubectl to verify.
+
+CONTEXT SNAPSHOT (periodic, ~30s old):
 {context}""",
         )
         result = agent(req.message)
