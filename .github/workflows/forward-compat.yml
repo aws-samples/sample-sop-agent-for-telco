@@ -1,0 +1,35 @@
+name: Forward Compatibility
+on:
+  schedule:
+    - cron: "0 0 * * 1"  # Mondays
+  workflow_dispatch:
+
+jobs:
+  test-latest:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws-samples/sample-sop-agent-for-telco'
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: workshop }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install latest deps (NOT pinned)
+        run: |
+          pip install --upgrade strands-agents strands-agents-evals boto3
+          pip install -r requirements.txt --upgrade
+          pip install pytest pytest-asyncio pytest-mock
+
+      - name: Run all tests including forward-compat
+        id: tests
+        run: python -m pytest tests/ tests/forward_compat/ -v
+        continue-on-error: true
+
+      - name: Report failure
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Forward-compat tests failed — upstream API may have changed"
+          exit 1
