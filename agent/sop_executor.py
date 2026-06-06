@@ -54,6 +54,48 @@ class TokenBudget:
         return max(0, self.budget - self.consumed)
 
 
+# ============== Bedrock Retry ==============
+import time as _time
+
+from botocore.exceptions import ClientError
+
+
+class BedrockRetryConfig:
+    MAX_RETRIES = int(os.getenv("ANRA_BEDROCK_MAX_RETRIES", "5"))
+    INITIAL_BACKOFF_SECONDS = 1
+    MAX_BACKOFF_SECONDS = 30
+    RETRYABLE_ERROR_CODES = {
+        "ThrottlingException",
+        "ServiceUnavailableException",
+        "ModelNotReadyException",
+    }
+
+
+def invoke_with_retry(agent, prompt: str):
+    """Invoke a Strands agent with retry on transient Bedrock errors."""
+    last_err = None
+    backoff = BedrockRetryConfig.INITIAL_BACKOFF_SECONDS
+
+    for attempt in range(BedrockRetryConfig.MAX_RETRIES):
+        try:
+            return agent(prompt)
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code not in BedrockRetryConfig.RETRYABLE_ERROR_CODES:
+                raise
+            last_err = e
+            logger.warning(
+                f"Bedrock {code} (attempt {attempt + 1}/{BedrockRetryConfig.MAX_RETRIES}); "
+                f"backing off {backoff}s"
+            )
+            _time.sleep(backoff)
+            backoff = min(backoff * 2, BedrockRetryConfig.MAX_BACKOFF_SECONDS)
+        except Exception:
+            raise
+
+    raise RuntimeError(f"Bedrock retries exhausted: {last_err}")
+
+
 # ============== ANSI Colors ==============
 @dataclass
 class Colors:
