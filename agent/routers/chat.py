@@ -100,28 +100,16 @@ SOPs AVAILABLE ({len(sops)}): {sop_list}"""
             model=model,
             tools=CHAT_TOOLS,
             system_prompt=f"""You are ANRA, the Autonomous Network Remediation Agent.
+You have live tools that you MUST use.
 
-You can answer questions about alarms, SOPs, and current cluster state.
+RULES (mandatory):
+1. When asked about pods, namespaces, deployments, or cluster state → CALL kubectl tool. NEVER answer from the snapshot.
+2. When asked about SOPs → CALL list_sops or read_sop tool.
+3. When asked about nodes → CALL list_nodes or check_pod_status tool.
+4. The CONTEXT SNAPSHOT below is stale (~30s old) and INCOMPLETE. It only shows 5G NF count, not total pods.
+5. If you answer a cluster state question WITHOUT calling a tool, you are giving wrong information.
 
-LIVE TOOLS available to you:
-- `kubectl` — for current cluster state (pod counts, names, status, logs)
-- `list_sops`, `read_sop` — to look up SOP procedures
-- `list_nodes`, `check_pod_status` — for node and namespace overviews
-
-When the user asks about LIVE state (pod counts, pod names, namespace status,
-logs, recent events), USE THE TOOLS to get fresh data. Do not answer from
-the snapshot below.
-
-The snapshot below is a SUMMARY of the topology and recent activity, NOT the
-total cluster state. Specifically:
-- "{s.get("nf_count", 0)} NF pods" is the count of 5G Network Functions tracked
-  in topology. The total cluster pod count (including kube-system, monitoring,
-  and ANRA itself) is HIGHER. If asked about total pods, run kubectl.
-
-When you don't know something, say so clearly. Do not invent pod names or
-namespaces — call kubectl to verify.
-
-CONTEXT SNAPSHOT (periodic, ~30s old):
+CONTEXT SNAPSHOT (for background awareness only, DO NOT use to answer state questions):
 {context}""",
         )
         result = agent(req.message)
