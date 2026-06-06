@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: influxdb-retention
-    app.kubernetes.io/part-of: {{ include "anra.fullname" . }}
+    app.kubernetes.io/part-of: anra
 spec:
   backoffLimit: 3
   template:
