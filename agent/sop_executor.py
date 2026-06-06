@@ -32,6 +32,28 @@ logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(messa
 logger = logging.getLogger(__name__)
 
 
+# ============== Token Budget ==============
+class TokenBudget:
+    """Per-session token budget with hard cutoff to prevent runaway costs."""
+
+    DEFAULT_BUDGET = int(os.getenv("ANRA_SESSION_TOKEN_BUDGET", "100000"))
+
+    def __init__(self, budget_tokens: int | None = None):
+        self.budget = budget_tokens or self.DEFAULT_BUDGET
+        self.consumed = 0
+        self.exceeded = False
+
+    def consume(self, tokens: int) -> bool:
+        """Record token consumption. Returns True if budget exceeded."""
+        self.consumed += tokens
+        if self.consumed >= self.budget:
+            self.exceeded = True
+        return self.exceeded
+
+    def remaining(self) -> int:
+        return max(0, self.budget - self.consumed)
+
+
 # ============== ANSI Colors ==============
 @dataclass
 class Colors:
