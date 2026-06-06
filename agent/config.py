@@ -30,7 +30,9 @@ class AlarmRule:
     layer: int = -1
     source: str = ""  # ran | core | kubernetes | hardware
     metric_field: str = ""
-    condition: str = ""  # "> 500" | "< 1" | "== 0"
+    metric_pattern: str = ""  # glob pattern, e.g. "smf_*"
+    metrics: list = field(default_factory=list)  # list of fields for compound rules
+    condition: str = ""  # "> 500" | "< 1" | "== 0" | "absent_for 60s"
     severity: str = "warning"
     depends_on: list = field(default_factory=list)
     nf_scope: str = "site-wide"
@@ -214,6 +216,8 @@ def _parse(raw: dict) -> SiteConfig:
         mapped = {k: v for k, v in a.items() if k in _alarm_fields}
         if "field" in a and "metric_field" not in a:
             mapped["metric_field"] = a["field"]
+        if "pattern" in a and "metric_pattern" not in a:
+            mapped["metric_pattern"] = a["pattern"]
         c.alarms.append(AlarmRule(**mapped))
 
     # Parse guardrails
