@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, dev, workshop-bulletproof, "wsbp/**"]
+    branches: [main, dev, workshop, workshop-bulletproof, "wsbp/**"]
   pull_request:
     branches: [main, dev, workshop-bulletproof, workshop]
   workflow_dispatch:
