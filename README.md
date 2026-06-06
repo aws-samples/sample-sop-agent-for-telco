@@ -2,6 +2,8 @@
 
 > **⚠️ Important:** This is sample code for demonstration and learning purposes. You should work with your security and legal teams to meet your organizational security, regulatory, and compliance requirements before deploying to production environments.
 
+![Bullet-Proof Phase 3 Complete](https://img.shields.io/badge/Bullet--Proof-Phase%203%20Complete-brightgreen)
+
 AI-powered Standard Operating Procedure (SOP) executor for telco network function validation using [Strands Agents SDK](https://github.com/strands-agents/sdk-python) and Amazon Bedrock.
 
 ## What It Does
