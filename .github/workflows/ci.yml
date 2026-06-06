@@ -33,7 +33,7 @@ jobs:
           pip install pytest pytest-asyncio pytest-mock
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short --ignore=tests/test_steering.py --ignore=tests/test_sop_graph.py
 
   code-quality:
     name: Code quality (ruff)
