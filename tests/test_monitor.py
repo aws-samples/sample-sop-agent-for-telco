@@ -1,6 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for the workshop branch monitor module."""
+import time
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -140,3 +142,88 @@ class TestYamlDrivenRules:
         for alarm in cfg.alarms:
             assert alarm.severity in ("warning", "critical"), f"{alarm.name} missing severity"
             assert alarm.service_impact, f"{alarm.name} missing service_impact"
+
+
+class TestAbsentFor:
+    """Tests for Task 1.3 — absent_for condition operator."""
+
+    def test_absent_for_fires_after_duration(self):
+        """Metric last seen in the past beyond threshold → fires."""
+        import monitor
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["foo"] = time.time() - 120
+        # Override startup time so grace period is past
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        try:
+            assert _eval_condition(None, "absent_for 30s", field_name="foo") is True
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_does_not_fire_within_duration(self):
+        """Metric last seen recently → does not fire."""
+        import monitor
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["bar"] = time.time() - 5
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        try:
+            assert _eval_condition(None, "absent_for 30s", field_name="bar") is False
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_grace_period_after_startup(self):
+        """Within first 60s of startup → always returns False."""
+        import monitor
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 10  # only 10s since startup
+        try:
+            assert _eval_condition(None, "absent_for 5s", field_name="grace_test") is False
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_never_seen_after_grace(self):
+        """Metric never seen + past grace → fires."""
+        import monitor
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        try:
+            with monitor._metric_state_lock:
+                monitor._metric_last_seen.pop("never_seen_field", None)
+            assert _eval_condition(None, "absent_for 30s", field_name="never_seen_field") is True
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_duration_parsing_seconds(self):
+        """'absent_for 30s' → 30 seconds threshold."""
+        import monitor
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["sec_test"] = time.time() - 31
+        try:
+            assert _eval_condition(None, "absent_for 30s", field_name="sec_test") is True
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_duration_parsing_minutes(self):
+        """'absent_for 5m' → 300 seconds threshold."""
+        import monitor
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 400
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["min_test"] = time.time() - 301
+        try:
+            assert _eval_condition(None, "absent_for 5m", field_name="min_test") is True
+        finally:
+            monitor._startup_time = old_startup
+
+    def test_absent_for_invalid_duration_returns_false(self):
+        """Malformed condition → False (don't crash)."""
+        assert _eval_condition(None, "absent_for", field_name="x") is False
+        assert _eval_condition(None, "absent_for badvalue", field_name="x") is False
+
+    def test_eval_condition_dispatches_by_prefix(self):
+        """'> 5' still works after refactor (backward compat)."""
+        assert _eval_condition(85, "> 80") is True
+        assert _eval_condition(75, "> 80") is False

@@ -19,6 +19,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Lock
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -113,6 +114,7 @@ def _query_influx(measurement, fields):
                 except (ValueError, IndexError):
                     pass
         _last_influx_results[measurement] = vals
+        _update_metric_last_seen(vals)
         return vals
     except Exception as e:
         log.error(f"InfluxDB query error: {e}")
@@ -158,6 +160,53 @@ def _query_influx_all(measurement="srsran"):
 _baselines: dict = {}  # field → {count, sum, sum_sq}
 _last_influx_results: dict = {}  # measurement → last query result
 _bedrock_last_classify: float = 0
+
+# ── absent_for operator state ──
+
+_metric_last_seen: dict[str, float] = {}
+_metric_state_lock = Lock()
+_startup_time = time.time()
+ABSENT_FOR_GRACE_SECONDS = 60
+
+
+def _update_metric_last_seen(measurement_results: dict[str, float]) -> None:
+    """Record which metrics reported non-None values."""
+    now = time.time()
+    with _metric_state_lock:
+        for field, val in measurement_results.items():
+            if val is not None:
+                _metric_last_seen[field] = now
+
+
+def _eval_absent_for(field: str, condition: str) -> tuple[bool, dict]:
+    """Check if a metric has been absent for the duration in the condition."""
+    parts = condition.strip().split()
+    if len(parts) != 2:
+        return False, {}
+    duration_str = parts[1]
+    if duration_str.endswith("s"):
+        duration_seconds = int(duration_str[:-1])
+    elif duration_str.endswith("m"):
+        duration_seconds = int(duration_str[:-1]) * 60
+    elif duration_str.endswith("h"):
+        duration_seconds = int(duration_str[:-1]) * 3600
+    else:
+        return False, {}
+
+    now = time.time()
+    if now - _startup_time < ABSENT_FOR_GRACE_SECONDS:
+        return False, {"reason": "startup_grace"}
+
+    with _metric_state_lock:
+        last_seen = _metric_last_seen.get(field)
+
+    if last_seen is None:
+        return True, {"last_seen": "never", "duration_absent": now - _startup_time}
+
+    elapsed = now - last_seen
+    if elapsed > duration_seconds:
+        return True, {"last_seen": last_seen, "duration_absent": elapsed, "threshold_seconds": duration_seconds}
+    return False, {}
 BEDROCK_CLASSIFY_COOLDOWN = int(os.getenv("BEDROCK_CLASSIFY_COOLDOWN", "300"))  # 5 min
 
 
@@ -295,16 +344,22 @@ If all anomalies are normal testmode variations, return: []"""
 _SOURCE_MEASUREMENT = {"ran": "srsran", "core": "core_network", "kubernetes": "core_network", "os": "os_metrics"}
 
 
-def _eval_condition(val, condition):
-    """Parse '> 500' or '< 1' and evaluate."""
-    op, threshold = condition.strip().split(None, 1)
+def _eval_condition(val, condition, field_name=""):
+    """Parse '> 500' or '< 1' or 'gt 5' or 'absent_for 60s' and evaluate."""
+    cond = condition.strip()
+    if cond.startswith("absent_for"):
+        triggered, _ctx = _eval_absent_for(field_name, cond)
+        return triggered
+    op, threshold = cond.split(None, 1)
     threshold = float(threshold)
+    if val is None:
+        return False
     return (
-        (op == ">" and val > threshold)
-        or (op == "<" and val < threshold)
-        or (op == ">=" and val >= threshold)
-        or (op == "<=" and val <= threshold)
-        or (op == "==" and val == threshold)
+        (op in (">", "gt") and val > threshold)
+        or (op in ("<", "lt") and val < threshold)
+        or (op in (">=", "gte") and val >= threshold)
+        or (op in ("<=", "lte") and val <= threshold)
+        or (op in ("==", "eq") and val == threshold)
     )
 
 
@@ -325,13 +380,13 @@ def evaluate_thresholds():
 
     for source, source_alarms in by_source.items():
         measurement = _SOURCE_MEASUREMENT.get(source, source)
-        fields = list({a.metric_field for a in source_alarms})
+        fields = list({a.metric_field for a in source_alarms if a.metric_field})
         vals = _query_influx(measurement, fields)
         for alarm in source_alarms:
             val = vals.get(alarm.metric_field)
-            if val is None:
+            if val is None and not alarm.condition.strip().startswith("absent_for"):
                 continue
-            if _eval_condition(val, alarm.condition):
+            if _eval_condition(val, alarm.condition, field_name=alarm.metric_field):
                 alerts.append(
                     {
                         "name": alarm.name,
@@ -363,11 +418,13 @@ def evaluate_ran_thresholds():
 
     for source, source_alarms in by_source.items():
         measurement = _SOURCE_MEASUREMENT.get(source, source)
-        fields = list({a.metric_field for a in source_alarms})
+        fields = list({a.metric_field for a in source_alarms if a.metric_field})
         vals = _query_influx(measurement, fields)
         for alarm in source_alarms:
             val = vals.get(alarm.metric_field)
-            if val is not None and _eval_condition(val, alarm.condition):
+            if val is None and not alarm.condition.strip().startswith("absent_for"):
+                continue
+            if _eval_condition(val, alarm.condition, field_name=alarm.metric_field):
                 alerts.append(
                     {
                         "name": alarm.name,
