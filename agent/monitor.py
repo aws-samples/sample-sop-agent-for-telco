@@ -11,6 +11,7 @@ Supports two alert sources:
 Loads vendor-specific alarm references for domain context in SOP generation.
 """
 
+import fnmatch
 import json
 import logging
 import os
@@ -341,6 +342,13 @@ If all anomalies are normal testmode variations, return: []"""
         return []
 
 
+def _expand_metric_pattern(pattern: str, available_fields: list[str]) -> list[str]:
+    """Expand a glob pattern to matching field names."""
+    if not pattern:
+        return []
+    return [f for f in available_fields if fnmatch.fnmatchcase(f, pattern)]
+
+
 _SOURCE_MEASUREMENT = {"ran": "srsran", "core": "core_network", "kubernetes": "core_network", "os": "os_metrics"}
 
 
@@ -383,22 +391,46 @@ def evaluate_thresholds():
         fields = list({a.metric_field for a in source_alarms if a.metric_field})
         vals = _query_influx(measurement, fields)
         for alarm in source_alarms:
-            val = vals.get(alarm.metric_field)
-            if val is None and not alarm.condition.strip().startswith("absent_for"):
-                continue
-            if _eval_condition(val, alarm.condition, field_name=alarm.metric_field):
-                alerts.append(
-                    {
-                        "name": alarm.name,
-                        "value": val,
-                        "threshold": alarm.condition,
-                        "severity": alarm.severity,
-                        "service_impact": alarm.service_impact,
-                        "probable_cause": alarm.probable_cause,
-                        "sop": alarm.sop,
-                        "source": "influxdb",
-                    }
-                )
+            if alarm.metric_pattern:
+                if "absent_for" in alarm.condition:
+                    all_fields = list(set(vals.keys()) | set(_metric_last_seen.keys()))
+                else:
+                    all_fields = list(vals.keys())
+                matched_fields = _expand_metric_pattern(alarm.metric_pattern, all_fields)
+                for field in matched_fields:
+                    val = vals.get(field)
+                    if _eval_condition(val, alarm.condition, field_name=field):
+                        alerts.append(
+                            {
+                                "name": alarm.name,
+                                "value": val,
+                                "threshold": alarm.condition,
+                                "severity": alarm.severity,
+                                "service_impact": alarm.service_impact,
+                                "probable_cause": alarm.probable_cause,
+                                "sop": alarm.sop,
+                                "source": "influxdb",
+                                "matched_field": field,
+                            }
+                        )
+                        break
+            elif alarm.metric_field:
+                val = vals.get(alarm.metric_field)
+                if val is None and not alarm.condition.strip().startswith("absent_for"):
+                    continue
+                if _eval_condition(val, alarm.condition, field_name=alarm.metric_field):
+                    alerts.append(
+                        {
+                            "name": alarm.name,
+                            "value": val,
+                            "threshold": alarm.condition,
+                            "severity": alarm.severity,
+                            "service_impact": alarm.service_impact,
+                            "probable_cause": alarm.probable_cause,
+                            "sop": alarm.sop,
+                            "source": "influxdb",
+                        }
+                    )
     return alerts
 
 

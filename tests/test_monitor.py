@@ -227,3 +227,64 @@ class TestAbsentFor:
         """'> 5' still works after refactor (backward compat)."""
         assert _eval_condition(85, "> 80") is True
         assert _eval_condition(75, "> 80") is False
+
+
+class TestMetricPatternMatching:
+    """Tests for Task 1.4 — metric_pattern glob matching."""
+
+    def test_expand_metric_pattern_simple_glob(self):
+        from monitor import _expand_metric_pattern
+        fields = ["smf_health", "smf_sessions", "amf_health", "upf_health"]
+        assert _expand_metric_pattern("smf_*", fields) == ["smf_health", "smf_sessions"]
+
+    def test_expand_metric_pattern_no_matches(self):
+        from monitor import _expand_metric_pattern
+        assert _expand_metric_pattern("nrf_*", ["smf_health", "amf_health"]) == []
+
+    def test_expand_metric_pattern_empty_returns_empty(self):
+        from monitor import _expand_metric_pattern
+        assert _expand_metric_pattern("", ["smf_health"]) == []
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_pattern_rule_fires_for_matching_field(self, mock_cfg, mock_influx):
+        """Pattern rule fires when a matching field exceeds threshold."""
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="smf_high", source="core",
+            metric_pattern="smf_*", condition="> 90", severity="critical",
+            service_impact="SMF overloaded", probable_cause="test",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {"smf_cpu": 95.0, "smf_mem": 50.0, "amf_cpu": 10.0}
+        result = evaluate_thresholds()
+        assert len(result) == 1
+        assert result[0]["name"] == "smf_high"
+
+    @patch("monitor._query_influx")
+    @patch("config.load_config")
+    def test_pattern_with_absent_for_uses_historical_seen(self, mock_cfg, mock_influx):
+        """Pattern with absent_for checks _metric_last_seen not just current vals."""
+        import monitor
+        from config import AlarmRule, SiteConfig
+
+        rule = AlarmRule(
+            name="smf_missing", source="core",
+            metric_pattern="smf_fivegs_*", condition="absent_for 30s", severity="critical",
+            service_impact="SMF missing", probable_cause="test",
+        )
+        mock_cfg.return_value = SiteConfig(alarms=[rule])
+        mock_influx.return_value = {}  # nothing in current poll
+
+        # Put a historical entry that's old
+        old_startup = monitor._startup_time
+        monitor._startup_time = time.time() - 200
+        with monitor._metric_state_lock:
+            monitor._metric_last_seen["smf_fivegs_sessions"] = time.time() - 120
+        try:
+            result = evaluate_thresholds()
+            assert len(result) == 1
+            assert result[0]["name"] == "smf_missing"
+        finally:
+            monitor._startup_time = old_startup
