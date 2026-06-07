@@ -9,7 +9,7 @@ Use this SOP after the 5G Core has been deployed and end-to-end connectivity has
 ## Parameters
 
 - **bedrock_region** (optional, default: `"us-west-2"`): AWS region for Bedrock model invocation
-- **image_tag** (optional, default: `"v3"`): Container image tag for the ANRA agent
+- **image_tag** (optional, default: `"latest"`): Container image tag for the ANRA agent
 - **auth_username** (optional, default: `"admin"`): HTTP Basic Auth username for the dashboard
 - **auth_password** (optional, default: `"anra2026"`): HTTP Basic Auth password for the dashboard
 
@@ -34,12 +34,12 @@ Install the ANRA agent with bundled InfluxDB and Telegraf using the Helm chart. 
 **Constraints:**
 - You MUST resolve `ACCOUNT_ID`, `CLUSTER_NAME`, and `REGION` before running helm
 - You MUST pass `--set env.BEDROCK_ROLE_ARN` with the jumphost role ARN
-- You MUST use `image.tag=v3` to ensure the entrypoint with assume-role support is used
+- You MUST use `image.tag=latest` to pull the most recent workshop image
 - You MUST set `--timeout 120s` to accommodate slow pulls of the public image
 - You MUST NOT skip this step even if a previous deployment exists; helm upgrade is idempotent
 
 ```tool: shell
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && CLUSTER_NAME=$(kubectl config current-context | awk -F/ '{print $NF}') && REGION=$(kubectl config current-context | awk -F: '{print $4}') && helm upgrade --install anra helm/anra --namespace anra --create-namespace --set image.repository=public.ecr.aws/a4u0k5h0/anra-workshop --set image.tag=v3 --set bedrock.region=us-west-2 --set approval.mode=auto --set config.cluster.name=$CLUSTER_NAME --set config.cluster.region=$REGION --set env.AUTH_USERNAME=admin --set env.AUTH_PASSWORD=anra2026 --set env.BEDROCK_ROLE_ARN=arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost --timeout 120s
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && CLUSTER_NAME=$(kubectl config current-context | awk -F/ '{print $NF}') && REGION=$(kubectl config current-context | awk -F: '{print $4}') && helm upgrade --install anra helm/anra --namespace anra --create-namespace --set image.repository=public.ecr.aws/t2j9i5y9/anra-workshop --set image.tag=latest --set bedrock.region=us-west-2 --set approval.mode=auto --set config.cluster.name=$CLUSTER_NAME --set config.cluster.region=$REGION --set env.AUTH_USERNAME=admin --set env.AUTH_PASSWORD=anra2026 --set env.BEDROCK_ROLE_ARN=arn:aws:iam::${ACCOUNT_ID}:role/anra-workshop-jumphost --timeout 120s
 ```
 
 **Expected:** `STATUS: deployed`

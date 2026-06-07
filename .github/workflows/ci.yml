@@ -81,3 +81,36 @@ jobs:
 
       - name: Helm template
         run: helm template test helm/anra/ --set image.repository=anra --set image.tag=ci > /dev/null
+
+  publish-workshop-image:
+    name: Publish workshop image
+    runs-on: ubuntu-latest
+    needs: [unit-tests, code-quality, security, helm-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/workshop'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Public ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Build and push
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          docker build -t public.ecr.aws/t2j9i5y9/anra-workshop:latest \
+                       -t public.ecr.aws/t2j9i5y9/anra-workshop:$SHA .
+          docker push public.ecr.aws/t2j9i5y9/anra-workshop:latest
+          docker push public.ecr.aws/t2j9i5y9/anra-workshop:$SHA
+          echo "### 🚀 Workshop image published" >> $GITHUB_STEP_SUMMARY
+          echo "- **latest** + **$SHA**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`public.ecr.aws/t2j9i5y9/anra-workshop:latest\`" >> $GITHUB_STEP_SUMMARY
