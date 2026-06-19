@@ -104,21 +104,33 @@ kubectl get pods -n anra --no-headers | awk '{print $1, $3}' | column -t
 
 **Expected:** anra, influxdb, telegraf-core all Running
 
-### 6. Start port forwarding for public dashboard access
+### 6. Start port forwarding for dashboard access
 
-The ANRA service uses an internal ClusterIP. To make the dashboard accessible from the internet via the jump host's public IP, start a `kubectl port-forward` bound to all interfaces. The CloudFormation security group already permits inbound traffic on port 8080.
+The ANRA service uses an internal ClusterIP. Access the dashboard securely via SSM port-forward from your laptop — no public exposure required.
 
 **Constraints:**
-- You MUST bind the port forward to `0.0.0.0` (not `localhost`) to allow external access
-- You MUST run the port forward in the background (`&`) so the SOP can complete
-- You SHOULD output the public dashboard URL using the EC2 instance metadata service
+- You MUST start `kubectl port-forward` on the jump host (localhost only) so the ANRA port is reachable locally
+- You MUST then use SSM port-forward from your laptop to tunnel through to the jump host
+- You MUST NOT bind to `0.0.0.0` — the dashboard should not be publicly accessible
 
+**On the jump host** (via SSM session):
 ```tool: shell
-kubectl port-forward deploy/anra -n anra 8080:8080 --address 0.0.0.0 &
-sleep 5 && echo "Dashboard accessible at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080"
+kubectl port-forward deploy/anra -n anra 8080:8080 &
+sleep 3 && curl -sf -u admin:anra2026 http://localhost:8080/health && echo " — Dashboard ready on localhost:8080"
 ```
 
-**Expected:** Dashboard URL printed in the form `http://<public-ip>:8080`. Login: `admin` / `anra2026`
+**Expected:** `{"status":"ok"}` — Dashboard ready on localhost:8080
+
+**On your laptop** (separate terminal — connect via SSM port-forward):
+```bash
+INSTANCE_ID=<jump-host-instance-id>  # from Workshop Studio outputs
+aws ssm start-session --target $INSTANCE_ID \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["8080"],"localPortNumber":["8080"]}' \
+  --region <workshop-region>
+```
+
+Then open http://localhost:8080 in your browser. Login: `admin` / `anra2026`
 
 ### 7. Verify ANRA monitoring is active
 
@@ -141,7 +153,7 @@ After running this SOP, you should see:
 - 3 pods Running in the `anra` namespace
 - IAM trust policy on `anra-workshop-jumphost` includes the node group role
 - ANRA pod environment includes `BEDROCK_ROLE_ARN`
-- Dashboard reachable at `http://<jump-host-public-ip>:8080`
+- Dashboard reachable at `http://localhost:8080` (via SSM port-forward)
 - Ask ANRA chat responds to queries (validates Bedrock access via assume-role chain)
 
 ## Troubleshooting
@@ -169,7 +181,7 @@ kubectl delete pod -n anra -l app.kubernetes.io/name=anra
 ```bash
 pkill -f "port-forward.*anra"
 sleep 3
-kubectl port-forward deploy/anra -n anra 8080:8080 --address 0.0.0.0 &
+kubectl port-forward deploy/anra -n anra 8080:8080 &
 ```
 
 ## Production Alternatives
