@@ -74,11 +74,15 @@ jobs:
 
       - name: Determine tag
         id: meta
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_INPUT_TAG: ${{ inputs.tag }}
+          GH_REF_NAME: ${{ github.ref_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ inputs.tag }}"
+          if [[ "$GH_EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$GH_INPUT_TAG"
           else
-            TAG="${{ github.ref_name }}"
+            TAG="$GH_REF_NAME"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
