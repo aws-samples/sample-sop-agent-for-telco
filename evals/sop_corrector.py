@@ -52,7 +52,7 @@ def extract_failures(reports: list) -> list[dict]:
             if not passed:
                 failures.append(
                     {
-                        "evaluator": report.evaluator_name,
+                        "evaluator": getattr(report, "evaluator_name", "unknown"),
                         "reason": report.reasons[i],
                         "score": report.scores[i],
                     }

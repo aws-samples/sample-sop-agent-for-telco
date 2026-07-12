@@ -274,7 +274,8 @@ from strands_evals.types.evaluation_report import EvaluationReport
 
 
 def _make_report(name, scores, passes, reasons):
-    return EvaluationReport(
+    from types import SimpleNamespace
+    return SimpleNamespace(
         evaluator_name=name,
         overall_score=sum(scores) / len(scores),
         scores=scores,
