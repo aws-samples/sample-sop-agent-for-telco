@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: telegraf
-          image: telegraf:1.35
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
           env:
             - name: WS_URL
               value: "GNB_HOST_IP:55555"
@@ -63,7 +63,7 @@ spec:
       serviceAccountName: anra-sa
       containers:
         - name: telegraf
-          image: telegraf:1.35
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
           env:
             - name: INFLUX_TOKEN
               valueFrom:
@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
         - name: telegraf
-          image: telegraf:1.35
+          image: 833542146025.dkr.ecr.us-west-1.amazonaws.com/anra-telegraf:latest
           env:
             - name: INFLUX_TOKEN
               valueFrom:

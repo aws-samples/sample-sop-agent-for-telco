@@ -1,0 +1,193 @@
+# Lightweight Alertmanager + Prometheus for ANO
+# Evaluates alert rules against InfluxDB-exported metrics via Telegraf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 2m
+    route:
+      receiver: 'anra-webhook'
+      group_by: ['alertname', 'instance']
+      group_wait: 15s
+      group_interval: 30s
+      repeat_interval: 1h
+    receivers:
+      - name: 'anra-webhook'
+        webhook_configs:
+          - url: 'http://anra.anra-system.svc:8080/api/webhooks/alertmanager'
+            send_resolved: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+data:
+  5g-alerts.yml: |
+    groups:
+      - name: ran_alerts
+        interval: 15s
+        rules:
+          - alert: DU_CPU_Critical
+            expr: du_cpu_usage_percent > 90
+            for: 30s
+            labels:
+              severity: critical
+              layer: ran
+            annotations:
+              summary: "DU CPU usage critical on {{ $labels.instance }}"
+              description: "srsRAN DU CPU at {{ $value }}%. Risk of UPF eviction on co-located node."
+
+          - alert: DU_CPU_Warning
+            expr: du_cpu_usage_percent > 75
+            for: 1m
+            labels:
+              severity: warning
+              layer: ran
+            annotations:
+              summary: "DU CPU elevated on {{ $labels.instance }}"
+
+          - alert: RLC_Buffer_Overflow
+            expr: du_rlc_buffer_occupancy_percent > 85
+            for: 30s
+            labels:
+              severity: warning
+              layer: ran
+            annotations:
+              summary: "RLC buffer near overflow on {{ $labels.instance }}"
+
+      - name: core_alerts
+        interval: 15s
+        rules:
+          - alert: UPF_PFCP_Timeout
+            expr: upf_pfcp_heartbeat_missed > 2
+            for: 15s
+            labels:
+              severity: critical
+              layer: core
+            annotations:
+              summary: "UPF PFCP heartbeat timeout"
+              description: "UPF lost PFCP association with SMF. {{ $value }} consecutive heartbeats missed."
+
+          - alert: AMF_Registration_Failure_Rate
+            expr: rate(amf_registration_failures_total[5m]) / rate(amf_registration_attempts_total[5m]) > 0.1
+            for: 1m
+            labels:
+              severity: critical
+              layer: core
+            annotations:
+              summary: "AMF registration failure rate > 10%"
+
+          - alert: NF_Pod_CrashLoop
+            expr: increase(kube_pod_container_status_restarts_total{namespace=~"open5gs|srsran"}[5m]) > 3
+            for: 0s
+            labels:
+              severity: critical
+              layer: infra
+            annotations:
+              summary: "NF pod {{ $labels.pod }} in CrashLoop ({{ $value }} restarts in 5m)"
+
+          - alert: SMF_Session_Setup_Failure
+            expr: rate(smf_session_setup_failures_total[5m]) > 0
+            for: 30s
+            labels:
+              severity: warning
+              layer: core
+            annotations:
+              summary: "SMF session setup failures detected"
+
+      - name: infra_alerts
+        interval: 30s
+        rules:
+          - alert: Node_CPU_Pressure
+            expr: node_cpu_usage_percent > 85
+            for: 1m
+            labels:
+              severity: warning
+              layer: infra
+            annotations:
+              summary: "Node {{ $labels.instance }} CPU at {{ $value }}%"
+
+          - alert: Node_Memory_Pressure
+            expr: node_memory_usage_percent > 85
+            for: 2m
+            labels:
+              severity: warning
+              layer: infra
+            annotations:
+              summary: "Node {{ $labels.instance }} memory at {{ $value }}%"
+
+          - alert: PTP_Sync_Lost
+            expr: ptp_clock_offset_ns > 1000 or ptp_clock_offset_ns < -1000
+            for: 30s
+            labels:
+              severity: critical
+              layer: infra
+            annotations:
+              summary: "PTP sync lost on {{ $labels.instance }} (offset: {{ $value }}ns)"
+
+          - alert: Disk_Pressure
+            expr: node_disk_usage_percent > 90
+            for: 5m
+            labels:
+              severity: warning
+              layer: infra
+            annotations:
+              summary: "Disk pressure on {{ $labels.instance }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --web.listen-address=:9093
+          ports:
+            - containerPort: 9093
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  labels:
+    app: alertmanager
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+      protocol: TCP

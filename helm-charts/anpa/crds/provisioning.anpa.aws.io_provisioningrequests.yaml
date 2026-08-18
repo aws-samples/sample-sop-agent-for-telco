@@ -1,0 +1,221 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: provisioningrequests.provisioning.anpa.aws.io
+  labels:
+    app.kubernetes.io/part-of: ano-platform
+spec:
+  group: provisioning.anpa.aws.io
+  names:
+    kind: ProvisioningRequest
+    listKind: ProvisioningRequestList
+    plural: provisioningrequests
+    singular: provisioningrequest
+    shortNames: [pr]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [site, clusterName]
+              properties:
+                # ─── Core fields (always required/commonly set) ───
+                site:
+                  type: string
+                  description: Target site name
+                clusterName:
+                  type: string
+                  description: Desired EKS cluster name
+                clusterRole:
+                  type: string
+                  enum: [management, workload]
+                  default: workload
+                clusterRegion:
+                  type: string
+                  description: AWS region for the EKS cluster
+                kubernetesVersion:
+                  type: string
+
+                # ─── Node inventory ───
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    required: [hostname, role]
+                    properties:
+                      hostname:
+                        type: string
+                      role:
+                        type: string
+                        enum: [control-plane, worker, ran, core]
+                      ip:
+                        type: string
+                        description: Static IP for this node's OS NIC
+                      osImage:
+                        type: string
+                      hardwareProfile:
+                        type: string
+
+                # ─── Network configuration ───
+                networkConfig:
+                  type: object
+                  properties:
+                    podCidr:
+                      type: string
+                    serviceCidr:
+                      type: string
+                    cni:
+                      type: string
+                      enum: [cilium, calico]
+                      default: cilium
+                gateway:
+                  type: string
+                  description: Default gateway for provisioned nodes
+                netmaskCIDR:
+                  type: string
+                  description: Subnet mask in CIDR notation (e.g. "24")
+                dnsServers:
+                  type: string
+                  description: Comma-separated DNS server IPs
+
+                # ─── Provisioning profile ───
+                machineProfile:
+                  type: string
+                  description: Hardware profile name (maps to Tinkerbell template)
+                  default: poweredge-xr8000r-2disk
+                osProfile:
+                  type: string
+                  description: OS profile name (e.g. ubuntu-noble)
+                  default: ubuntu-noble
+                serverGroup:
+                  type: string
+                  description: Logical server group for this provisioning batch
+                groupName:
+                  type: string
+                  description: Group name for inventory correlation
+
+                # ─── OS image ───
+                osArchive:
+                  type: string
+                  description: OS archive filename (e.g. ubuntu24-eks-1.35-amd64.tar.gz)
+                osArchiveType:
+                  type: string
+                  enum: [targz, raw, squashfs]
+                  default: targz
+                osArchiveChecksum:
+                  type: string
+                  description: SHA256 checksum of OS archive (optional)
+                osFsType:
+                  type: string
+                  enum: [ext4, xfs]
+                  default: ext4
+
+                # ─── Disk layout ───
+                destDisk:
+                  type: string
+                  description: Target disk device (e.g. /dev/nvme0n1)
+                  default: /dev/nvme0n1
+                efiPartition:
+                  type: string
+                  description: EFI partition device path
+                  default: /dev/nvme0n1p1
+                rootPartition:
+                  type: string
+                  description: Root partition device path
+                  default: /dev/nvme0n1p2
+
+                # ─── Kernel / boot ───
+                kernelPath:
+                  type: string
+                  default: /boot/vmlinuz
+                initrdPath:
+                  type: string
+                  default: /boot/initrd.img
+
+                # ─── EKS Hybrid ───
+                hybridNodesRole:
+                  type: string
+                  description: IAM role name for EKS hybrid node registration
+                bareMetalNamespace:
+                  type: string
+                  description: Namespace where BareMetalProvision CRs are applied
+                  default: tinkerbell
+                provisionHash:
+                  type: string
+                  description: Version hash to force workflow recreation
+                  default: v1
+
+                # ─── Tuning (RAN/telco workloads) ───
+                tuningKernelCmdline:
+                  type: string
+                  description: Extra kernel command line args (e.g. isolcpus, hugepages)
+                tuningSysctl:
+                  type: string
+                  description: Sysctl overrides (semicolon-separated key=value pairs)
+                tuningDisabledServices:
+                  type: string
+                  description: Systemd services to disable (comma-separated)
+
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Validating, Provisioning, WaitingForNodes, Ready, Failed]
+                startedAt:
+                  type: string
+                  format: date-time
+                completedAt:
+                  type: string
+                  format: date-time
+                nodesReady:
+                  type: integer
+                nodesTotal:
+                  type: integer
+                message:
+                  type: string
+                  description: Human-readable status message
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Site
+          type: string
+          jsonPath: .spec.site
+        - name: Cluster
+          type: string
+          jsonPath: .spec.clusterName
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Message
+          type: string
+          jsonPath: .status.message
+          priority: 1
+        - name: Nodes
+          type: string
+          jsonPath: .status.nodesReady
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

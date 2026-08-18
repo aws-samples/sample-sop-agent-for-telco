@@ -1,0 +1,19 @@
+apiVersion: v2
+name: anra
+description: Autonomous Network Remediation Agent — Day 2 monitoring & autonomous remediation for 5G RAN/Core on Amazon EKS
+version: 0.2.0
+appVersion: "0.2.0"
+keywords:
+  - 5g
+  - ran
+  - remediation
+  - eks
+  - bedrock
+  - autonomous-ops
+home: https://github.com/aws-samples/eks-hybrid-telco-ops
+maintainers:
+  - name: AWS Telco Solutions
+dependencies:
+  - name: anra-common
+    version: "0.2.0"
+    repository: "file://../anra-common"

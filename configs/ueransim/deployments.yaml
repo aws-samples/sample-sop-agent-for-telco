@@ -1,0 +1,148 @@
+# UERANSIM gNB + UE Deployments
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ueransim-gnb
+  labels:
+    app: ueransim-gnb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ueransim-gnb
+  template:
+    metadata:
+      labels:
+        app: ueransim-gnb
+    spec:
+      nodeSelector:
+        role: region
+      containers:
+        - name: gnb
+          image: openverso/ueransim:3.2.6
+          command: ["nr-gnb"]
+          args: ["-c", "/config/gnb.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: ueransim-gnb-config
+            items:
+              - key: gnb.yaml
+                path: gnb.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ueransim-ue
+  labels:
+    app: ueransim-ue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ueransim-ue
+  template:
+    metadata:
+      labels:
+        app: ueransim-ue
+    spec:
+      nodeSelector:
+        role: region
+      serviceAccountName: ueransim-ue
+      initContainers:
+        # Discover gNB pod IP at startup and inject into UE config
+        - name: discover-gnb
+          image: bitnami/kubectl:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Waiting for ueransim-gnb pod..."
+              for i in $(seq 1 30); do
+                GNB_IP=$(kubectl get pods -l app=ueransim-gnb -n ${POD_NAMESPACE} -o jsonpath='{.items[0].status.podIP}' 2>/dev/null)
+                if [ -n "$GNB_IP" ] && [ "$GNB_IP" != "null" ]; then
+                  echo "Found gNB at $GNB_IP"
+                  sed "s|GNB_POD_IP|$GNB_IP|g" /template/ue.yaml > /config/ue.yaml
+                  cat /config/ue.yaml | grep gnbSearchList -A1
+                  exit 0
+                fi
+                sleep 2
+              done
+              echo "ERROR: gNB pod not found after 60s"
+              exit 1
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: template
+              mountPath: /template
+      containers:
+        - name: ue
+          image: openverso/ueransim:3.2.6
+          command: ["nr-ue"]
+          args: ["-c", "/config/ue.yaml"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: tun
+              mountPath: /dev/net/tun
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: template
+          configMap:
+            name: ueransim-ue-config
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+
+---
+# Service for UERANSIM gNB — allows UE to find gNB by DNS instead of pod IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: ueransim-gnb
+spec:
+  selector:
+    app: ueransim-gnb
+  ports:
+    - port: 4997
+      protocol: UDP
+      name: gnb
+---
+# RBAC for UE init container to discover gNB pod IP
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ueransim-ue
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ueransim-ue-pod-reader
+subjects:
+  - kind: ServiceAccount
+    name: ueransim-ue
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+  

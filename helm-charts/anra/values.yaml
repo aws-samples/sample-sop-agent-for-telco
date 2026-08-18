@@ -1,0 +1,427 @@
+# ANRA Helm Values -- agent only
+replicaCount: 1
+
+# Agent role (injected as AGENT_ROLE env var)
+agentRole: anra
+
+image:
+  repository: ""  # Set during deploy: ECR URI for ano-platform image
+  tag: ""  # Set by CI (scripts/ci-helm-deploy.sh uses first 8 chars of commit SHA)
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: anra-sa
+  # REQUIRED for Bedrock/CloudWatch: set to an IAM role with:
+  #   - bedrock:InvokeModel, bedrock:ListInferenceProfiles
+  #   - logs:GetLogEvents, logs:FilterLogEvents (ANRA only)
+  # Create role with OIDC trust for this service account, then:
+  #   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::ACCOUNT:role/ROLE
+  # Or use generate-site-config.py with aws.bedrockRoleArn in site descriptor.
+  annotations: {}
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/YOUR-ROLE
+
+rbac:
+  create: true
+
+nodeSelector: {}
+
+# Schedule on VPC (region) nodes only — hybrid node pod CIDRs (172.16.x.x)
+# are not routable from the ALB, which breaks CloudFront.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: eks.amazonaws.com/compute-type
+              operator: DoesNotExist
+
+bedrock:
+  region: us-west-2
+  profile: ""
+  modelTier: smart  # fast (haiku) | smart (sonnet)
+  modelOverride: ""  # explicit model ID — bypasses resolver
+
+# CORS — allow dashboard origin(s) to call the API
+cors:
+  allowOrigins: ""  # comma-separated, e.g. "https://d1234.cloudfront.net,http://localhost:5173"
+  devMode: false    # true → allows "*" (local dev only, never production)
+
+approval:
+  mode: manual
+  andaEnabled: "true"  # Delegate SOP execution to ANDA (cross-agent)
+
+# Cross-agent ANDA configuration
+anda:
+  namespace: anda-system
+  serviceUrl: ""  # Auto-derived from namespace if empty
+
+# Default NF deployment targets
+defaults:
+  nfNamespace: open5gs
+  nfVendor: open5gs
+
+# Site topology
+config:
+  cluster:
+    name: ""
+    context: ""
+    region: us-west-1
+  alarms:
+  - name: du_cpu_overload
+    layer: 3
+    source: ran
+    field: du_du_high_mac_dl_0_cpu_usage_percent
+    condition: '> 80'
+    severity: critical
+    depends_on: []
+    nf_scope: per-node
+    sop: day2-remediate/ran/remediate-du-cpu-overload.md
+    alarm_id: du-cpu-overload-001
+    alarm_type: processing-error-alarm
+  - name: du_timing_failure
+    layer: 3
+    source: ran
+    field: cells_0_cell_metrics_error_indication_count
+    condition: '> 500'
+    severity: critical
+    depends_on: [amf_gnb_disconnect, ptp_drift]
+    nf_scope: per-node
+    sop: day2-remediate/ran/remediate-du-timing-failure.md
+    alarm_id: du-timing-failure-001
+    alarm_type: communications-alarm
+  - name: du_throughput_drop
+    layer: 3
+    source: ran
+    field: cells_0_ue_list_0_dl_brate
+    condition: < 500000
+    severity: warning
+    depends_on: [du_timing_failure, amf_gnb_disconnect]
+    nf_scope: per-node
+    alarm_id: du-throughput-drop-001
+    alarm_type: quality-of-service-alarm
+  - name: amf_gnb_disconnect
+    layer: 2
+    source: core
+    field: amf_gnb
+    condition: < 1
+    severity: critical
+    depends_on: [nf_crashloop, network_partition]
+    nf_scope: per-instance
+    sop: day2-remediate/core/remediate-amf-gnb-disconnect.md
+    alarm_id: amf-gnb-disconnect-001
+    alarm_type: communications-alarm
+  - name: amf_registration_failure
+    layer: 2
+    source: core
+    field: amf_fivegs_amffunction_rm_reginitfail
+    condition: '> 0'
+    severity: critical
+    depends_on: [nf_crashloop]
+    nf_scope: per-instance
+    alarm_id: amf-registration-failure-001
+    alarm_type: communications-alarm
+  - name: amf_auth_rejection
+    layer: 2
+    source: core
+    field: amf_fivegs_amffunction_amf_authreject
+    condition: '> 0'
+    severity: critical
+    depends_on: [nf_crashloop]
+    nf_scope: per-instance
+    alarm_id: amf-auth-rejection-001
+    alarm_type: communications-alarm
+  - name: smf_pfcp_failure
+    layer: 2
+    source: core
+    field: smf_fivegs_smffunction_sm_n4sessionestabfail
+    condition: '> 0'
+    severity: critical
+    depends_on: [network_partition]
+    nf_scope: per-instance
+    sop: day2-remediate/core/remediate-upf-pfcp-loss.md
+    alarm_id: smf-pfcp-failure-001
+    alarm_type: communications-alarm
+  - name: upf_no_traffic
+    layer: 2
+    source: core
+    field: upf_fivegs_ep_n3_gtp_indatapktn3upf
+    condition: == 0
+    severity: warning
+    depends_on: [amf_gnb_disconnect, smf_pfcp_failure]
+    nf_scope: per-instance
+    alarm_id: upf-no-traffic-001
+    alarm_type: quality-of-service-alarm
+  - name: sbi_mesh_failure
+    layer: 2
+    source: core
+    field: alarm_scp_timeout
+    condition: '> 0'
+    severity: critical
+    depends_on: [nf_crashloop]
+    nf_scope: site-wide
+    alarm_id: sbi-mesh-failure-001
+    alarm_type: communications-alarm
+  - name: nf_crashloop
+    layer: 2
+    source: core
+    field: core_nf_health_pct
+    condition: < 95
+    severity: critical
+    depends_on: [network_partition]
+    nf_scope: per-instance
+    sop: day2-remediate/core/remediate-nf-crashloop.md
+    alarm_id: nf-crashloop-001
+    alarm_type: processing-error-alarm
+  - name: network_partition
+    layer: 1
+    source: core
+    field: node_not_ready
+    condition: '> 0'
+    severity: critical
+    depends_on: []
+    nf_scope: site-wide
+    sop: day2-remediate/infra/remediate-network-partition.md
+    alarm_id: network-partition-001
+    alarm_type: communications-alarm
+  - name: ptp_drift
+    layer: 1
+    source: ran
+    field: ptp_offset_ns
+    condition: '> 1500'
+    severity: critical
+    depends_on: []
+    nf_scope: per-node
+    sop: day2-remediate/ran/remediate-du-timing-failure.md
+    alarm_id: ptp-drift-001
+    alarm_type: communications-alarm
+  - name: bmc_hardware_fault
+    layer: 1
+    source: hardware
+    field: bmc_sel_critical
+    condition: '> 0'
+    severity: critical
+    depends_on: []
+    nf_scope: per-node
+    sop: day2-remediate/infra/remediate-hardware-fault.md
+    alarm_id: bmc-hardware-fault-001
+    alarm_type: equipment-alarm
+  - name: host_cpu_overload
+    layer: 1
+    source: os
+    field: host_cpu_usage_pct
+    condition: '> 90'
+    severity: warning
+    depends_on: []
+    nf_scope: per-node
+    alarm_id: host-cpu-overload-001
+    alarm_type: processing-error-alarm
+
+  nodes: []
+  topology:
+    provider: yaml
+  alarmReferences:
+    - alarm-references/generic-5g.json
+
+
+# Top-level alarm rules fallback — survives pipeline --set config.cluster.name=X
+# (which wipes the config.alarms block). Template checks both locations.
+alarmRules:
+  - name: du_cpu_overload
+    layer: 3
+    source: ran
+    field: du_du_high_mac_dl_0_cpu_usage_percent
+    condition: '> 80'
+    severity: critical
+    sop: day2-remediate/ran/remediate-du-cpu-overload.md
+    alarm_id: du-cpu-overload-001
+  - name: du_timing_failure
+    layer: 3
+    source: ran
+    field: cells_0_cell_metrics_error_indication_count
+    condition: '> 500'
+    severity: critical
+    sop: day2-remediate/ran/remediate-du-timing-failure.md
+    alarm_id: du-timing-failure-001
+  - name: du_throughput_drop
+    layer: 3
+    source: ran
+    field: cells_0_ue_list_0_dl_brate
+    condition: < 500000
+    severity: warning
+    alarm_id: du-throughput-drop-001
+  - name: amf_gnb_disconnect
+    layer: 2
+    source: core
+    field: amf_gnb
+    condition: < 1
+    severity: critical
+    sop: day2-remediate/core/remediate-amf-gnb-disconnect.md
+    alarm_id: amf-gnb-disconnect-001
+  - name: amf_registration_failure
+    layer: 2
+    source: core
+    field: amf_fivegs_amffunction_rm_reginitfail
+    condition: '> 0'
+    severity: critical
+    alarm_id: amf-registration-failure-001
+  - name: amf_auth_rejection
+    layer: 2
+    source: core
+    field: amf_fivegs_amffunction_amf_authreject
+    condition: '> 0'
+    severity: critical
+    alarm_id: amf-auth-rejection-001
+  - name: smf_pfcp_failure
+    layer: 2
+    source: core
+    field: smf_fivegs_smffunction_sm_n4sessionestabfail
+    condition: '> 0'
+    severity: critical
+    sop: day2-remediate/core/remediate-upf-pfcp-loss.md
+    alarm_id: smf-pfcp-failure-001
+  - name: upf_no_traffic
+    layer: 2
+    source: core
+    field: upf_fivegs_ep_n3_gtp_indatapktn3upf
+    condition: == 0
+    severity: warning
+    alarm_id: upf-no-traffic-001
+  - name: sbi_mesh_failure
+    layer: 2
+    source: core
+    field: alarm_scp_timeout
+    condition: '> 0'
+    severity: critical
+    alarm_id: sbi-mesh-failure-001
+  - name: nf_crashloop
+    layer: 2
+    source: core
+    field: core_nf_health_pct
+    condition: < 95
+    severity: critical
+    sop: day2-remediate/core/remediate-nf-crashloop.md
+    alarm_id: nf-crashloop-001
+  - name: network_partition
+    layer: 1
+    source: core
+    field: node_not_ready
+    condition: '> 0'
+    severity: critical
+    sop: day2-remediate/infra/remediate-network-partition.md
+    alarm_id: network-partition-001
+  - name: ptp_drift
+    layer: 1
+    source: ran
+    field: ptp_offset_ns
+    condition: '> 1500'
+    severity: critical
+    sop: day2-remediate/ran/remediate-du-timing-failure.md
+    alarm_id: ptp-drift-001
+  - name: bmc_hardware_fault
+    layer: 1
+    source: hardware
+    field: bmc_sel_critical
+    condition: '> 0'
+    severity: critical
+    sop: day2-remediate/infra/remediate-hardware-fault.md
+    alarm_id: bmc-hardware-fault-001
+  - name: host_cpu_overload
+    layer: 1
+    source: os
+    field: host_cpu_usage_pct
+    condition: '> 90'
+    severity: warning
+    alarm_id: host-cpu-overload-001
+
+# Credentials — create Secret out-of-band for production:
+#   kubectl create secret generic anra-credentials -n anra-system \
+#     --from-literal=auth-username=admin \
+#     --from-literal=auth-password='<password>' \
+#     --from-literal=influxdb-token='<token>' \
+#     --from-literal=bmc-password='<password>'
+# Then set: credentials.existingSecret: anra-credentials
+credentials:
+  existingSecret: ""  # if set, uses this Secret instead of generating one
+
+# Inline secrets (dev only — NEVER commit real tokens. Use existingSecret for production)
+secrets:
+  influxdbToken: ""
+  bmcPassword: ""
+
+# External monitoring (URLs only — deploy separately via configs/)
+# Monitoring data sources — defaults resolve via K8s DNS when co-deployed in same namespace
+monitoring:
+  # In-cluster InfluxDB (deployed by `make monitoring` / `make demo`)
+  influxdbUrl: "http://influxdb.anra.svc:8086"
+  influxdbOrg: srs
+  influxdbBucket: srsran
+  # Alertmanager (deployed by `make monitoring` if available)
+  alertmanagerUrl: "http://alertmanager.anra.svc:9093"
+
+# Dashboard
+webui:
+  enabled: true
+  port: 8080
+  service:
+    type: NodePort
+    nodePort: 30080
+
+# Optional AWS ALB Ingress (AWS Load Balancer Controller) — use as origin for Amazon CloudFront.
+# When enabled, switch webui.service.type to ClusterIP unless you need NodePort for other access.
+ingress:
+  enabled: false
+  # Must match the IngressClass installed by AWS Load Balancer Controller (commonly "alb")
+  className: alb
+  # Optional. If empty, a single default rule (ALB DNS only) is used.
+  host: ""
+  # Extra ALB annotations (e.g. certificate-arn, listen-ports) — see docs/CLOUDFRONT.md
+  annotations: {}
+
+ssm:
+  region: us-west-1
+
+# HTTP Basic Auth (optional)
+auth:
+  username: admin
+  password: ""
+
+# --- Self-Update (Edge Autonomy) ---
+# ANRA pulls its own updates from ECR — no dependency on management cluster.
+# Operates independently during network partitions.
+selfUpdate:
+  enabled: true
+  schedule: "0 */4 * * *"  # Check every 4 hours
+  # ECR registry to poll for new image tags
+  registry:
+    # Defaults to image.repository if empty
+    repository: ""
+    # Semantic version constraint (e.g. ">=0.2.0 <1.0.0")
+    # "latest" always pulls newest; pin for production
+    versionConstraint: ">=0.2.0"
+  # Maintenance window — only apply updates within this window
+  maintenanceWindow:
+    enabled: true
+    # Cron expression for allowed update times (UTC)
+    # Default: Tuesday/Thursday 02:00-06:00 UTC
+    start: "0 2 * * 2,4"
+    durationMinutes: 240
+  # Safety controls
+  safety:
+    # Run health check before restarting with new image
+    preUpdateHealthCheck: true
+    # Automatically rollback if new version fails health check
+    autoRollback: true
+    # Seconds to wait for new pod to become ready
+    readinessTimeout: 120
+    # Keep N previous image tags for rollback
+    rollbackHistory: 3
+  # Disconnected mode behavior
+  disconnected:
+    # Continue operating with current version if ECR unreachable
+    continueOnFailure: true
+    # Queue telemetry/status for later sync
+    bufferEvents: true
+    # Max events to buffer before dropping oldest
+    bufferSize: 10000

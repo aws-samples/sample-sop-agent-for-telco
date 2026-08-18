@@ -1,0 +1,35 @@
+# Dell iDRAC Redfish Alarm Reference
+#
+# This is NOT a pre-loaded alarm database. It tells the agent WHERE to look
+# for alarm context at runtime. When an iDRAC event fires, the agent:
+#
+# 1. Receives the event via Redfish Event Subscription (push)
+# 2. Looks up the MessageId in the BMC's own registry (dynamic, always current)
+# 3. Gathers live thermal/power/fan state from the BMC
+# 4. Gathers running pods from kubectl
+# 5. Passes all context to Bedrock for SOP generation
+#
+# The vendor's Resolution text from the registry IS the primary remediation guidance.
+# Bedrock wraps it in an executable SOP format with kubectl/SSM commands.
+
+type: redfish-registry
+vendor: dell
+bmc_type: idrac
+registry_path: /redfish/v1/Registries/Messages/EEMIRegistry
+lookup_key: Messages.{MessageId}
+context_fields:
+  - Description
+  - Severity
+  - Resolution
+  - Message
+
+# Redfish endpoints to query for live context on each event
+live_context_endpoints:
+  thermal: /redfish/v1/Chassis/System.Embedded.1/Thermal
+  power: /redfish/v1/Chassis/System.Embedded.1/Power
+  sel: /redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$top=10
+
+# Event subscription config
+event_subscription:
+  event_types: [Alert]
+  protocol: Redfish

@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anra.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anra.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "anra.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anra.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-config.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: anra
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.webui.port }}
+          env:
+            - name: AGENT_ROLE
+              value: {{ .Values.agentRole | default "anra" | quote }}
+            - name: ANRA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anra.secretName" . }}
+                  key: auth-username
+            - name: ANRA_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anra.secretName" . }}
+                  key: auth-password
+            - name: BEDROCK_REGION
+              value: {{ .Values.bedrock.region | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.ssm.region | quote }}
+            - name: SSM_REGION
+              value: {{ .Values.ssm.region | quote }}
+            - name: INFLUX_URL
+              value: {{ include "anra.influxdbUrl" . | quote }}
+            - name: INFLUX_ORG
+              value: {{ .Values.monitoring.influxdbOrg | quote }}
+            - name: INFLUX_BUCKET
+              value: {{ .Values.monitoring.influxdbBucket | quote }}
+            - name: ALERTMANAGER_URL
+              value: {{ include "anra.alertmanagerUrl" . | quote }}
+            - name: APPROVAL_MODE
+              value: {{ .Values.approval.mode | quote }}
+            - name: ANDA_ENABLED
+              value: {{ .Values.approval.andaEnabled | toString | quote }}
+            - name: ANDA_NAMESPACE
+              value: {{ .Values.anda.namespace | default "anda-system" | quote }}
+            - name: ANDA_SERVICE_URL
+              value: {{ .Values.anda.serviceUrl | default (printf "http://anda.%s.svc.cluster.local:8080" (.Values.anda.namespace | default "anda-system")) | quote }}
+            - name: DEFAULT_NF_NAMESPACE
+              value: {{ .Values.defaults.nfNamespace | default "open5gs" | quote }}
+            - name: DEFAULT_NF_VENDOR
+              value: {{ .Values.defaults.nfVendor | default "open5gs" | quote }}
+            - name: CORS_ALLOW_ORIGINS
+              value: {{ .Values.cors.allowOrigins | default "" | quote }}
+            - name: CORS_DEV
+              value: {{ .Values.cors.devMode | default false | quote }}
+            - name: BEDROCK_MODEL_TIER
+              value: {{ .Values.bedrock.modelTier | default "smart" | quote }}
+            - name: AGENT_CONFIG
+              value: /app/config/agent-config.yaml
+            - name: SOP_REPO
+              value: /app
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anra.secretName" . }}
+                  key: influxdb-token
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+            - name: logs
+              mountPath: /app/logs
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "anra.fullname" . }}-config
+        - name: logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

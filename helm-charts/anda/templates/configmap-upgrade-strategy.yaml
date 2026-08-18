@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "anda.fullname" . }}-upgrade-strategy
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+data:
+  upgrade-strategy.yaml: |
+    strategies:
+      - name: core-stateful
+        appliesTo: [amf, smf, pcf, nssf, ausf]
+        steps:
+          - name: pre-check
+            action: verify-nf-health
+            timeout: 60s
+          - name: drain
+            action: signal-amf-deregistration
+            timeout: 300s
+          - name: verify-drained
+            action: check-active-sessions
+            timeout: 120s
+          - name: deploy
+            action: deploy
+            timeout: 300s
+          - name: verify
+            action: verify-nf-health
+            timeout: 60s
+      - name: core-stateless
+        appliesTo: [nrf, udr, udm, scp, bsf, monitoring]
+        steps:
+          - name: deploy
+            action: deploy
+            timeout: 300s
+          - name: verify
+            action: verify-nf-health
+            timeout: 60s
+      - name: upf-strategy
+        appliesTo: [upf]
+        steps:
+          - name: pre-check
+            action: check-gtp-tunnel-count
+            timeout: 30s
+          - name: redirect
+            action: pfcp-session-redirect
+            timeout: 120s
+          - name: verify-drained
+            action: check-gtp-tunnel-count
+            timeout: 60s
+          - name: deploy
+            action: deploy
+            timeout: 300s
+          - name: verify
+            action: verify-nf-health
+            timeout: 60s
+          - name: restore
+            action: pfcp-session-restore
+            timeout: 60s
+      - name: ran-strategy
+        appliesTo: [gnb, du, cu]
+        steps:
+          - name: bar
+            action: cell-barring
+            timeout: 30s
+          - name: handover
+            action: trigger-handover
+            timeout: 60s
+          - name: verify-drained
+            action: check-ue-count
+            timeout: 60s
+          - name: deploy
+            action: deploy
+            timeout: 300s
+          - name: verify
+            action: verify-nf-health
+            timeout: 60s
+          - name: unbar
+            action: cell-unbarring
+            timeout: 30s

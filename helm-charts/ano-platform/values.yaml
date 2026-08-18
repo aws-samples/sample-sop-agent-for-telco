@@ -1,0 +1,39 @@
+# ANO Platform — Umbrella chart for full Day 0/1/2 autonomous operations
+#
+# Enable/disable individual agents based on your deployment stage.
+# For production, deploy each agent independently to its target cluster.
+# This umbrella is ideal for PoC, demo, or single-cluster dev environments.
+
+# --- Agent toggles ---
+anpa:
+  enabled: true
+anda:
+  enabled: true
+anra:
+  enabled: true
+
+# --- Global overrides (passed to all sub-charts) ---
+global:
+  image:
+    registry: ""  # Override ECR registry for all agents
+  aws:
+    region: us-west-2
+
+# --- Per-agent values (override sub-chart defaults) ---
+# anpa:
+#   image:
+#     repository: 123456789.dkr.ecr.us-west-2.amazonaws.com/anpa
+#   aws:
+#     region: us-west-2
+#
+# anda:
+#   image:
+#     repository: 123456789.dkr.ecr.us-west-2.amazonaws.com/anda
+#   argocd:
+#     serverUrl: https://argocd.internal
+#
+# anra:
+#   image:
+#     repository: 123456789.dkr.ecr.us-west-2.amazonaws.com/anra
+#   bedrock:
+#     region: us-west-2

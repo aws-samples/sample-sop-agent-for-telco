@@ -1,0 +1,90 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sops.ops.anra.aws.io
+  labels:
+    app.kubernetes.io/part-of: anra-platform
+spec:
+  group: ops.anra.aws.io
+  names:
+    kind: SOP
+    listKind: SOPList
+    plural: sops
+    singular: sop
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [name, category]
+              properties:
+                name:
+                  type: string
+                  description: SOP display name
+                category:
+                  type: string
+                  enum: [day0-infra, day1-deploy, day2-remediate]
+                subcategory:
+                  type: string
+                  description: Sub-category (e.g. ran, core, infra)
+                description:
+                  type: string
+                trigger:
+                  type: object
+                  properties:
+                    alarmName:
+                      type: string
+                    severity:
+                      type: string
+                      enum: [critical, major, minor, warning]
+                    autoExecute:
+                      type: boolean
+                      default: false
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      command:
+                        type: string
+                      timeout:
+                        type: string
+                      rollback:
+                        type: string
+                      requiresApproval:
+                        type: boolean
+                        default: false
+            status:
+              type: object
+              properties:
+                lastExecuted:
+                  type: string
+                  format: date-time
+                lastResult:
+                  type: string
+                  enum: [Success, Failed, Skipped, Pending]
+                executionCount:
+                  type: integer
+      additionalPrinterColumns:
+        - name: Category
+          type: string
+          jsonPath: .spec.category
+        - name: Last Result
+          type: string
+          jsonPath: .status.lastResult
+        - name: Executions
+          type: integer
+          jsonPath: .status.executionCount
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

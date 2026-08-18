@@ -1,0 +1,169 @@
+# Site Descriptor — Docomo site-002 (srsRAN + Open5GS on Dell XR8720t)
+# Workload cluster for the ANO demo environment.
+# Reference: topology-docomo-context.md
+
+site:
+  name: docomo-site-002
+  cluster: site-002-workload
+  region: us-west-1
+  namespace: ran-5g
+
+aws:
+  bedrockRoleArn: arn:aws:iam::833542146025:role/site-002-ano-bedrock
+  ssmRoleArn: arn:aws:iam::833542146025:role/site-002-anpa-ssm
+
+network:
+  n3:
+    vlan: 100
+    logical_ip: 10.100.1.1/24
+    physical_ips:
+      - 10.100.1.10/24
+      - 10.100.1.11/24
+    bgp_peer: 10.100.1.254
+  n4:
+    vlan: 101
+    logical_ip: 10.101.1.1/24
+    physical_ips:
+      - 10.101.1.10/24
+      - 10.101.1.11/24
+    bgp_peer: 10.101.1.254
+  n6:
+    vlan: 102
+    logical_ip: 10.102.1.1/24
+    physical_ips:
+      - 10.102.1.10/24
+      - 10.102.1.11/24
+    bgp_peer: 10.102.1.254
+  bgp:
+    local_as: 65002
+    remote_as: 64900
+  ue_ip_pool: 10.45.0.0/16
+
+hardware:
+  node_affinity_label: "node-role.kubernetes.io/worker=true"
+  nodes:
+    - name: dell-worker-1
+      bmc_ip: 192.168.30.10
+      bmc_type: idrac
+      data_ip: 10.100.1.10
+      oam_ip: 192.168.31.10
+      mac: "aa:bb:cc:dd:ee:01"
+      roles:
+        - worker
+        - ran
+        - upf
+    - name: dell-worker-2
+      bmc_ip: 192.168.30.11
+      bmc_type: idrac
+      data_ip: 10.100.1.11
+      oam_ip: 192.168.31.11
+      mac: "aa:bb:cc:dd:ee:02"
+      roles:
+        - worker
+        - ran
+        - upf
+  sriov:
+    device1: "intel.com/pci_sriov_net_fronthaul"
+    device2: "intel.com/pci_sriov_net_midhaul"
+  hugepages_1gi: 32Gi
+  cpu_per_service_pod: 16
+  memory_per_service_pod: 32Gi
+
+images:
+  registry: public.ecr.aws/ano-platform
+  repository: srsran-gnb
+  tag: "24.10"
+  management_tag: latest
+  service_tag: "24.10"
+  pull_secret: ecr-pull-secret
+
+monitoring:
+  influxdb_url: http://influxdb.anra-system.svc:8086
+  influxdb_org: srs
+  influxdb_bucket: srsran
+  alertmanager_url: http://alertmanager.anra-system.svc:9093
+
+scaling:
+  service_pod_count: 2
+  sessions_per_pod: 500000
+  dpdk:
+    fpcore_rx: 8
+    fpcore_wk: 8
+    is_shared: false
+    hugepage_pages: 8
+
+nf_stack:
+  ran: srsRAN
+  core: Open5GS
+
+ran:
+  plmn: "99970"
+  tac: 1
+  amf_addr: open5gs-amf-ngap.open5gs.svc.cluster.local
+  amf_port: 38412
+  gnb_bind_addr: 192.168.31.222
+  split: monolithic
+  cells:
+    - dl_arfcn: 625000
+      band: 78
+      channel_bandwidth_mhz: 100
+      scs_khz: 30
+      pci: 1
+      nof_antennas_dl: 1
+      nof_antennas_ul: 1
+      tdd_ul_dl_cfg:
+        dl_ul_tx_period: 10
+        nof_dl_slots: 7
+        nof_dl_symbols: 6
+        nof_ul_slots: 2
+        nof_ul_symbols: 4
+      prach:
+        config_index: 1
+        root_sequence_index: 1
+        zero_correlation_zone: 0
+        frequency_start: 0
+    - dl_arfcn: 636000
+      band: 78
+      channel_bandwidth_mhz: 100
+      scs_khz: 30
+      pci: 2
+      nof_antennas_dl: 1
+      nof_antennas_ul: 1
+      tdd_ul_dl_cfg:
+        dl_ul_tx_period: 10
+        nof_dl_slots: 7
+        nof_dl_symbols: 6
+        nof_ul_slots: 2
+        nof_ul_symbols: 4
+      prach:
+        config_index: 1
+        root_sequence_index: 22
+        zero_correlation_zone: 0
+        frequency_start: 0
+    - dl_arfcn: 647000
+      band: 78
+      channel_bandwidth_mhz: 100
+      scs_khz: 30
+      pci: 3
+      nof_antennas_dl: 1
+      nof_antennas_ul: 1
+      tdd_ul_dl_cfg:
+        dl_ul_tx_period: 10
+        nof_dl_slots: 7
+        nof_dl_symbols: 6
+        nof_ul_slots: 2
+        nof_ul_symbols: 4
+      prach:
+        config_index: 1
+        root_sequence_index: 43
+        zero_correlation_zone: 0
+        frequency_start: 0
+  timing:
+    ptp_enabled: true
+    ptp_interface: eth1
+    ptp_profile: g8275.1
+  rt_kernel_required: true
+  test_mode:
+    enabled: true
+    nof_ues: 64
+    rnti: 0x44

@@ -1,0 +1,126 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: impactmaps.topology.anra.aws.io
+  labels:
+    app.kubernetes.io/part-of: ano-platform
+spec:
+  group: topology.anra.aws.io
+  names:
+    kind: ImpactMap
+    listKind: ImpactMapList
+    plural: impactmaps
+    singular: impactmap
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                siteRef:
+                  type: string
+                reconcileIntervalSeconds:
+                  type: integer
+                  default: 60
+            status:
+              type: object
+              properties:
+                lastReconciled:
+                  type: string
+                graphHash:
+                  type: string
+                completeness:
+                  type: string
+                  enum: [full, physical-only]
+                site:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    totalNodes:
+                      type: integer
+                    totalNFs:
+                      type: integer
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      hostedNFs:
+                        type: array
+                        items:
+                          type: string
+                      impactIfDown:
+                        type: object
+                        properties:
+                          affectedNFs:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                impact:
+                                  type: string
+                                reason:
+                                  type: string
+                          severity:
+                            type: string
+                            enum: [Critical, High, Medium]
+                      redundancy:
+                        type: object
+                        properties:
+                          hasFailover:
+                            type: boolean
+                          reason:
+                            type: string
+                singlePointsOfFailure:
+                  type: object
+                  properties:
+                    connectivity:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          node:
+                            type: string
+                          reason:
+                            type: string
+                          remediation:
+                            type: string
+                    capacity:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          node:
+                            type: string
+                          nfs:
+                            type: array
+                            items:
+                              type: string
+                          reason:
+                            type: string
+                          remediation:
+                            type: string
+                cascadeChains:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      trigger:
+                        type: string
+                      chain:
+                        type: array
+                        items:
+                          type: string

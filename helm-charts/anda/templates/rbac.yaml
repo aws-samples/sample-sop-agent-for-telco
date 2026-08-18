@@ -1,0 +1,55 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "anda.fullname" . }}
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+rules:
+  # Topology CRDs (read-only — consumes Site/Cluster from ANPA)
+  - apiGroups: ["topology.anra.aws.io"]
+    resources: ["sites", "clusters"]
+    verbs: ["get", "list", "watch"]
+  # Deployment CRDs (read/write)
+  - apiGroups: ["deployment.anda.aws.io"]
+    resources: ["nfdeployments", "nfdeployments/status", "deploymentplans", "deploymentplans/status", "validationresults"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # SOP CRDs (read — for deployment SOPs)
+  - apiGroups: ["ops.anra.aws.io"]
+    resources: ["sops"]
+    verbs: ["get", "list", "watch"]
+  # Namespace management for NF deployments
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "create"]
+  # Pod/Service monitoring (validation)
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  # ArgoCD Application CRDs
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications", "applicationsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Events
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "anda.fullname" . }}
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "anda.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

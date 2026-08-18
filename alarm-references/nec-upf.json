@@ -1,0 +1,265 @@
+{
+  "server_fault": {
+    "severity": "Critical",
+    "alarm_type": "EquipmentAlarm",
+    "probable_cause": "EquipmentMalfunction",
+    "firing_text_pattern": "server_fault xxxxxxx fault_info xxx..x",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-management software fault recovery"
+  },
+  "gwu_blade_fault": {
+    "severity": "Major",
+    "alarm_type": "ProcessingErrorAlarm",
+    "probable_cause": "ApplicationSubsystemFailure",
+    "firing_text_pattern": "gwu_blade_fault gwuxx/lgwuxxx kind=xx cause=xx dtl=xx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service software fault recovery"
+  },
+  "route_changeover": {
+    "severity": "Warning",
+    "firing_text_pattern": "route_changeover\n     apn-pno=xxxxxx\n     gwu=lgwuxxx/gwuxx\n     port-no=x",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service port/route switch (manual or fault detection)",
+    "message_fields": "apn-pno: Target APN/DNN profile number*1\ngwuXX: device number\nlgwuXXX: logical device number\nport-no: UPF port number\n1\nThere are cases where more than one apn-pno is set."
+  },
+  "single_route_fault_per_gwu": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "single_route_fault_per_gwu\n     gwu=lgwuxxx/gwuxx\n     port-no=x",
+    "reaction": "Checks for network errors between UPF and the peer device.",
+    "service_impact": "call connection service can be continued\nsingle port operation status of upf-service(ACT)",
+    "fault_details": "UPF-service single-path port/route fault occurrence",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number\nport-no: UPF port number",
+    "reaction_required": true
+  },
+  "single_route_fault_recovery_per_gwu": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "single_route_fault_per_gwu\n     gwu=lgwuxxx/gwuxx\n     port-no=x",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service single-path port/route fault recovery"
+  },
+  "dual_route_fault_per_gwu": {
+    "severity": "Critical",
+    "alarm_type": "Equipment Alarm",
+    "probable_cause": "Transmit Failure",
+    "firing_text_pattern": "dual_route_fault_per_gwu\n     gwu=lgwuxxx/gwuxx",
+    "reaction": "Checks for network errors between UPF and the peer device.",
+    "service_impact": "Call connection service cannot be continued\nDual system route failure due to peer equipment/route factor",
+    "fault_details": "UPF-service dual-path port/route fault occurrence",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number",
+    "reaction_required": true
+  },
+  "dual_route_fault_recovery_per_gwu": {
+    "severity": "Critical",
+    "alarm_type": "Equipment Alarm",
+    "probable_cause": "Transmit Failure",
+    "firing_text_pattern": "dual_route_fault_per_gwu\n     gwu=lgwuxxx/gwuxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service dual-path port/route fault recovery"
+  },
+  "single_route_fault_per_gwu_apn": {
+    "severity": "Warning",
+    "firing_text_pattern": "single_route_fault_per_gwu_apn\n     apn-pno=xxxxxx\n         　:: apn-pno=xxxxxx\n     apn-pno=xxxxxx\n     ip-version=xxxxxx\n     ipadr=xxx.xxx.xxx.xxx\n     ipadr=xxx...x\n     gwu=lgwuxxx/gwuxx\n     port-no=x\n     vlan-id=xxxxxx",
+    "reaction": "Checks for network errors between UPF and the peer device.",
+    "service_impact": "call connection service can be continued\nsingle port operation status of upf-service(ACT)",
+    "fault_details": "UPF-service single-path port/route fault occurrence (N6)",
+    "message_fields": "apn-pno: Target APN/DNN profile number*1\nip-version: IP version\ngwuXX: device number\nlgwuXXX: logical device number\nport-no: UPF port number\nvlan-id: VLAN-ID\nipadr：IP address*2\n1\nThere are cases where more than one apn-pno is set.\n2 *2\nFor IPv4 address: DDD.DDD.DDD.DDD.\nFor IPv6 address: CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "reaction_required": true
+  },
+  "single_route_fault_recovery_per_gwu_apn": {
+    "severity": "Information",
+    "firing_text_pattern": "single_route_fault_recovery_per_gwu_apn\n     apn-pno=xxxxxx\n           Information\n     apn-pno=xxxxxx\n     ip-version=xxxxxx\n     ipadr=xxx.xxx.xxx.xxx\n     ipadr=xxx...x\n     gwu=lgwuxxx/gwuxx\n     port-no=x\n     vlan-id=xxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service single-path port/route fault recovery (N6)"
+  },
+  "dual_route_fault_per_gwu_apn": {
+    "severity": "Warning",
+    "firing_text_pattern": "dual_route_fault_per_gwu_apn\n     apn-pno=xxxxxx\n           :: apn-pno=xxxxxx\n     apn-pno=xxxxxx\n     ip-version=xxxxxx\n     gwu=lgwuxxx/gwuxx\n     vlan-id=xxxxxx",
+    "reaction": "Checks for network errors between UPF and the peer device.",
+    "service_impact": "Call connection service cannot be continued\nDual system route failure due to peer equipment/route factor",
+    "fault_details": "UPF-service dual-path port/route fault occurrence (N6)",
+    "message_fields": "apn-pno: Target APN/DNN profile number*1\nip-version: IP version\ngwuXX: device number\nlgwuXXX: logical device number\nport-no: UPF port number\nvlan-id: VLAN-ID\n1\nThere are cases where multiple apn-pno's are set.",
+    "reaction_required": true
+  },
+  "dual_route_fault_recovery_per_gwu_apn": {
+    "severity": "Information",
+    "firing_text_pattern": "dual_route_fault_recovery_per_gwu_apn\n     apn-pno=xxxxxx\n           :: apn-pno=xxxxxx\n     apn-pno=xxxxxx\n     ip-version=xxxxxx\n     gwu=lgwuxxx/gwuxx\n     vlan-id=xxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service dual-path port/route fault recovery (N6)"
+  },
+  "gwu_blade_inter_device_connection_fault": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "gwu_blade_inter_device_connection_fault gwuxx/lgwuxxx",
+    "reaction": "Check for any abnormality in UPF.\nIf there is an abnormality in the status, attempt to recover UPF (SBY).",
+    "service_impact": "Call connection service can be continued\nupf-service single system operation status",
+    "fault_details": "Communication failure between UPF-management and UPF-service",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number",
+    "reaction_required": true
+  },
+  "gwu_blade_inter_device_connection_fault_recovery": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "gwu_blade_inter_device_connection_fault gwuxx/lgwuxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "Communication recovery between UPF-management and UPF-service"
+  },
+  "gwu_blade_status_change": {
+    "severity": "Information",
+    "firing_text_pattern": "gwu_blade_status_change gwuxx/lgwuxxx sts=xxxxxxxxxxxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service state change (ins/ous/flt/chg)",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number"
+  },
+  "gwu_fault_information": {
+    "severity": "Warning",
+    "firing_text_pattern": "gwu_fault_information gwuxx/lgwuxxx\nif_kind=xxxxxxxxxxx kind=xx cause=xx dtl=xx",
+    "reaction": "Check KIND and DTL and do the following\n　Router route failure (KIND=02,dtl=d0)\n   　 Since communication with the peer router on the displayed network side has been disabled, investigate the state of the peer router and the state of the communication devices between the peer routers.\n　　and the status of the communication devices between the peer router and the peer router are investigated.\n       When this fault is recovered, the message \"gwu_fault_recovery_information\" is output.\n　SBY-based rout",
+    "service_impact": "Call connection service can be continued\nupf-service pod or redundant port single-system operation status",
+    "fault_details": "Output when a route fault or partial port fault occurs.",
+    "message_fields": "gwuXX: device number\nlgwuXXX: Logical device number\nkind=HH: Failure type\ncause=HH: Failure cause\ndtl=HH: Resume phase information",
+    "reaction_required": true
+  },
+  "gwu_fault_recovery_information": {
+    "severity": "Information",
+    "firing_text_pattern": "gwu_fault_recovery_information gwuxx/lgwuxxx\nif_kind=xxxxxxxxx kind=xx cause=xx dtl=xx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "Output when a route fault or partial port fault is recovered."
+  },
+  "gwu_service_status_change_start": {
+    "severity": "Information",
+    "firing_text_pattern": "gwu_service_status_change_start\n  lgwuxxx old=xxxxxxx new=xxxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service system-switch start",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number"
+  },
+  "gwu_service_status_change_end": {
+    "severity": "Information",
+    "firing_text_pattern": "gwu_service_status_change_end\n  lgwuxxx old=xxxxxxx new=xxxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service system-switch completion",
+    "message_fields": "gwuXX: device number\nlgwuXXX: logical device number"
+  },
+  "gwu_service_status_change_failure": {
+    "severity": "Warning",
+    "firing_text_pattern": "gwu_service_status_change_failure\n  lgwuxxx old=xxxxxxx cause=xx",
+    "reaction": "If the cause is \"01\" (flt failure at the switchover destination), check the status of the upf-service device at the switchover destination and restart the device manually (rst_gwu) if it is in flt status.\nIf the \"cause\" is \"02\" (system switchover destination is not yet installed), the upf-service at the switchover destination is manually installed into the system (ins_gwu).\nIf the \"cause\" is \"03\" (system switchover not completed), check the status of the upf-service equipment at the switchover d",
+    "service_impact": "When both systems are in operation:\nCall connection service can be continued.\nIn the upf-service single-system operation state\n\nIn the case of single-system operation state: Call connection service cannot be continued:\nCall connection service cannot be continued\nupf-service bisystem failure state",
+    "fault_details": "UPF-service system-switch failure",
+    "message_fields": "lgwuXXX: Logical device number\ncause=HH: Failure cause",
+    "reaction_required": true
+  },
+  "pfcp_association_released": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "(When the address of the peer device is IPv4)\npfcp_association_leased lgwuxxx ipadr=xxx.xxx.xxx.xxx.xxx\n\n(When the address of the peer device is IPv6)\npfcp_association_released lgwuxxx ipadr=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "reaction": "Check for network abnormalities between UPF and SMF/SPGW-C.",
+    "service_impact": "Call continuation not possible for target SMF/SPGW-C\nRelease the session created by the SMF/SPGW-C from which the association originated",
+    "fault_details": "UPF-service PFCP association (N4) disconnection",
+    "message_fields": "lgwuXXX: Logical device number\nipadr: IP address *\nIPv4 address\nIn case of IPv4 address: DDD.DDD.DDD.DDD.\nFor IPv6 address: CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "reaction_required": true
+  },
+  "pfcp_association_established": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "(When the address of the peer device is IPv4)\npfcp_association_leased lgwuxxx ipadr=xxx.xxx.xxx.xxx.xxx\n\n(When the address of the peer device is IPv6)\npfcp_association_released lgwuxxx ipadr=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service PFCP association (N4) establishment"
+  },
+  "bgp_peer_disconnected": {
+    "severity": "Information",
+    "firing_text_pattern": "bgp_peer_disconnected\n    apn-pno=dddddd\n    gwu=lgwuijk/gwujk\n    ipv4=ddd.ddd.ddd.ddd\n    ipv6=ccc...c",
+    "reaction": "-",
+    "service_impact": "Call connection service can be continued\nBGP peer one-system operation status of upf-service",
+    "fault_details": "UPF-service BGP peer disconnect",
+    "message_fields": "APN profile number: dddd(0001-2048)\ngwujk: device number\nlgwuijk: logical device number\nijk : Equipment syntax\n       (i:0-3)\n       (jk:00-04)\nipadr: IP address\nFor IPv4 address: DDD.DDD.DDD.DDD\nFor IPv6 address: CCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "bgp_peer_connected": {
+    "severity": "Information",
+    "firing_text_pattern": "bgp_peer_connected\n    apn-pno=dddddd\n    gwu=lgwuijk/gwujk\n    ipv4=ddd.ddd.ddd.ddd\n    ipv6=ccc...c",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service BGP peer establishment",
+    "message_fields": "APN profile number: dddd(0001-2048)\ngwujk: device number\nlgwuijk: logical device number\nijk : Equipment syntax\n       (i:0-3)\n       (jk:00-04)\nipadr: IP address\nFor IPv4 address: DDD.DDD.DDD.DDD\nFor IPv6 address: CCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "bgp_peer_connection_fault": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "bgp_peer_connection_fault\n    apn-pno=dddddd\n    gwu=lgwuijk/gwujk\n    own_as_no=dddddddddddddddd",
+    "reaction": "Checks for network errors between UPF and the peer device.",
+    "service_impact": "User data communication affected\nTerminal route advertisement to the peer BGP router stops, and the destination UPF route that the peer router should forward for downlink packets from the DN to the terminal is unknown. (The time until the route information is deleted on the peer router depends on the router's configuration.)",
+    "fault_details": "UPF-service BGP peer connection fault occurrence",
+    "message_fields": "APN profile number: dddddd(0001-2048)\ngwujk: device number\nlgwuijk: logical device number\nijk : Equipment syntax\n       (i:0-3)\n       (jk:00-04)\nTarget own AS number: own_as_no=ddddddddddddddd",
+    "reaction_required": true
+  },
+  "bgp_peer_connection_fault_recovery": {
+    "severity": "Major",
+    "alarm_type": "Communications Alarm",
+    "probable_cause": "Communication Subsystem Failure",
+    "firing_text_pattern": "bgp_peer_connection_fault_recovery\n    apn-pno=dddddd\n    gwu=lgwuijk/gwujk\n    own_as_no=dddddddddddddddd",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "UPF-service BGP peer connection fault recovery"
+  },
+  "signal_monitor_report": {
+    "severity": "Information",
+    "firing_text_pattern": "signal_monitor_report ccc...c\n    # PFCP signal monitor #\n    p-gw lgwuijk tm=hh:mm:ss.mmm kind=CCC seq_no=DDDDDDD\n    sig=ccc...c",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "Signal monitor notification (pgumon)",
+    "message_fields": "signal_monitor_report ccc...c\nccc...c will output one of the following\n　msisdn=ddddddddddddddddddddd : MSISDN\n　imsi=ddddddddddddddddddddd : IMSI\nlgwuijk : Logical device number\nijk : device syntax\n       (i:0-3)\n       (jk:00-04)\nMonitor time: tm=hh:mm:ss.mmm\nkind=snd/rcv: kind=CCC\nSequence number: seq_no=DDDDD \nSignal name: sig=ccc...c"
+  },
+  "user_plane_monitor_start": {
+    "severity": "Information",
+    "firing_text_pattern": "user_plane_monitor_start\n    msisdn=ddddddddddddddddddddddd\n    imsi=ddddddddddddddddddddddddd\n    apn_id=dddddddd\n    up_seid=HHHHHHHHHHHHHH",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "U-plane monitor start (upfmon)",
+    "message_fields": "msisdn=ddddddddddddddddddddddd\nimsi=ddddddddddddddddddddddd\napn_id=dddddddd APN profile number\n(If the information could not be obtained for each, it is displayed as follows)\n    msisdn=\n    imsi= \n    apn_id=\nup_seid: U-Plane Session Endpoint Identifier (16 digits)"
+  },
+  "user_plane_monitor_report": {
+    "severity": "Information",
+    "firing_text_pattern": "user_plane_monitor_report\n    msisdn=ddddddddddddddddddddddddddddd\n    imsi=ddddddddddddddddddddddddddd\n    apn_id=dddddddd\n    up_seid=HHHHHHHHHHHHHH\n    ulpkt_no=ddddddddddddddd ulpkt_vol=ddddddddddddddddd\n    dlpkt_no=ddddddddddddddd dlpkt_vol=ddddddddddddddddd\n    disc_ulpkt_no=ddddddddddddddd disc_ulpkt_vol=ddddddddddddddddd\n    disc_dlpkt_no=ddddddddddddddd disc_dlpkt_vol=ddddddddddddddddddd\n    count=dddd",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "U-plane monitor notification (upfmon)",
+    "message_fields": "msisdn=ddddddddddddddddddddddd\nimsi=ddddddddddddddddddddddd\napn_id=dddddddd APN profile number\n(If the information could not be obtained for each of these, the following is displayed)\n    msisdn=\n    imsi= \n    apn_id=\nup_seid: U-Plane Session Endpoint Identifier (16 digits)\nulpkt_no=ddddddddddddddddd :\nUpstream user data count packet count (max. 11 digits)\nulpkt_vol=ddddddddddddddddd:\nUpstream user data count byte count (max. 13 digits) \ndlpkt_no=dddddddddddddddd:\nDownlink user data count packe"
+  },
+  "user_plane_monitor_end": {
+    "severity": "Information",
+    "firing_text_pattern": "user_plane_monitor_end\n    msisdn=ddddddddddddddddddddddd\n    imsi=ddddddddddddddddddddddddd\n    apn_id=dddddddd\n    up_seid=HHHHHHHHHHHHHH\n    cause=ccc...c",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "U-plane monitor end (upfmon)",
+    "message_fields": "msisdn=ddddddddddddddddddddddddd\nimsi=ddddddddddddddddddddddddd\napn_id=dddddd APN profile number\n(If the information could not be obtained for each, it is displayed as follows)\n    msisdn=\n    imsi= \n    apn_id=\nup_seid: U-Plane Session Endpoint Identifier (16 digits)\ncause=ccc...c : Reason for termination\nnormal_end: Normal end due to completion of the specified number of outputs\ncommand: stop_upfmon command submitted\ndisconnection: Session disconnection\nmonitor_ng: Abnormal end of monitor due "
+  },
+  "user_plane_capture_stop": {
+    "severity": "Information",
+    "firing_text_pattern": "user_plane_capture_stop\n    msisdn=ccccccccccccccccccc\n    imsi=ccccccccccccccccccc",
+    "reaction": "-",
+    "service_impact": "No service impact",
+    "fault_details": "U-plane capture stop (ucap)",
+    "message_fields": "When MSISDN is specified: msisdn=ccccccccccccccccccc\nWhen IMSI is specified: imsi=ccccccccccccccccccccc"
+  }
+}

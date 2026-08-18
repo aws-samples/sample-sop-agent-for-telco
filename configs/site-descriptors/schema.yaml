@@ -1,0 +1,122 @@
+# Site Descriptor Schema Definition
+# This document describes the structure and constraints for site descriptor YAML files.
+# Fields marked [REQUIRED] must be present for the descriptor to validate.
+# Fields marked [OPTIONAL] will use defaults if omitted.
+#
+# Types: string, int, list[string], list[object], bool
+
+site:
+  name: string          # [REQUIRED] Short site identifier (e.g., sjc38, docomo-site-002)
+  cluster: string       # [REQUIRED] Kubernetes cluster name
+  region: string        # [REQUIRED] AWS region (e.g., us-west-1, us-east-1)
+  namespace: string     # [OPTIONAL] Default namespace for NF workloads
+
+aws:                    # [REQUIRED] AWS IAM configuration for agent credentials
+  bedrockRoleArn: string  # [REQUIRED] IAM role ARN for Bedrock + CloudWatch (used by all 3 agents via IRSA)
+  ssmRoleArn: string      # [OPTIONAL] Separate IAM role for ANPA SSM commands (defaults to bedrockRoleArn)
+  accountId: string       # [OPTIONAL] AWS account ID (auto-derived from bedrockRoleArn if omitted)
+
+network:                # [OPTIONAL] Network configuration block
+  n3:                   # N3 interface (gNB <-> UPF user plane)
+    vlan: int
+    logical_ip: string  # CIDR notation
+    physical_ips: list[string]
+    bgp_peer: string
+  n4:                   # N4 interface (SMF <-> UPF control plane / PFCP)
+    vlan: int
+    logical_ip: string
+    physical_ips: list[string]
+    bgp_peer: string
+  n6:                   # N6 interface (UPF <-> data network)
+    vlan: int
+    logical_ip: string
+    physical_ips: list[string]
+    bgp_peer: string
+  bgp:
+    local_as: int
+    remote_as: int
+  ue_ip_pool: string    # UE address pool in CIDR notation
+
+hardware:               # [REQUIRED] Hardware topology
+  node_affinity_label: string   # [OPTIONAL] Kubernetes node selector label
+  nodes:                        # [REQUIRED] List of physical/virtual nodes
+    - name: string              # [REQUIRED] Node hostname
+      bmc_ip: string            # [REQUIRED] BMC/iDRAC management IP
+      bmc_type: string          # [OPTIONAL] BMC type: idrac | ilo | generic-redfish (default: idrac)
+      data_ip: string           # [OPTIONAL] Data-plane IP address
+      oam_ip: string            # [REQUIRED] OAM / management network IP
+      mac: string               # [OPTIONAL] Primary NIC MAC address
+      roles: list[string]       # [REQUIRED] Node roles (e.g., worker, control-plane, ran, upf)
+  sriov:                        # [OPTIONAL] SR-IOV device resource names
+    device1: string
+    device2: string
+  hugepages_1gi: string         # [OPTIONAL] HugePages allocation (e.g., 64Gi)
+  cpu_per_service_pod: int      # [OPTIONAL] CPU cores per NF service pod
+  memory_per_service_pod: string  # [OPTIONAL] Memory per NF service pod (e.g., 64Gi)
+
+images:                 # [REQUIRED] Container image configuration
+  registry: string      # [REQUIRED] Container registry URL
+  repository: string    # [OPTIONAL] Image repository path within registry
+  tag: string           # [OPTIONAL] Default image tag
+  management_tag: string  # [OPTIONAL] Management plane image tag
+  service_tag: string     # [OPTIONAL] Data-plane service image tag
+  pull_secret: string     # [OPTIONAL] Image pull secret name
+
+monitoring:             # [OPTIONAL] Monitoring endpoints
+  influxdb_url: string          # InfluxDB URL for metrics
+  influxdb_org: string          # InfluxDB organization (default: srs)
+  influxdb_bucket: string       # InfluxDB bucket (default: srsran)
+  alertmanager_url: string      # Alertmanager URL for alarm ingestion
+
+scaling:                # [OPTIONAL] Scaling and performance parameters
+  service_pod_count: int
+  sessions_per_pod: int
+  dpdk:
+    fpcore_rx: int
+    fpcore_wk: int
+    is_shared: bool
+    hugepage_pages: int
+
+nf_stack:              # [OPTIONAL] Network function software stack
+  ran: string          # RAN software (e.g., srsRAN, UERANSIM)
+  core: string         # Core network software (e.g., Open5GS, free5GC)
+
+ran:                   # [OPTIONAL] RAN radio configuration (required for DU/gNB config gen)
+  plmn: string         # [REQUIRED] PLMN identity (e.g., "44010" for Docomo, "99970" for test)
+  tac: int             # [REQUIRED] Tracking Area Code
+  amf_addr: string     # [REQUIRED] AMF NGAP address (k8s service DNS or IP)
+  amf_port: int        # [OPTIONAL] AMF NGAP port (default: 38412)
+  gnb_bind_addr: string  # [OPTIONAL] gNB NGAP/N2 bind address (default: pod/host IP)
+  split: string        # [OPTIONAL] Architecture: monolithic | cu_du | o_ran (default: monolithic)
+  cells:               # [REQUIRED] Per-cell radio configuration
+    - dl_arfcn: int           # [REQUIRED] Downlink ARFCN (e.g., 625000 for n78)
+      band: int               # [REQUIRED] NR band number (e.g., 78)
+      channel_bandwidth_mhz: int  # [REQUIRED] Channel bandwidth in MHz (e.g., 100)
+      scs_khz: int            # [REQUIRED] Subcarrier spacing in kHz (e.g., 30)
+      pci: int                # [REQUIRED] Physical Cell ID (unique per cell)
+      nof_antennas_dl: int    # [OPTIONAL] DL antenna count (default: 1)
+      nof_antennas_ul: int    # [OPTIONAL] UL antenna count (default: 1)
+      tdd_ul_dl_cfg:          # [OPTIONAL] TDD slot configuration
+        dl_ul_tx_period: int    # TDD period in ms (default: 10)
+        nof_dl_slots: int       # DL slots per period (default: 7)
+        nof_dl_symbols: int     # DL symbols in special slot (default: 6)
+        nof_ul_slots: int       # UL slots per period (default: 2)
+        nof_ul_symbols: int     # UL symbols in special slot (default: 4)
+      prach:                  # [OPTIONAL] PRACH parameters
+        config_index: int       # PRACH configuration index (default: 1)
+        root_sequence_index: int  # Root sequence index (default: 1)
+        zero_correlation_zone: int  # ZCZ (default: 0)
+        frequency_start: int    # Frequency offset (default: 0)
+  fronthaul:           # [OPTIONAL] Fronthaul interface config (for O-RAN split)
+    c_plane_vlan: int         # C-plane VLAN ID
+    u_plane_vlan: int         # U-plane VLAN ID
+    ru_mac_addresses: list[string]  # RU MAC addresses for eCPRI
+  timing:              # [OPTIONAL] Timing/synchronization requirements
+    ptp_enabled: bool         # Whether PTP is required (default: true for RAN)
+    ptp_interface: string     # PTP sync interface (e.g., eth1)
+    ptp_profile: string       # PTP profile: g8275.1 | g8275.2 | default (default: g8275.1)
+  rt_kernel_required: bool    # [OPTIONAL] Whether RT kernel is needed (default: true for DU)
+  test_mode:           # [OPTIONAL] Test UE simulation (for lab/demo)
+    enabled: bool             # Enable test mode (default: false)
+    nof_ues: int              # Number of simulated UEs
+    rnti: int                 # Starting RNTI

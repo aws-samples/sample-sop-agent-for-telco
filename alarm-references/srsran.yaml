@@ -1,0 +1,97 @@
+# srsRAN Project gNB Alarm Reference
+# Built from observed metrics and log patterns during deployment on EKS Hybrid.
+# srsRAN does not publish a formal alarm registry — these are derived from
+# WebSocket metrics fields and gNB log output.
+
+vendor: srsran
+version: "25.10"
+nf_types: [gNB, DU, CU]
+
+alarm_lookup:
+  type: metrics
+  source: influxdb
+  measurement: srsran
+
+diagnostics:
+  - name: gnb_logs
+    command: "kubectl logs srsran-gnb -n {namespace} --tail=30"
+  - name: gnb_metrics
+    command: "kubectl exec srsran-gnb -n {namespace} -- cat /proc/self/status | head -20"
+  - name: gnb_config
+    command: "kubectl get configmap srsran-gnb-config -n {namespace} -o jsonpath='{.data}'"
+
+alarms:
+  du_cpu_overload:
+    metric: du_du_high_mac_dl_0_cpu_usage_percent
+    threshold: "> 70"
+    severity: critical
+    description: "DU MAC scheduler CPU usage exceeds threshold — scheduling deadlines at risk"
+    probable_cause: "Competing processes on host, insufficient CPU isolation, missing RT kernel tuning, IRQ affinity wrong"
+    reaction: "Check host CPU consumers via SSM. Verify isolcpus kernel param. Check TuneD profile. Kill competing processes."
+    diagnostics:
+      - "ssm_command {ssm_id} 'ps aux --sort=-%cpu | head -10'"
+      - "ssm_command {ssm_id} 'cat /proc/cmdline | tr \" \" \"\\n\" | grep isolcpus'"
+      - "ssm_command {ssm_id} 'tuned-adm active'"
+
+  du_mac_latency_high:
+    metric: du_du_high_mac_dl_0_max_latency_us
+    threshold: "> 500"
+    severity: critical
+    description: "DU MAC scheduling latency exceeds 500µs — HARQ deadlines may be missed"
+    probable_cause: "CPU overload, RT kernel not active, TuneD not set to latency-performance, context switch storms"
+    reaction: "Check RT kernel active. Verify TuneD profile. Check for CPU contention."
+    diagnostics:
+      - "ssm_command {ssm_id} 'cat /sys/kernel/realtime'"
+      - "ssm_command {ssm_id} 'tuned-adm active'"
+      - "ssm_command {ssm_id} 'cat /proc/interrupts | head -5'"
+
+  du_late_harq:
+    metric: cells_0_cell_metrics_late_dl_harqs
+    threshold: "> 0"
+    severity: warning
+    description: "DU reporting late DL HARQ responses — scheduling deadline violations"
+    probable_cause: "CPU overload causing MAC scheduler to miss slot deadlines"
+    reaction: "Check DU CPU usage and MAC latency. If both elevated, address CPU contention first."
+    diagnostics:
+      - "kubectl logs srsran-gnb -n {namespace} --tail=10"
+
+  du_throughput_drop:
+    metric: cells_0_ue_list_0_dl_brate
+    threshold: "< 30000000"
+    severity: warning
+    description: "DL throughput dropped below 30 Mbps (normal baseline: ~66 Mbps in testmode)"
+    probable_cause: "CPU overload, CQI degradation, HARQ failures, or scheduler issue"
+    reaction: "Check CQI, HARQ NOK count, and CPU usage. If CQI is low, check for interference. If CPU is high, address contention."
+    diagnostics:
+      - "kubectl logs srsran-gnb -n {namespace} --tail=5"
+
+  du_cqi_degraded:
+    metric: cells_0_ue_list_0_cqi
+    threshold: "< 10"
+    severity: warning
+    description: "Channel Quality Indicator dropped — radio link quality degraded"
+    probable_cause: "Interference, UE distance, antenna issue, or fronthaul problem"
+    reaction: "Check RSRP and SNR metrics. In testmode, CQI should be 15 — if lower, check gNB config."
+    diagnostics:
+      - "kubectl logs srsran-gnb -n {namespace} --tail=5"
+
+  du_error_indication:
+    metric: cells_0_cell_metrics_error_indication_count
+    threshold: "> 0"
+    severity: critical
+    description: "gNB reporting error indications — protocol or timing failure"
+    probable_cause: "PTP timing drift, fronthaul sync loss, or F1/E1 interface error"
+    reaction: "Check PTP status. Verify ptp4l offset. Restart gNB if errors persist."
+    diagnostics:
+      - "ssm_command {ssm_id} 'ps aux | grep ptp4l'"
+      - "ssm_command {ssm_id} 'pmc -u -b 0 \"GET CURRENT_DATA_SET\" 2>/dev/null | grep offset'"
+      - "kubectl logs srsran-gnb -n {namespace} --tail=20 | grep -i error"
+
+  gnb_prach_overlap:
+    log_pattern: "PRACH opportunities overlap with the PUCCH"
+    severity: warning
+    description: "PRACH and PUCCH resources overlap — configuration warning"
+    probable_cause: "prach_frequency_start=0 in gNB config causes overlap with PUCCH guardband"
+    reaction: "Adjust prach_frequency_start in gNB config to avoid PUCCH region. Non-critical in testmode."
+    diagnostics:
+      - "kubectl get configmap srsran-gnb-config -n {namespace} -o yaml | grep prach"

@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: srsran-gnb-config
+data:
+  gnb-config.yml: |
+    cu_cp:
+      amf:
+        addr: open5gs-amf-ngap.open5gs.svc.cluster.local
+        port: 38412
+        bind_addr: 192.168.31.222
+        supported_tracking_areas:
+          - tac: 1
+            plmn_list:
+              - plmn: "99970"
+                tai_slice_support_list:
+                  - sst: 1
+    ru_dummy:
+      dl_processing_delay: 1
+      time_scaling: 1
+    cells:
+      - dl_arfcn: 625000
+        band: 78
+        channel_bandwidth_MHz: 100
+        common_scs: 30
+        plmn: "99970"
+        tac: 1
+        pci: 1
+        nof_antennas_dl: 1
+        nof_antennas_ul: 1
+        prach:
+          prach_config_index: 1
+          prach_root_sequence_index: 1
+          zero_correlation_zone: 0
+          prach_frequency_start: 0
+        tdd_ul_dl_cfg:
+          dl_ul_tx_period: 10
+          nof_dl_slots: 7
+          nof_dl_symbols: 6
+          nof_ul_slots: 2
+          nof_ul_symbols: 4
+      - dl_arfcn: 636000
+        band: 78
+        channel_bandwidth_MHz: 100
+        common_scs: 30
+        plmn: "99970"
+        tac: 1
+        pci: 2
+        nof_antennas_dl: 1
+        nof_antennas_ul: 1
+        prach:
+          prach_config_index: 1
+          prach_root_sequence_index: 22
+          zero_correlation_zone: 0
+          prach_frequency_start: 0
+        tdd_ul_dl_cfg:
+          dl_ul_tx_period: 10
+          nof_dl_slots: 7
+          nof_dl_symbols: 6
+          nof_ul_slots: 2
+          nof_ul_symbols: 4
+      - dl_arfcn: 647000
+        band: 78
+        channel_bandwidth_MHz: 100
+        common_scs: 30
+        plmn: "99970"
+        tac: 1
+        pci: 3
+        nof_antennas_dl: 1
+        nof_antennas_ul: 1
+        prach:
+          prach_config_index: 1
+          prach_root_sequence_index: 43
+          zero_correlation_zone: 0
+          prach_frequency_start: 0
+        tdd_ul_dl_cfg:
+          dl_ul_tx_period: 10
+          nof_dl_slots: 7
+          nof_dl_symbols: 6
+          nof_ul_slots: 2
+          nof_ul_symbols: 4
+    test_mode:
+      test_ue:
+        rnti: 0x44
+        ri: 1
+        cqi: 15
+        nof_ues: 64
+        pusch_active: true
+        pdsch_active: true
+    log:
+      filename: stdout
+      all_level: warning
+    metrics:
+      autostart_stdout_metrics: true
+      enable_json: true
+    remote_control:
+      enabled: true
+      bind_addr: 0.0.0.0
+      port: 55555

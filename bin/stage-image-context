@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# stage-image-context — Assemble the Docker build context into build/.
+#
+# The pipeline builds this package's container image via the @amzn/pipelines
+# BATS DockerImage transform (wired in CseTelcoAutonomousNetworkAgentsCDK via
+# ImageAsset.ecrImageFromBrazil). That transform resolves this package's
+# RUNTIME CLOSURE (its published `build/` output), copies `Dockerfile` to the
+# closure root, and runs `docker build` with the closure root as the build
+# context — in the pipeline Packaging stage, AFTER this package is built.
+#
+# Therefore the `Dockerfile` and everything it COPYs must live under `build/`
+# at the same relative paths the Dockerfile expects. This script stages them.
+#
+# This replaces the old pre-built-OCI-archive approach (bin/build-image +
+# configuration/Packaging/publish_spec.yml): BATS now builds the image, so we
+# no longer build/export an OCI archive during `brazil-build release`.
+set -euo pipefail
+
+if [[ -n ${BRAZIL_BUILD_HOME+x} ]]; then
+  SRC_ROOT=$("${BRAZIL_BUILD_HOME}/bin/brazil-context" package root)
+else
+  SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+BUILD="${SRC_ROOT}/build"
+mkdir -p "${BUILD}"
+
+echo "▶ Staging Docker build context into ${BUILD}"
+
+# Dockerfile at the context root (transform builds from here).
+cp "${SRC_ROOT}/Dockerfile" "${BUILD}/Dockerfile"
+
+# A context-root .dockerignore. The repo-root .dockerignore excludes build/;
+# inside the staged context that entry is a harmless no-op, but we write a
+# focused one to keep the uploaded context small and deterministic.
+cat > "${BUILD}/.dockerignore" <<'EOF'
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/node_modules/
+Dockerfile
+.dockerignore
+EOF
+
+# Top-level files the Dockerfile COPYs.
+cp "${SRC_ROOT}/pyproject.toml" "${SRC_ROOT}/README.md" "${BUILD}/"
+
+# Directories the Dockerfile COPYs wholesale.
+for d in src webui sops alarm-references evals examples gitops infra manifests; do
+  rm -rf "${BUILD:?}/${d}"
+  cp -r "${SRC_ROOT}/${d}" "${BUILD}/${d}"
+done
+
+# configs/: only the subdirs the Dockerfile COPYs (influxdb + telegraf are
+# intentionally excluded — they hold lab credentials and belong in Helm values).
+mkdir -p "${BUILD}/configs"
+for d in alertmanager nf-profiles open5gs site-descriptors srsran ueransim; do
+  rm -rf "${BUILD}/configs/${d}"
+  cp -r "${SRC_ROOT}/configs/${d}" "${BUILD}/configs/${d}"
+done
+
+echo "✅ Docker build context staged at ${BUILD} (Dockerfile + COPY sources)"

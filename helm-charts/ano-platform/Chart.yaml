@@ -1,0 +1,32 @@
+apiVersion: v2
+name: ano-platform
+description: Full ANRA autonomous network operations platform — Day 0/1/2 for 5G on EKS Hybrid
+version: 0.2.0
+appVersion: "0.2.0"
+type: application
+dependencies:
+  - name: anra-common
+    version: "0.2.0"
+    repository: "oci://public.ecr.aws/eks-hybrid-telco/helm"
+  - name: anpa
+    version: "0.2.0"
+    repository: "oci://public.ecr.aws/eks-hybrid-telco/helm"
+    condition: anpa.enabled
+  - name: anda
+    version: "0.2.0"
+    repository: "oci://public.ecr.aws/eks-hybrid-telco/helm"
+    condition: anda.enabled
+  - name: anra
+    version: "0.2.0"
+    repository: "oci://public.ecr.aws/eks-hybrid-telco/helm"
+    condition: anra.enabled
+keywords:
+  - 5g
+  - autonomous-operations
+  - eks-hybrid
+  - telco
+  - ran
+  - core
+home: https://github.com/aws-samples/eks-hybrid-telco-ops
+maintainers:
+  - name: AWS Telco Solutions

@@ -1,0 +1,205 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aws-cse-hybrid-bundle-telegraf
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: aws-cse-hybrid-bundle
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aws-cse-hybrid-bundle-kube-system-telegraf
+rules:
+- apiGroups: [""]
+  resources: [nodes, nodes/proxy, nodes/stats, nodes/metrics]
+  verbs: [get, list, watch]
+- apiGroups: [metrics.k8s.io]
+  resources: [pods]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aws-cse-hybrid-bundle-kube-system-telegraf
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-cse-hybrid-bundle-kube-system-telegraf
+subjects:
+- kind: ServiceAccount
+  name: aws-cse-hybrid-bundle-telegraf
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-cse-hybrid-bundle-telegraf-config
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: aws-cse-hybrid-bundle
+data:
+  telegraf.conf: |
+    [agent]
+      interval = "10s"
+      round_interval = true
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      flush_interval = "10s"
+      hostname = "$HOSTNAME"
+      omit_hostname = false
+
+    [[outputs.file]]
+      files = ["stdout"]
+
+    [[outputs.influxdb_v2]]
+      urls = ["http://influxdb.anra.svc:8086"]
+      token = "${INFLUX_TOKEN}"
+      organization = "srs"
+      bucket = "srsran"
+
+    # Host-level metrics
+    [[inputs.cpu]]
+      percpu = true
+      totalcpu = true
+      collect_cpu_time = true
+      report_active = true
+
+    [[inputs.mem]]
+
+    [[inputs.disk]]
+      mount_points = ["/", "/boot"]
+      ignore_fs = ["tmpfs", "devtmpfs", "devfs", "squashfs", "overlay", "nsfs"]
+
+    [[inputs.diskio]]
+
+    [[inputs.net]]
+      interfaces = ["enp*", "eth*", "ens*"]
+      ignore_protocol_stats = true
+
+    [[inputs.system]]
+
+    [[inputs.kernel]]
+
+    [[inputs.kernel_vmstat]]
+
+    [[inputs.processes]]
+
+    [[inputs.nstat]]
+      proc_net_netstat = "/hostfs/proc/net/netstat"
+      proc_net_snmp = "/hostfs/proc/net/snmp"
+      proc_net_snmp6 = "/hostfs/proc/net/snmp6"
+
+    [[inputs.conntrack]]
+      dirs = ["/hostfs/proc/sys/net/netfilter"]
+
+    [[inputs.netstat]]
+
+    [[inputs.linux_sysctl_fs]]
+
+    [[inputs.temp]]
+
+    [[inputs.interrupts]]
+      cpu_as_tag = true
+
+    [[inputs.timex]]
+
+    [[inputs.hugepages]]
+
+    # Container metrics via kubelet
+    [[inputs.kubernetes]]
+      url = "https://$HOSTIP:10250"
+      bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      insecure_skip_verify = true
+
+    # Kubelet Prometheus metrics
+    [[inputs.prometheus]]
+      urls = ["https://$HOSTIP:10250/metrics"]
+      bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      tls_ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      insecure_skip_verify = true
+      metric_version = 2
+      url_tag = ""
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aws-cse-hybrid-bundle-telegraf
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: aws-cse-hybrid-bundle
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+      app.kubernetes.io/instance: aws-cse-hybrid-bundle
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: telegraf
+        app.kubernetes.io/instance: aws-cse-hybrid-bundle
+    spec:
+      serviceAccountName: aws-cse-hybrid-bundle-telegraf
+      hostNetwork: true
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      containers:
+      - name: telegraf
+        image: public.ecr.aws/o8z7f9m8/influxdata/telegraf:v1.37.0-eksbuild.1
+        args: ["--config=/etc/telegraf/telegraf.conf"]
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: HOSTIP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: HOST_PROC
+          value: /hostfs/proc
+        - name: HOST_SYS
+          value: /hostfs/sys
+        - name: HOST_MOUNT_PREFIX
+          value: /hostfs
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - name: hostfsro
+          mountPath: /hostfs
+          readOnly: true
+        - name: varlogro
+          mountPath: /var/log
+          readOnly: true
+        - name: varrunutmpro
+          mountPath: /var/run/utmp
+          readOnly: true
+        - name: config
+          mountPath: /etc/telegraf
+      volumes:
+      - name: hostfsro
+        hostPath:
+          path: /
+      - name: varlogro
+        hostPath:
+          path: /var/log
+      - name: varrunutmpro
+        hostPath:
+          path: /var/run/utmp
+      - name: config
+        configMap:
+          name: aws-cse-hybrid-bundle-telegraf-config

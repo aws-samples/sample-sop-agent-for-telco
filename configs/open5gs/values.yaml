@@ -1,0 +1,119 @@
+# Gradiant Open5GS chart overrides for 5G SA on EKS Hybrid
+# Core NFs run on region EC2 nodes, UPF on edge Dell nodes
+#
+# Site-specific values (substituted by Makefile):
+#   UPF_HOST_IP — UPF edge node IP (e.g., 192.168.31.195)
+
+dbURI: "mongodb://open5gs-mongodb/open5gs"
+
+populate:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: gradiant/open5gs-dbctl
+    tag: 0.10.3
+  initCommands:
+    - open5gs-dbctl add_ue_with_apn 999700000000001 00112233445566778899aabbccddeeff 63bfa50ee6523365ff14c1f45f88737d internet
+  nodeSelector:
+    role: region
+
+mongodb:
+  enabled: true
+  auth:
+    enabled: false
+  persistence:
+    enabled: false  # emptyDir — subscriber re-added by populate on restart
+  nodeSelector:
+    role: region
+
+# ── 5G SA Core NFs — all on region nodes ──
+
+amf:
+  enabled: true
+  nodeSelector:
+    role: region
+  metrics:
+    enabled: true
+
+smf:
+  enabled: true
+  nodeSelector:
+    role: region
+  metrics:
+    enabled: true
+  config:
+    # UPF is on edge hostNetwork — use host IP, not service DNS
+    # UPF_HOST_IP is substituted by Makefile: sed 's|UPF_HOST_IP|$(UPF_HOST)|g'
+    upf:
+      pfcp:
+        hostname: "UPF_HOST_IP"
+    # Disable Diameter — not needed for 5G SA, causes crash on init
+    pcrf:
+      enabled: false
+    # DNN/APN subnets — must include internet for srsRAN + UERANSIM
+    subnetList:
+      - subnet: 10.45.0.0/16
+        gateway: 10.45.0.1
+        dnn: internet
+      - subnet: 10.46.0.0/16
+        gateway: 10.46.0.1
+        dnn: internet
+
+nrf:
+  enabled: true
+  nodeSelector:
+    role: region
+scp:
+  enabled: true
+  nodeSelector:
+    role: region
+ausf:
+  enabled: true
+  nodeSelector:
+    role: region
+udm:
+  enabled: true
+  nodeSelector:
+    role: region
+udr:
+  enabled: true
+  nodeSelector:
+    role: region
+pcf:
+  enabled: true
+  nodeSelector:
+    role: region
+  metrics:
+    enabled: true
+nssf:
+  enabled: true
+  nodeSelector:
+    role: region
+bsf:
+  enabled: true
+  nodeSelector:
+    role: region
+sepp:
+  enabled: true
+  nodeSelector:
+    role: region
+webui:
+  enabled: true
+  nodeSelector:
+    role: region
+
+# UPF deployed separately with hostNetwork (see configs/open5gs/upf-deployment.yaml)
+upf:
+  enabled: false
+
+# Disable 4G NFs
+pcrf:
+  enabled: false
+mme:
+  enabled: false
+sgwc:
+  enabled: false
+sgwu:
+  enabled: false
+hss:
+  enabled: false

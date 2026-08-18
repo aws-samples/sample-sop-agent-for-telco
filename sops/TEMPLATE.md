@@ -1,38 +1,41 @@
 # SOP Title
 
 **Duration:** ~X minutes
+**Severity:** warning | critical
+**Trigger:** alarm_name from alarm-references/*.json
 
 ## Overview
-Brief description of what this SOP does.
+Brief description of what this SOP remediates and when it should be triggered.
 
 ## Prerequisites
-- Required cluster access
+- kubectl access to the cluster
+- SSH access to worker node (if host-level remediation needed)
 - Prior SOPs completed (if any)
-
-## Config
-**File:** `configs/my-config.yaml` (optional - for deployment-specific values)
 
 ## Steps
 
-### Step 1: Description
+### Step 1: Diagnose
 ```bash
-command here
+diagnostic command here
 ```
-**Expected**: expected output or state
+**Expected**: description of healthy vs unhealthy output
 
-### Step 2: Description
+### Step 2: Remediate
 ```bash
-another command
+remediation command here
 ```
-**Expected**: expected output
+**Expected**: expected result after fix
 
-## Verification
-
-### Final Check
+### Step 3: Verify
 ```bash
-verification command
+verification command here
 ```
-**Expected**: success criteria
+**Expected**: confirmation that the issue is resolved
+
+## Rollback
+```bash
+rollback command if remediation makes things worse
+```
 
 ## Troubleshooting
 
@@ -41,5 +44,5 @@ verification command
 | Problem description | Diagnostic command | Resolution steps |
 
 ## Related SOPs
-- **Previous:** link to prerequisite SOP
-- **Next:** link to follow-up SOP
+- **Escalation:** link to next-level SOP if this doesn't resolve
+- **Prevention:** link to config hardening SOP

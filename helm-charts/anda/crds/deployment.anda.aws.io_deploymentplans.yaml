@@ -1,0 +1,148 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: deploymentplans.deployment.anda.aws.io
+  labels:
+    app.kubernetes.io/part-of: ano-platform
+spec:
+  group: deployment.anda.aws.io
+  names:
+    kind: DeploymentPlan
+    listKind: DeploymentPlanList
+    plural: deploymentplans
+    singular: deploymentplan
+    shortNames: [dp]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [site, cluster]
+              properties:
+                site:
+                  type: string
+                cluster:
+                  type: string
+                description:
+                  type: string
+                intent:
+                  type: string
+                  enum: [deploy, upgrade, remediation, scale, decommission, config-change]
+                  description: What action this plan represents
+                reason:
+                  type: string
+                  description: Human-readable reason for the deployment
+                triggeredBy:
+                  type: string
+                  enum: [operator, anra, anpa, scheduled, gitops]
+                  description: Who/what created this plan
+                priority:
+                  type: string
+                  enum: [normal, high, emergency]
+                  default: normal
+                  description: Urgency level — emergency triggers immediate processing
+                executionMode:
+                  type: string
+                  enum: [live, replay, dry-run]
+                  default: live
+                  description: live=real execution, replay=pre-recorded trace, dry-run=mocked tools
+                sopPath:
+                  type: string
+                  description: Explicit SOP file path for execution (overrides SOP_REGISTRY resolution)
+
+                networkFunctions:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, type]
+                    properties:
+                      name:
+                        type: string
+                      type:
+                        type: string
+                      namespace:
+                        type: string
+                      chartVersion:
+                        type: string
+                      action:
+                        type: string
+                        enum: [deploy, upgrade, redeploy, reconfigure, remove]
+                        description: Per-NF action. Controller maps intent to action (remediation->redeploy, decommission->remove, scale->deploy)
+                      vendor:
+                        type: string
+                        description: NF vendor for SOP selection (e.g., open5gs, nec, srsran)
+                      values:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      order:
+                        type: integer
+                        description: Deployment order (lower first)
+                strategy:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [sequential, parallel, dependency-ordered]
+                      default: dependency-ordered
+                    maxParallel:
+                      type: integer
+                      default: 3
+                    rollbackOnFailure:
+                      type: boolean
+                      default: true
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Validating, InProgress, Completed, PartiallyCompleted, PartiallyFailed, Failed, TimedOut, RollingBack]
+                message:
+                  type: string
+                startedAt:
+                  type: string
+                  format: date-time
+                completedAt:
+                  type: string
+                  format: date-time
+                deployedCount:
+                  type: integer
+                totalCount:
+                  type: integer
+                failedNFs:
+                  type: array
+                  items:
+                    type: string
+                fallbackUsed:
+                  type: boolean
+                  description: True if AI execution failed and direct helm was used as fallback
+                sopExecution:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  description: Per-NF SOP execution state (keyed by NF name)
+      additionalPrinterColumns:
+        - name: Site
+          type: string
+          jsonPath: .spec.site
+        - name: Cluster
+          type: string
+          jsonPath: .spec.cluster
+        - name: Intent
+          type: string
+          jsonPath: .spec.intent
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Progress
+          type: string
+          jsonPath: .status.deployedCount
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

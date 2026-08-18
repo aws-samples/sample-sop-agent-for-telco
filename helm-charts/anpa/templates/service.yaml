@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anpa.fullname" . }}
+  labels:
+    {{- include "anpa.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    {{- if .Values.webhook.enabled }}
+    - port: {{ .Values.webhook.port }}
+      targetPort: webhook
+      protocol: TCP
+      name: webhook
+    {{- end }}
+  selector:
+    {{- include "anpa.selectorLabels" . | nindent 4 }}

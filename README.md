@@ -1,222 +1,250 @@
-# Sample SOP Agent for Telco
+# ANO Platform — Autonomous Network Operations
 
-[![CI](https://github.com/aws-samples/sample-sop-agent-for-telco/actions/workflows/ci.yml/badge.svg)](https://github.com/aws-samples/sample-sop-agent-for-telco/actions/workflows/ci.yml)
-[![License: MIT-0](https://img.shields.io/badge/License-MIT--0-blue.svg)](LICENSE)
+**One container image. Three AI agents. Full 5G network lifecycle automation.**
 
-> **⚠️ Important:** This is sample code for demonstration and learning purposes. You should work with your security and legal teams to meet your organizational security, regulatory, and compliance requirements before deploying to production environments.
+ANO is a Kubernetes-native platform that autonomously provisions, deploys, and operates 5G networks on AWS EKS Hybrid Nodes — from bare metal to running traffic.
 
-AI-powered Standard Operating Procedure (SOP) executor for telco network function deployment, validation, and autonomous remediation. Built with the [Strands Agents SDK](https://github.com/strands-agents/sdk-python) and Amazon Bedrock.
-
-This repository implements two complementary agents that share the same Strands + Bedrock backend:
-
-- **ANDA (Automated Network Deployment Agent)** — Day-1 SOP execution: deploy 5G network functions, validate end-to-end connectivity, configure monitoring.
-- **ANRA (Autonomous Network Remediation Agent)** — Day-2 closed-loop operations: detect alarms via Telegraf metrics, correlate with topology graph for root-cause analysis, and execute remediation SOPs autonomously.
-
-## What It Does
-
-Reads SOPs from markdown files and executes them autonomously:
-
-1. Parses SOP steps and expected outputs (RFC 2119 constraint format supported)
-2. Dynamically discovers available Claude models and selects by complexity tier (fast → balanced → powerful)
-3. Executes commands via kubectl, SSH, AWS SSM, Redfish, shell tools
-4. Evaluates results against expected outputs using Strands Evals SDK
-5. Auto-corrects failures by escalating to a more capable model
-6. Correlates alerts across multiple sources and generates remediation SOPs
-
-## Architecture
-
-The agent has two complementary deployment patterns:
-
-### ANDA — Day 1: SOP-Driven Network Deployment
-
-![SOP Agent architecture: Operator interacts with the Web Interface (FastAPI + React UI), which routes through the Strands Agents SDK (SOP Graph, SOP Executor, Adaptive Steering). The executor uses MCP tools (kubectl, SSH, Shell) to operate on Amazon EKS. Adaptive Steering selects Claude Haiku for simple tasks, Sonnet for complex tasks, and Opus for fix-mode escalation via Amazon Bedrock.](docs/images/architecture.png)
-
-**Components:**
-
-- **Web Interface** — FastAPI backend + React UI for operator interaction
-- **Strands Agents SDK** — orchestrates SOP execution with three layers:
-  - **SOP Graph (DAG Engine)** — parses SOPs into a directed acyclic graph
-  - **SOP Executor** — executes steps via MCP tools (kubectl, SSH, Shell)
-  - **Adaptive Steering** — selects optimal Claude model based on step complexity
-- **Amazon Bedrock** — hosts Claude Haiku ($1/1M tokens) → Sonnet ($6/1M) → Opus ($30/1M) for adaptive cost optimization
-- **Amazon EKS** — target cluster running network functions (Helm charts, Services, NF Pods)
-
-### ANRA — Day 2: Autonomous Remediation
-
-![ANRA Day 2 architecture: 5G Edge Site (srsRAN gNB, Open5GS UPF, Dell iDRAC) and 5G Core (Open5GS NFs on EC2) feed metrics through Telegraf collectors (RAN WebSocket, HW Redfish, Core kubectl) into InfluxDB. ANRA Agent (Monitor, Correlator, SOP Executor) consumes the metrics, detects alarms, performs topology-aware root cause analysis, and remediates via kubectl/SSM. AWS Services include IRSA pod-level auth and Amazon Bedrock for SOP generation. A dashboard exposes alarms, SOPs, topology, and chat.](docs/images/anra-architecture.png)
-
-**Closed-loop operation:**
-
-![Agent observability loop: Detect (Telegraf Collector → ANRA Monitor) → Correlate (NetworkX Topology → Root Cause Analysis) → Execute (SOP Select/Generate → Adaptive Steering → Strands Agent) → Evaluate (Strands Evals SDK → Pass check). On failure, retries with a stronger model; if max retries hit, opens a Git Issue for human approval. Successful executions are added to Execution History which feeds Adaptive Steering pattern recognition.](docs/images/observability-loop.png)
-
-ANRA continuously detects alarms via Telegraf metrics, performs topology-aware root cause analysis using a NetworkX graph, executes remediation SOPs autonomously, and evaluates outcomes via the Strands Evals SDK. Failed executions are retried with stronger models; persistent failures escalate to Git Issues for human approval. Successful patterns are recorded in execution history and used by Adaptive Steering on subsequent runs.
+```
+  Day 0                Day 1                Day 2
+┌─────────┐        ┌─────────┐        ┌─────────┐
+│  ANPA   │──────► │  ANDA   │──────► │  ANRA   │
+│Provision│        │ Deploy  │        │ Operate │
+└─────────┘        └─────────┘        └─────────┘
+     │                  │                   │
+ Bare metal →      NFs running →      KPIs monitored →
+ EKS nodes         in 3GPP order      auto-remediated
+```
 
 ## Quick Start
 
-### Prerequisites
-
-- **AWS Account** with [Amazon Bedrock](https://aws.amazon.com/bedrock/) enabled
-- **Bedrock Model Access** — at least one Anthropic Claude model enabled. Visit the [Bedrock Console](https://console.aws.amazon.com/bedrock/) to enable model access.
-- **EKS Cluster** with `kubectl` configured (or any Kubernetes cluster)
-- **Helm 3** installed
-- **Python 3.11+** for local development
-
-### Deploy with Helm (using public image)
-
-The fastest path — uses the pre-built public image:
-
 ```bash
-helm upgrade --install anra helm/anra/ \
-  --namespace anra --create-namespace \
-  --set image.repository=public.ecr.aws/k6b9y4d0/sample-sop-agent-for-telco \
-  --set image.tag=latest \
-  --set bedrock.region=us-west-2
+# 1. Install dependencies
+hatch env create
+
+# 2. Run tests (710 tests, 60%+ coverage enforced)
+hatch test
+
+# 3. Run locally (defaults to ANRA role)
+AGENT_ROLE=anra AGENT_CONFIG=configs/site-descriptors/sjc38.yaml hatch run dev
+
+# 4. Deploy to cluster
+helm install ano-platform helm-charts/ano-platform/ \
+  --set image.repository=<ECR_URI> \
+  --set image.tag=latest
 ```
 
-### Build your own image
+## Architecture
 
-If you want to customize the agent or build from source:
+### Single Image, Three Roles
 
-```bash
-# Clone the repo
-git clone https://github.com/aws-samples/sample-sop-agent-for-telco.git
-cd sample-sop-agent-for-telco
+The same container image runs as any of the three agents — selected by `AGENT_ROLE` env var:
 
-# Build and push to your ECR
-ECR_URI="<account-id>.dkr.ecr.<region>.amazonaws.com/anra"
-docker build -t anra:latest .
-docker tag anra:latest $ECR_URI:latest
-docker push $ECR_URI:latest
+| Agent | Role | What It Does | Runs On |
+|-------|------|--------------|---------|
+| **ANPA** | Day 0 Provisioning | Discovers BMC, installs OS via Tinkerbell, registers EKS nodes | Management cluster |
+| **ANDA** | Day 1 Deployment | Deploys 5G NFs in 3GPP order, drains traffic for upgrades | Management cluster |
+| **ANRA** | Day 2 Operations | Monitors KPIs, correlates alarms, auto-remediates via SOPs | Workload cluster |
 
-# Deploy via Helm
-helm upgrade --install anra helm/anra/ \
-  --namespace anra --create-namespace \
-  --set image.repository=$ECR_URI \
-  --set image.tag=latest \
-  --set bedrock.region=us-west-2
+### Runtime Architecture
+
+Each pod runs **two concurrent processes**:
+
+```
+Pod Startup:
+  main()
+   ├── Validate config (schema + startup probes)
+   ├── Start ConfigWatcher (hot-reload, no restart needed)
+   ├── Background thread → agent's autonomous loop
+   │     ├── ANRA: monitor alarms → correlate → SOP → remediate
+   │     ├── ANDA: watch DeploymentPlan CRDs → deploy NFs
+   │     └── ANPA: watch ProvisioningRequest CRDs → provision nodes
+   └── Foreground: FastAPI on :8080 (health, REST API, WebUI)
 ```
 
-The agent auto-discovers available Bedrock models at startup — no model IDs need to be configured.
+If the background loop crashes → `os._exit(1)` → k8s restarts the pod.
 
-## Writing SOPs
+### Key Subsystems
 
-SOPs are markdown files in the `sops/` directory. The agent supports two formats:
-
-- **Simple format** — bullet-style steps (good for quick prototypes)
-- **RFC 2119 format** — structured with explicit `MUST` / `SHOULD` constraints (recommended for production agent SOPs)
-
-Minimal example:
-
-````markdown
-# My SOP Title
-
-## Overview
-Brief description of what this SOP does.
-
-## Prerequisites
-- Required access/tools
-
-## Steps
-
-### Step 1: Do something
-```tool: kubectl
-kubectl get pods -n my-namespace
-```
-**Expected**: List of pods in `Running` state
-
-### Step 2: Verify
-```tool: shell
-curl http://service/health
-```
-**Expected**: `{"status":"ok"}`
-````
-
-See [sops/TEMPLATE.md](sops/TEMPLATE.md) for the complete template, or [sops/workshop-deploy/](sops/workshop-deploy/) for real-world RFC 2119 examples.
+| System | Purpose | Details |
+|--------|---------|---------|
+| **Config Store** | Thread-safe config singleton | Any code calls `get_config()`, hot-reload updates it |
+| **Config Watcher** | Detects ConfigMap changes | Polls mtime every 1s, debounces 2s, validates before swap |
+| **Model Resolver** | Dynamic Bedrock model selection | `get_model("fast")` → Haiku, `get_model("smart")` → Sonnet |
+| **Adaptive Steering** | Learns from past failures | Guides agent away from previously-failed approaches |
+| **Site Descriptor** | Per-site config schema | One YAML per deployment site — drives all 3 agents |
 
 ## Project Structure
 
 ```
-agent/                       Core Python application
-├── api.py                   FastAPI app wiring + middleware
-├── routers/                 API endpoints (9 modules)
-├── sop_executor.py          SOP execution engine + tools
-├── sop_graph.py             Multi-agent DAG orchestrator
-├── model_discovery.py       Dynamic Bedrock model probing
-├── monitor.py               Day-2 alert monitoring + remediation
-├── correlator.py            Event correlation engine
-├── config.py                Centralized YAML-driven configuration
-└── adaptive_steering.py     Just-in-time tool interception
+src/amzn_.../agent/
+├── entrypoint.py          ← Boot: parse role, validate config, start threads
+├── api.py                 ← FastAPI app factory (role-aware router registration)
+├── config.py              ← SiteConfig schema + validation
+├── monitor.py             ← ANRA alarm monitor loop
+├── core/
+│   ├── config_store.py    ← Thread-safe get_config() / set_config()
+│   ├── config_watcher.py  ← File polling + hot-reload
+│   └── model_resolver.py  ← Bedrock model tier resolution
+├── agents/
+│   ├── anra/              ← ANRA: correlator, SOP execution, tools
+│   ├── anda/              ← ANDA: orchestrator, drain, config generator
+│   │   ├── orchestrator.py    ← DeploymentPlan reconciler
+│   │   ├── drain.py           ← AMF/PFCP/cell drain procedures
+│   │   └── config_generator.py ← Helm values generation
+│   └── anpa/              ← ANPA: reconciler, discovery, provisioning
+│       └── reconciler.py      ← ProvisioningRequest state machine
+├── routers/               ← FastAPI REST endpoints (per-feature)
+└── adaptive_steering.py   ← Failure-pattern learning for agent guidance
 
-evals/                       Deterministic evaluators (no LLM judge)
-webui/frontend/              React UI (Vite + React 19)
-helm/anra/                   Helm chart for Kubernetes deployment
-sops/                        SOP markdown files (deploy + remediate)
-alarm-references/            Structured alarm definitions (YAML/JSON)
-gitops/                      ArgoCD application definitions
-configs/                     InfluxDB + Telegraf configurations
-tests/                       Unit + integration tests (209 passing)
-docs/images/                 Architecture diagrams
+helm-charts/
+├── anra-common/           ← Shared CRDs (install first)
+├── anpa/                  ← Day 0 agent chart
+├── anda/                  ← Day 1 agent chart
+├── anra/                  ← Day 2 agent chart (serves WebUI)
+├── ano-platform/          ← Umbrella chart (all-in-one)
+└── ano-topology/          ← Topology controller (kopf + networkx)
+
+configs/
+├── site-descriptors/      ← Per-site config (schema.yaml + examples)
+├── influxdb/              ← Monitoring config
+├── srsran/ & ueransim/    ← RAN simulator configs
+└── nf-profiles/           ← 5G NF Helm value templates
+
+sops/                      ← 25 Standard Operating Procedures
+├── day0-infra/            ← Bootstrap, CPU isolation, hugepages, PTP
+├── day1-deploy/           ← Core, RAN, UPF, monitoring deployment
+└── day2-remediate/        ← Alarm-specific remediation playbooks
 ```
-
-## Local Development
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-pip install pytest pytest-asyncio pytest-mock  # for testing
-
-# Run the backend (API + monitor)
-python entrypoint.py
-
-# Run frontend (separate terminal)
-cd webui/frontend
-npm install && npm run dev
-```
-
-The frontend dev server proxies API requests to `localhost:8080`.
 
 ## Configuration
 
-Primary config: [`anra-config.yaml`](anra-config.yaml) — defines cluster, nodes, alarms, and monitoring rules.
+### Site Descriptor (the main config file)
 
-Environment variables (override config):
+Create one YAML per deployment site at `configs/site-descriptors/<site>.yaml`:
+
+```yaml
+site:
+  name: ericsson-d15
+  cluster: ericsson-d15
+  region: us-west-2
+
+aws:
+  bedrockRoleArn: arn:aws:iam::794399553333:role/ERICSSON-3-JDA-Admin
+  accountId: "794399553333"
+
+hardware:
+  nodes:
+    - name: dell-xr8720t-01
+      bmc_ip: 10.255.1.10
+      oam_ip: 10.255.1.11
+      roles: [worker, ran]
+      mac: d0:37:45:39:94:5a
+      bmc_type: idrac
+
+images:
+  registry: 794399553333.dkr.ecr.us-west-2.amazonaws.com
+
+monitoring:
+  influxdb_url: http://influxdb.monitoring:8086
+  alertmanager_url: http://alertmanager.monitoring:9093
+```
+
+### Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `BEDROCK_REGION` | `us-west-2` | AWS region for Bedrock model invocation |
-| `BEDROCK_PROFILE` | (default chain) | AWS profile name |
-| `BEDROCK_ROLE_ARN` | (none) | IAM role to assume for Bedrock (used in Workshop Studio environments) |
-| `SOP_REPO` | project root | Path to SOP markdown files |
-| `APP_NAMESPACE` | `default` | Target Kubernetes namespace for SOP execution |
-| `AUTH_USERNAME` / `AUTH_PASSWORD` | (none) | HTTP Basic Auth for the web UI |
+| `AGENT_ROLE` | `anra` | Agent persona: `anra`, `anda`, `anpa` |
+| `PORT` | `8080` | HTTP server port |
+| `LOG_LEVEL` | `info` | Logging verbosity |
+| `AGENT_CONFIG` | — | Path to site descriptor YAML |
+| `BEDROCK_MODEL_TIER` | `fast` | Default: `fast` (Haiku), `smart` (Sonnet) |
+| `BEDROCK_MODEL_ID` | — | Override: use exact model ID |
+| `BEDROCK_REGION` | `us-west-2` | AWS region for Bedrock API |
 
-## Running Tests
+### Hot-Reload
+
+Config changes are picked up automatically — no pod restart needed:
+1. Update the ConfigMap (or mounted file)
+2. ConfigWatcher detects mtime change within 1s
+3. Debounces 2s (coalesces rapid K8s symlink swaps)
+4. Validates new config; keeps old if invalid
+5. Swaps config atomically + invalidates model cache
+
+## Helm Deployment
+
+### Install Order
 
 ```bash
-python -m pytest tests/ -v
+# 1. CRDs first (always)
+helm install anra-common helm-charts/anra-common/
+
+# 2. Individual agents (or use ano-platform umbrella)
+helm install anpa helm-charts/anpa/ --set image.repository=<ECR>
+helm install anda helm-charts/anda/ --set image.repository=<ECR>
+helm install anra helm-charts/anra/ --set image.repository=<ECR>
+
+# OR: all-in-one
+helm install ano helm-charts/ano-platform/ --set image.repository=<ECR>
 ```
 
-All 209 tests should pass on Python 3.11 and 3.12.
+### Credential Pattern
 
-## CI/CD
+All agents use `existingSecret` — one Kubernetes Secret per site:
+```yaml
+existingSecret:
+  name: site-credentials
+  keys:
+    bmcPassword: bmc-password
+    sshKey: ssh-private-key
+```
 
-This repository uses two GitHub Actions workflows:
+IRSA provides AWS credentials (Bedrock, SSM, ECR) — no static AWS keys.
 
-- **[`ci.yml`](.github/workflows/ci.yml)** — runs on every push and pull request: unit tests (matrix Python 3.11/3.12), code quality (ruff), security (bandit, semgrep), Docker build, Helm chart validation, container smoke test, and end-to-end test on a [kind](https://kind.sigs.k8s.io/) cluster.
-- **[`release.yml`](.github/workflows/release.yml)** — manual or tag-triggered: builds and pushes to public ECR, optionally runs E2E test on a real EKS cluster (requires maintainer secrets).
+## Development
 
-## Security
+```bash
+# Build & test
+hatch test                    # All tests (pytest)
+hatch test -- -k "test_anpa" # Filter tests
+hatch fmt                     # Format (ruff)
+hatch run typing              # Type check (mypy)
+hatch run release             # Full CI check (types + tests + coverage)
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and supported versions.
+# Local dev server
+hatch run dev                 # FastAPI on :8080
 
-## Contributing
+# Helm template testing
+hatch test -- tests/helm/     # Helm chart unit tests
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+### Pipeline
 
-## License
+- **Build system**: Hatch (via PeruHatch/Brazil)
+- **CI**: Brazil Pipelines → CodeBuild (mirrors via CodeCommit)
+- **Pre-push hook**: Auto-syncs to CodeCommit mirror (install with `pre-commit install --hook-type pre-push`)
+- **Coverage**: 60% minimum enforced
 
-This sample code is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
+## Technology Stack
 
-## Disclaimer
+| Layer | Tech |
+|-------|------|
+| **Agent Framework** | [Strands Agents SDK](https://github.com/strands-agents/sdk-python) + Amazon Bedrock (Claude) |
+| **API** | FastAPI + Uvicorn |
+| **Frontend** | React 18 + Ant Design + ReactFlow + Recharts |
+| **Infrastructure** | Amazon EKS Hybrid Nodes (VPC + bare-metal) |
+| **Provisioning** | Tinkerbell (DHCP/TFTP/iPXE) + Dell iDRAC VirtualMedia |
+| **5G Core** | Open5GS (AMF, SMF, UPF, NRF) |
+| **5G RAN** | srsRAN Project (gNB) + UERANSIM (testing) |
+| **Monitoring** | InfluxDB + Telegraf + Alertmanager |
+| **Packaging** | Helm 3 + ArgoCD |
+| **CI/CD** | Brazil Pipelines + CodeBuild |
 
-This is sample code, for non-production usage. You are responsible for testing, securing, and optimizing the code as appropriate for production-grade use based on your specific quality control practices and standards. Deploying this code may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances, using Amazon Bedrock, or Amazon EKS clusters.
+## Further Reading
+
+- [`docs/ANO-Design-Reference-Guide.md`](docs/ANO-Design-Reference-Guide.md) — Architecture deep-dive, CRD schemas, team assignments
+- [`docs/runtime-architecture.md`](docs/runtime-architecture.md) — Startup flow, config system, model resolution
+- [`docs/provisioning-flow.md`](docs/provisioning-flow.md) — ANPA bare-metal provisioning end-to-end
+- [`docs/deployment-orchestration.md`](docs/deployment-orchestration.md) — ANDA NF lifecycle + drain procedures
+- [`DEVELOPING.md`](DEVELOPING.md) — Build system, git hooks, CodeCommit mirror
+- [`CODE_QUALITY.md`](CODE_QUALITY.md) — Tech debt tracker + improvement roadmap
+- [`SPRINT-PLAN.md`](SPRINT-PLAN.md) — Current sprint (July 28 Docomo demo)

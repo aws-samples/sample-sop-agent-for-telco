@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Card, Tag, Badge, Spin, Alert, Row, Col, Statistic, Switch } from 'antd'
-import { CloudServerOutlined, ApiOutlined, ApartmentOutlined } from '@ant-design/icons'
+import { Card, Tag, Badge, Spin, Alert, Row, Col, Statistic, Switch, Tabs, Space } from 'antd'
+import { CloudServerOutlined, ApiOutlined, ApartmentOutlined, NodeIndexOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import axios from 'axios'
+import ImpactMap from '../components/ImpactMap'
 
 const NF_COLORS = {
   amf: '#bbdefb', smf: '#b3e5fc', nrf: '#b2dfdb', scp: '#c5cae9', upf: '#a5d6a7',
@@ -11,7 +13,7 @@ const NF_COLORS = {
 const HIDDEN = new Set(['hss', 'mme', 'sgwc', 'sgwu', 'populate', 'ue', 'sim-ue', 'ru'])
 const ANRA_NFS = new Set(['anra', 'telegraf-core', 'telegraf-hw', 'telegraf-ran', 'influxdb', 'grafana', 'mongodb'])
 
-const Topology = () => {
+const PodView = () => {
   const [topo, setTopo] = useState(null)
   const [showAnra, setShowAnra] = useState(false)
   const [error, setError] = useState(null)
@@ -33,7 +35,7 @@ const Topology = () => {
     byNode[p.node].push(p)
   })
   const edgeNodes = (topo.k8s_nodes || []).filter(n => n.role === 'edge')
-  const regionNodes = (topo.k8s_nodes || []).filter(n => n.role === 'region')
+  const regionNodes = (topo.k8s_nodes || []).filter(n => n.role !== 'edge')
 
   const NodeCard = ({ node, color, border }) => {
     const pods = byNode[node.name] || []
@@ -54,18 +56,18 @@ const Topology = () => {
   }
 
   return (
-    <div>
+    <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Row gutter={16}>
           <Col><Statistic title="Nodes" value={s.k8s_node_count || 0} prefix={<CloudServerOutlined />} /></Col>
           <Col><Statistic title="NFs" value={s.nf_count || 0} prefix={<ApiOutlined />} /></Col>
           <Col><Statistic title="Edges" value={s.edge_count || 0} prefix={<ApartmentOutlined />} /></Col>
         </Row>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Space>
           <span style={{ fontSize: 13, color: showAnra ? '#999' : '#1565c0' }}>5G Network</span>
           <Switch checked={showAnra} onChange={setShowAnra} />
           <span style={{ fontSize: 13, color: showAnra ? '#e65100' : '#999' }}>ANRA Overlay</span>
-        </div>
+        </Space>
       </div>
 
       <Row gutter={24}>
@@ -75,7 +77,7 @@ const Topology = () => {
           </Card>
         </Col>
         <Col span={16}>
-          <Card title="☁️ AWS Region (EKS)" bordered={false} style={{ borderRadius: 12, border: '2px dashed #1976d2' }}>
+          <Card title="AWS Region (EKS)" bordered={false} style={{ borderRadius: 12, border: '2px dashed #1976d2' }}>
             <Row gutter={12}>
               {regionNodes.map(n => (
                 <Col span={6} key={n.name}>
@@ -86,6 +88,35 @@ const Topology = () => {
           </Card>
         </Col>
       </Row>
+    </>
+  )
+}
+
+const Topology = () => {
+  const [searchParams] = useSearchParams()
+  const highlightNode = searchParams.get('highlight')
+  const [selectedNode, setSelectedNode] = useState(highlightNode)
+
+  useEffect(() => {
+    if (highlightNode) setSelectedNode(highlightNode)
+  }, [highlightNode])
+
+  const items = [
+    {
+      key: 'impact',
+      label: <span><NodeIndexOutlined /> Impact Analysis</span>,
+      children: <ImpactMap onNodeSelect={setSelectedNode} selectedAlarmNode={selectedNode} />,
+    },
+    {
+      key: 'pods',
+      label: <span><CloudServerOutlined /> Pod View</span>,
+      children: <PodView />,
+    },
+  ]
+
+  return (
+    <div>
+      <Tabs items={items} defaultActiveKey="impact" />
     </div>
   )
 }

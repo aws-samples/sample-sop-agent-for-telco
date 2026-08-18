@@ -1,0 +1,43 @@
+# Topology Controller configuration
+replicaCount: 1
+
+image:
+  repository: ""  # Set by pipeline (same image as agents, different entrypoint)
+  tag: ""  # Set by CI (scripts/ci-helm-deploy.sh uses first 8 chars of commit SHA)
+  pullPolicy: IfNotPresent
+
+controller:
+  # Reconcile interval — how often to recheck even without CRD events
+  reconcileInterval: 30s
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  logLevel: INFO
+  # Dry run: compute ImpactMap but don't write it
+  dryRun: false
+  # Namespace to watch for topology CRDs (empty = all namespaces)
+  watchNamespace: "anra-system"
+  # Health port — always exposed (independent of metrics toggle)
+  healthPort: 8080
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 128Mi
+    cpu: 200m
+
+serviceAccount:
+  create: true
+  name: ano-topology-sa
+  annotations: {}
+
+nodeSelector:
+  node.kubernetes.io/instance-type: t3.medium
+
+tolerations: []
+affinity: {}
+
+# Prometheus metrics
+metrics:
+  enabled: true
+  port: 8081

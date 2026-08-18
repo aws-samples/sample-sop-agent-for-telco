@@ -1,0 +1,87 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-reader
+  labels:
+    app.kubernetes.io/name: anra
+    app.kubernetes.io/instance: {{ .Release.Name }}
+rules:
+- apiGroups: [""]
+  resources: [pods, nodes, events, services, endpoints]
+  verbs: [get, list, watch]
+- apiGroups: ["apps"]
+  resources: [deployments, statefulsets, replicasets]
+  verbs: [get, list]
+- apiGroups: ["deployment.anda.aws.io"]
+  resources: [deploymentplans, nfdeployments]
+  verbs: [get, list, watch, create, patch, update]
+- apiGroups: ["provisioning.anpa.aws.io"]
+  resources: [hardwareinventories, provisioningrequests]
+  verbs: [get, list, watch]
+
+- apiGroups: ["argoproj.io"]
+  resources: [applications]
+  verbs: [get, list, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-reader
+  labels:
+    app.kubernetes.io/name: anra
+    app.kubernetes.io/instance: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-reader
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+{{- if .Values.selfUpdate.enabled }}
+---
+# Self-update RBAC — scoped to own namespace only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-self-update
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: anra
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: self-update
+rules:
+# Patch own deployment (set image, annotate)
+- apiGroups: ["apps"]
+  resources: [deployments]
+  resourceNames: [{{ include "anra.fullname" . | quote }}]
+  verbs: [get, patch, update]
+# Watch rollout status
+- apiGroups: ["apps"]
+  resources: [deployments/status]
+  verbs: [get, watch]
+# Read own pods for health verification
+- apiGroups: [""]
+  resources: [pods]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-self-update
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: anra
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: self-update
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-self-update
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.serviceAccount.name }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

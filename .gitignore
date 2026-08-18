@@ -1,11 +1,20 @@
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
+# Peru artifact directories
+/build
+/private
+/.hatch
+
+# Local-only working notes
+TEST_LOG.md
+
+# Python
 *.egg-info/
-dist/
-build/
-node_modules/
-.env
-*.log
-.DS_Store
+__pycache__/
+.coverage
+.ruff_cache
+.pytest_cache
+.mypy_cache
+.venv
+/htmlcov
+
+# Frontend
+webui/frontend/node_modules/

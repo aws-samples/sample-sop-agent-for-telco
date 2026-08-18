@@ -1,126 +1,136 @@
-# Telegraf Deployments — RAN, Core, HW collectors
-# Requires: ConfigMaps with telegraf configs + collector scripts
-# Requires: Secret 'anra-secrets' with key 'influxdb-token'
+# Telegraf deployments (RAN / Core / HW collectors).
+#
+# IMPORTANT — credential contract:
+#   - INFLUX_TOKEN is sourced from a Secret named `telegraf-influx` (key: token).
+#   - BMC_USER / BMC_PASS (telegraf-hw only) are sourced from a Secret named
+#     `telegraf-hw-bmc` (keys: username, password).
+#
+# These Secrets are NOT created by anything currently in this package;
+# operators must create them out-of-band (kubectl apply, External Secrets
+# Operator, AWS Secrets Manager + CSI driver, or whatever fits the cluster's
+# secret-management story) before applying this manifest. A helm chart that
+# templates them from chart values is planned as a follow-up port from
+# upstream telco-ops; until that lands, `kubectl apply -f deployments.yaml`
+# will fail with `secret "..." not found` if the Secrets are absent.
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: telegraf-ran
   labels:
-    app.kubernetes.io/component: telegraf-ran
+    app: telegraf-ran
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: telegraf-ran
+      app: telegraf-ran
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: telegraf-ran
+        app: telegraf-ran
     spec:
       containers:
-        - name: telegraf
-          image: telegraf:1.35
-          env:
-            - name: WS_URL
-              value: "GNB_HOST_IP:55555"
-            - name: INFLUX_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: anra-secrets
-                  key: influxdb-token
-          volumeMounts:
-            - name: config
-              mountPath: /etc/telegraf
-            - name: scripts
-              mountPath: /etc/srs
-      volumes:
+      - name: telegraf
+        image: telegraf:1.31
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: telegraf-influx
+              key: token
+        volumeMounts:
         - name: config
-          configMap:
-            name: telegraf-ran-config
-            items: [{ key: telegraf-ran.conf, path: telegraf.conf }]
-        - name: scripts
-          configMap:
-            name: telegraf-ran-config
-            items: [{ key: ws_adapter.py, path: ws_adapter.py }]
+          mountPath: /etc/telegraf/telegraf.conf
+          subPath: telegraf-ran.conf
+        - name: config
+          mountPath: /etc/telegraf/ws_adapter.py
+          subPath: ws_adapter.py
+      volumes:
+      - name: config
+        configMap:
+          name: telegraf-ran-config
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: telegraf-core
   labels:
-    app.kubernetes.io/component: telegraf-core
+    app: telegraf-core
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: telegraf-core
+      app: telegraf-core
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: telegraf-core
+        app: telegraf-core
     spec:
-      serviceAccountName: anra-sa
       containers:
-        - name: telegraf
-          image: telegraf:1.35
-          env:
-            - name: INFLUX_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: anra-secrets
-                  key: influxdb-token
-          volumeMounts:
-            - name: config
-              mountPath: /etc/telegraf
-            - name: scripts
-              mountPath: /etc/srs
-      volumes:
+      - name: telegraf
+        image: telegraf:1.31
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: telegraf-influx
+              key: token
+        - name: OPEN5GS_METRICS_URL
+          value: "http://open5gs-metrics.open5gs.svc:9090/metrics"
+        volumeMounts:
         - name: config
-          configMap:
-            name: telegraf-core-config
-            items: [{ key: telegraf-core.conf, path: telegraf.conf }]
-        - name: scripts
-          configMap:
-            name: telegraf-core-config
-            items: [{ key: core_collector.py, path: core_collector.py }]
+          mountPath: /etc/telegraf/telegraf.conf
+          subPath: telegraf-core.conf
+        - name: config
+          mountPath: /etc/telegraf/core_collector.py
+          subPath: core_collector.py
+      volumes:
+      - name: config
+        configMap:
+          name: telegraf-core-config
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: telegraf-hw
   labels:
-    app.kubernetes.io/component: telegraf-hw
+    app: telegraf-hw
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: telegraf-hw
+      app: telegraf-hw
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: telegraf-hw
+        app: telegraf-hw
     spec:
       containers:
-        - name: telegraf
-          image: telegraf:1.35
-          env:
-            - name: INFLUX_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: anra-secrets
-                  key: influxdb-token
-            - name: BMC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: anra-secrets
-                  key: bmc-password
-                  optional: true
-          volumeMounts:
-            - name: config
-              mountPath: /etc/telegraf
-      volumes:
+      - name: telegraf
+        image: telegraf:1.31
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: telegraf-influx
+              key: token
+        - name: BMC_ADDRESS
+          value: "https://GNB_HOST_IP"
+        - name: BMC_USER
+          valueFrom:
+            secretKeyRef:
+              name: telegraf-hw-bmc
+              key: username
+        - name: BMC_PASS
+          valueFrom:
+            secretKeyRef:
+              name: telegraf-hw-bmc
+              key: password
+        volumeMounts:
         - name: config
-          configMap:
-            name: telegraf-hw-config
-            items: [{ key: telegraf-hw.conf, path: telegraf.conf }]
+          mountPath: /etc/telegraf/telegraf.conf
+          subPath: telegraf-hw.conf
+      volumes:
+      - name: config
+        configMap:
+          name: telegraf-hw-config

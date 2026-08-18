@@ -1,0 +1,18 @@
+apiVersion: v2
+name: anpa
+description: Autonomous Network Provisioning Agent — Day 0 bare-metal & EKS Hybrid cluster lifecycle
+version: 0.2.0
+appVersion: "0.2.0"
+keywords:
+  - 5g
+  - provisioning
+  - bare-metal
+  - eks-hybrid
+  - tinkerbell
+home: https://github.com/aws-samples/eks-hybrid-telco-ops
+maintainers:
+  - name: AWS Telco Solutions
+dependencies:
+  - name: anra-common
+    version: "0.2.0"
+    repository: "file://../anra-common"

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: anra-common
+description: Shared CRDs and contracts for the ANRA autonomous network operations platform
+version: 0.2.0
+appVersion: "0.2.0"
+type: application
+keywords:
+  - 5g
+  - eks-hybrid
+  - telco
+  - crds
+  - contracts
+home: https://github.com/aws-samples/eks-hybrid-telco-ops
+maintainers:
+  - name: AWS Telco Solutions

@@ -1,14 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for sop_executor.py — tools, parsing, command execution."""
-
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from sop_executor import (
+from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
     ARGOCD_TOOLS,
     BASE_TOOLS,
-    MODELS,
+    _MODEL_TIER_MAP,
     CmdResult,
     get_tools_for_sop,
     parse_sop,
@@ -16,7 +15,6 @@ from sop_executor import (
 )
 
 # ── CmdResult ──
-
 
 class TestCmdResult:
     def test_success_property(self):
@@ -42,36 +40,34 @@ class TestCmdResult:
 
 # ── run_cmd ──
 
-
 class TestRunCmd:
-    @patch("sop_executor.subprocess.run")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.subprocess.run")
     def test_success(self, mock_run):
         mock_run.return_value = MagicMock(stdout="ok", stderr="", returncode=0)
         result = run_cmd("echo hello")
         assert result.success
         assert result.stdout == "ok"
 
-    @patch("sop_executor.subprocess.run")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.subprocess.run")
     def test_failure(self, mock_run):
         mock_run.return_value = MagicMock(stdout="", stderr="bad", returncode=1)
         result = run_cmd("false")
         assert not result.success
         assert result.returncode == 1
 
-    @patch("sop_executor.subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5))
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5))
     def test_timeout(self, mock_run):
         result = run_cmd("sleep 999", timeout=1)
         assert result.returncode == -1
         assert "timed out" in result.stderr.lower()
 
-    @patch("sop_executor.subprocess.run", side_effect=OSError("no such file"))
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.subprocess.run", side_effect=OSError("no such file"))
     def test_exception(self, mock_run):
         result = run_cmd("nonexistent")
         assert result.returncode == -1
 
 
 # ── parse_sop ──
-
 
 class TestParseSop:
     SAMPLE_SOP = """# Test SOP
@@ -127,7 +123,6 @@ kubectl exec -n aws-app $POD -- echo test
 
 # ── get_tools_for_sop ──
 
-
 class TestGetToolsForSop:
     def test_argocd_sop_gets_argocd_tools(self):
         tools = get_tools_for_sop("sops/07-argocd-monitoring.md")
@@ -144,7 +139,6 @@ class TestGetToolsForSop:
 
 # ── Tool function contracts ──
 
-
 class TestToolContracts:
     """Verify tools are callable and have proper signatures."""
 
@@ -158,44 +152,75 @@ class TestToolContracts:
     def test_argocd_tools_count(self):
         assert len(ARGOCD_TOOLS) == 2
 
-    def test_models_dict(self):
-        assert "haiku" in MODELS
-        assert "sonnet" in MODELS
-        assert "opus" in MODELS
+    def test_model_tier_map(self):
+        assert "haiku" in _MODEL_TIER_MAP
+        assert "sonnet" in _MODEL_TIER_MAP
+        assert "opus" in _MODEL_TIER_MAP
+
+
+# ── Modularity guardrail (S2.2) ──
+
+class TestSingleSourceOfTruth:
+    """Guardrail: sop_executor must REUSE core.executor's primitives, not re-fork them.
+
+    These assert object identity (`is`), so if anyone re-defines run_cmd / kubectl /
+    BASE_TOOLS inside sop_executor again, this fails loudly. Keeps the executor a
+    single source of truth (the whole point of S2.2).
+    """
+
+    def test_primitives_are_core_objects(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+
+        assert se.run_cmd is core.run_cmd
+        assert se.kubectl is core.kubectl
+        assert se.ssm_command is core.ssm_command
+        assert se.redfish_query is core.redfish_query
+
+    def test_tool_lists_are_core_objects(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+
+        assert se.BASE_TOOLS is core.BASE_TOOLS
+        assert se.get_tools_for_sop is core.get_tools_for_sop
+
+    def test_argocd_selection_returns_core_tool_set(self):
+        # Ties "symbols are shared" to "selection logic returns the core tools" —
+        # asserts the exact set, not just len > base.
+        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+
+        assert se.get_tools_for_sop("sops/07-argocd-monitoring.md") == core.BASE_TOOLS + core.ARGOCD_TOOLS
 
 
 # ── Tool input safety ──
 
-
 class TestToolInputSafety:
     """Verify tools handle edge cases."""
 
-    @patch("sop_executor.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_kubectl_passes_args(self, mock_run):
-        from sop_executor import kubectl
-
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import kubectl
         mock_run.return_value = CmdResult("ok", "", 0)
         kubectl("get pods -n aws-app")
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
         assert "kubectl get pods -n aws-app" in call_args
 
-    @patch("sop_executor.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_ssh_command_constructs_properly(self, mock_run):
-        from sop_executor import ssh_command
-
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import ssh_command
         mock_run.return_value = CmdResult("ok", "", 0)
         ssh_command("10.10.4.238", "ls /tmp", user="nec")
         call_args = mock_run.call_args[0][0]
         assert "nec@10.10.4.238" in call_args
         assert "ls /tmp" in call_args
 
-    @patch("sop_executor.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_telcocli_includes_profile(self, mock_run):
-        from sop_executor import telcocli
-
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import telcocli
         mock_run.return_value = CmdResult("ok", "", 0)
         telcocli("list-outposts")
         call_args = mock_run.call_args[0][0]
-        assert "--profile default" in call_args
-        assert "--region $AWS_DEFAULT_REGION" in call_args
+        assert "--profile nec" in call_args
+        assert "--region us-east-1" in call_args

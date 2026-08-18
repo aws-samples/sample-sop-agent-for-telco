@@ -1,0 +1,131 @@
+# ANPA -- Autonomous Network Provisioning Agent
+replicaCount: 1
+
+# Agent role (injected as AGENT_ROLE env var)
+agentRole: anpa
+
+image:
+  repository: ""  # Set during deploy: ECR URI for ano-platform image
+  tag: ""  # Set by CI (scripts/ci-helm-deploy.sh uses first 8 chars of commit SHA)
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: anpa-sa
+  # REQUIRED for Bedrock + SSM: set to IAM role with:
+  #   - bedrock:InvokeModel, bedrock:ListInferenceProfiles
+  #   - ssm:SendCommand, ssm:GetCommandInvocation (for hardware validation)
+  # Use generate-site-config.py with aws.bedrockRoleArn in site descriptor to auto-populate.
+  annotations: {}
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/YOUR-ROLE
+
+rbac:
+  create: true
+
+# ANPA runs on VPC nodes by default — reaches BMC subnet via S2S VPN or Direct Connect.
+# This allows Day 0 bootstrap (ANPA provisions the hybrid nodes that don't exist yet).
+# For direct BMC LAN access (post-bootstrap), override:
+#   --set "affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]=hybrid"
+#   --set "affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator=In"
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: eks.amazonaws.com/compute-type
+              operator: DoesNotExist
+nodeSelector: {}
+tolerations: []
+
+# AWS configuration
+aws:
+  region: us-west-2
+  # SSM Hybrid Activations
+  ssm:
+    enabled: true
+  # EKS cluster creation
+  eks:
+    kubernetesVersion: "1.31"
+    clusterName: ""  # EKS cluster name (populated at deploy time)
+    nodeRegistrationMethod: hybrid
+
+bedrock:
+  region: us-west-2
+  modelTier: smart  # fast (haiku) | smart (sonnet)
+  modelOverride: ""
+
+# Tinkerbell integration for bare-metal provisioning
+tinkerbell:
+  enabled: true
+  namespace: tink-system
+  serverUrl: ""
+
+# Hardware discovery
+inventorySync:
+  enabled: true
+  schedule: "*/30 * * * *"  # Every 30 minutes
+  redfishEndpoints: []
+  # How often (seconds) the reconciler scans for new BMC endpoints
+  redfishScanInterval: 1800
+# Provisioning behavior
+provisioning:
+  workflowTimeout: 1800  # seconds (30 min) before a stuck Tinkerbell workflow is failed
+
+
+# OS image configuration
+osImages:
+  repository: ""  # S3 or HTTP image server
+  defaultImage: ubuntu-2204-eks-hybrid
+  profiles:
+    ran-worker:
+      image: ubuntu-2204-eks-hybrid-rt
+      kernel: linux-image-rt
+      hugepages: "1Gi"
+      isolatedCpus: "4-15"
+    core-worker:
+      image: ubuntu-2204-eks-hybrid
+    control-plane:
+      image: ubuntu-2204-eks-hybrid
+
+# BMC credentials — used by Redfish discovery, hardware health checks, and Rufio power actions.
+#
+# Two ways to supply credentials:
+#   1) Inline (NOT for production): set bmc.username/bmc.password below.
+#      A Secret named '<release>-anpa-secrets' is generated.
+#   2) Reference an existing Secret (recommended): set bmc.existingSecret.
+#      The Secret must have keys: bmc-username, bmc-password, ssh-public-key.
+#
+# Create the Secret out-of-band (do NOT commit credentials):
+#   kubectl create secret generic bmc-creds -n anpa-system \
+#     --from-literal=bmc-username=root \
+#     --from-literal=bmc-password='<your-idrac-password>' \
+#     --from-literal=ssh-public-key='ssh-ed25519 ...'
+# Then set: bmc.existingSecret: bmc-creds
+bmc:
+  # Default: false (safe for CI/CD). Enable per-site with --set bmc.enabled=true
+  # or in a site-specific values file (e.g. site-002-values.yaml).
+  enabled: false
+  username: ""        # used only if existingSecret is empty
+  password: ""        # used only if existingSecret is empty (NEVER commit)
+  sshPublicKey: ""
+  existingSecret: ""  # if set, ANPA reads creds from this Secret instead
+
+# (Deprecated alias for backward compatibility — prefer 'bmc:' above.)
+secrets:
+  bmcUsername: ""
+  bmcPassword: ""
+  sshPublicKey: ""
+
+# Webhook for validating Site CRs
+webhook:
+  enabled: true
+  port: 9443
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

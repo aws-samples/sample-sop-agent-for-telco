@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anda.fullname" . }}
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "anda.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anda.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-config.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: anda
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: AGENT_CONFIG
+              value: /app/config/agent-config.yaml
+            - name: AGENT_ROLE
+              value: {{ .Values.agentRole | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: BEDROCK_REGION
+              value: {{ .Values.bedrock.region | quote }}
+            - name: BEDROCK_MODEL_TIER
+              value: {{ .Values.bedrock.modelTier | default "smart" | quote }}
+            - name: ARGOCD_ENABLED
+              value: {{ .Values.argocd.enabled | quote }}
+            - name: ARGOCD_NAMESPACE
+              value: {{ .Values.argocd.namespace | quote }}
+            - name: ARGOCD_SERVER_URL
+              value: {{ .Values.argocd.serverUrl | quote }}
+            - name: GITOPS_REPO_URL
+              value: {{ .Values.gitops.repoUrl | quote }}
+            - name: GITOPS_BRANCH
+              value: {{ .Values.gitops.branch | quote }}
+            - name: GITOPS_BASE_PATH
+              value: {{ .Values.gitops.basePath | quote }}
+            {{- if .Values.secrets.gitToken }}
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anda.secretName" . }}
+                  key: git-token
+            {{- end }}
+            - name: HOME
+              value: /tmp
+            - name: HELM_CACHE_HOME
+              value: /tmp/helm-cache
+            - name: HELM_DATA_HOME
+              value: /tmp/helm-data
+            - name: HELM_CONFIG_HOME
+              value: /tmp/helm-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            - name: nf-catalog
+              mountPath: /etc/anda/catalog
+              readOnly: true
+            - name: validation-rules
+              mountPath: /etc/anda/validation
+              readOnly: true
+            - name: upgrade-strategy
+              mountPath: /etc/anda/upgrade
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "anda.fullname" . }}-config
+        - name: nf-catalog
+          configMap:
+            name: {{ include "anda.fullname" . }}-nf-catalog
+        - name: validation-rules
+          configMap:
+            name: {{ include "anda.fullname" . }}-validation-rules
+        - name: upgrade-strategy
+          configMap:
+            name: {{ include "anda.fullname" . }}-upgrade-strategy
+        - name: tmp
+          emptyDir: {}

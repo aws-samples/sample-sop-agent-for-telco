@@ -1,0 +1,127 @@
+# ANDA -- Autonomous Network Deployment Agent
+replicaCount: 1
+
+# Agent role (injected as AGENT_ROLE env var)
+agentRole: anda
+
+image:
+  repository: ""  # Set during deploy: ECR URI for ano-platform image
+  tag: ""  # Set by CI (scripts/ci-helm-deploy.sh uses first 8 chars of commit SHA)
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: anda-sa
+  # REQUIRED for Bedrock: set to IAM role with bedrock:InvokeModel, bedrock:ListInferenceProfiles
+  # Use generate-site-config.py with aws.bedrockRoleArn in site descriptor to auto-populate.
+  annotations: {}
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/YOUR-ROLE
+
+rbac:
+  create: true
+
+# Target: management cluster
+nodeSelector: {}
+
+# Schedule on VPC (region) workers — ANDA manages deployments from cloud.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: eks.amazonaws.com/compute-type
+              operator: DoesNotExist
+
+# AWS configuration
+aws:
+  region: us-west-2
+
+bedrock:
+  region: us-west-2
+  modelTier: smart  # fast (haiku) | smart (sonnet)
+  modelOverride: ""
+
+# ArgoCD integration
+argocd:
+  enabled: true
+  namespace: argocd
+  serverUrl: ""
+  # Auth: token from secret or service account
+  auth:
+    type: serviceAccount  # serviceAccount | token
+    tokenSecret: ""
+
+# GitOps repository
+gitops:
+  repoUrl: ""
+  branch: main
+  basePath: gitops/overlays
+
+# Network Function catalog
+nfCatalog:
+  # Supported NFs with their default chart references
+  srsran:
+    enabled: true
+    chart: oci://public.ecr.aws/eks-hybrid-telco/helm/srsran
+    version: "24.10"
+    namespace: ran
+  open5gs:
+    enabled: true
+    chart: oci://public.ecr.aws/eks-hybrid-telco/helm/open5gs
+    version: "2.7"
+    namespace: core
+  upf:
+    enabled: true
+    chart: oci://public.ecr.aws/eks-hybrid-telco/helm/open5gs-upf
+    version: "2.7"
+    namespace: core
+  monitoring:
+    enabled: true
+    chart: oci://public.ecr.aws/eks-hybrid-telco/helm/monitoring-stack
+    version: "1.0"
+    namespace: monitoring
+
+# Pre/post deployment validation
+validation:
+  preflight:
+    enabled: false  # Requires ArgoCD + NF catalog; enable in production
+    # Checks before deploying NFs
+    checks:
+      - nodeReady
+      - namespaceExists
+      - resourceQuota
+      - networkConnectivity
+  postDeploy:
+    enabled: true
+    # Checks after deployment
+    checks:
+      - podRunning
+      - serviceEndpoint
+      - nfRegistration
+
+# Credentials — create Secret out-of-band for production:
+#   kubectl create secret generic anda-credentials -n anda-system \
+#     --from-literal=git-token='<token>'
+# Then set: credentials.existingSecret: anda-credentials
+credentials:
+  existingSecret: ""  # if set, uses this Secret instead of generating one
+
+# Inline secrets (dev only — use existingSecret for production)
+secrets:
+  gitToken: ""
+  registryCredentials: ""
+
+# Network policy — restrict ANDA to ArgoCD + K8s API only
+networkPolicy:
+  enabled: true
+  # egressCIDR: agents need Bedrock/ECR/SSM which are regional endpoints without fixed IP prefixes
+  egressCIDR: "0.0.0.0/0"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

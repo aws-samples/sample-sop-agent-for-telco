@@ -1,0 +1,57 @@
+# ANRA Alertmanager Rules — deploy via kube-prometheus-stack or standalone Alertmanager
+# These rules fire alerts that ANRA receives via /api/alertmanager webhook.
+groups:
+  - name: anra-ran
+    rules:
+      - alert: DUCPUOverload
+        expr: du_cpu_usage_percent > 70
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DU CPU usage above 70%"
+          description: "CPU contention on DU may cause late HARQ and throughput degradation"
+      - alert: DULatencyHigh
+        expr: du_mac_latency_us > 500
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DU MAC scheduling latency above 500us"
+          description: "High MAC latency indicates CPU or timing issues on the DU"
+  - name: anra-core
+    rules:
+      - alert: AMFGNBDisconnected
+        expr: amf_gnb_connected == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "AMF has no connected gNBs"
+          description: "gNB disconnected from AMF — all UEs on cell lose service"
+      - alert: UPFPFCPDown
+        expr: upf_pfcp_active == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "UPF PFCP association lost"
+          description: "SMF-UPF PFCP session down — no new PDU sessions possible"
+  - name: anra-os
+    rules:
+      - alert: HighMemoryPressure
+        expr: node_pressure_memory_stalled_seconds_total > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node memory pressure detected"
+          description: "Memory stall time exceeds threshold — workloads may be OOM killed"
+      - alert: HighSwapUsage
+        expr: node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes < 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node swap usage above 80%"
+          description: "High swap usage degrades real-time workload performance"

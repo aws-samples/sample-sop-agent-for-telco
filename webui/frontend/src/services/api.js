@@ -6,6 +6,8 @@ const API = axios.create({ baseURL: '/api', timeout: 60000 })
 export const getAlarms = () => API.get('/alarms').then(r => r.data)
 export const getNodes = () => API.get('/nodes').then(r => r.data)
 export const getTopology = () => API.get('/topology').then(r => r.data)
+export const getTopologyImpact = () => API.get('/topology/impact').then(r => r.data)
+export const getIncidents = () => API.get('/anra/incidents').then(r => r.data)
 export const getSops = () => API.get('/sops').then(r => r.data)
 export const getSop = (path) => API.get(`/sops/${path}`).then(r => r.data)
 export const getExecutions = () => API.get('/executions').then(r => r.data)
@@ -14,6 +16,26 @@ export const postApprove = (name, action) => API.post('/approve', { alarm_name: 
 export const postChat = (msg) => API.post('/chat', { message: msg }).then(r => r.data)
 export const getMetrics = (params) => API.get('/metrics', { params }).then(r => r.data)
 export const getHealth = () => axios.get('/health').then(r => r.data)
+export const getMonitoringStats = () => API.get('/monitoring-stats').then(r => r.data)
+export const getTimeline = () => API.get('/timeline').then(r => r.data)
+
+// ── Agent / ANO endpoints ──
+export const getAgentsStatus = () => API.get('/agents/status').then(r => r.data)
+export const getAgentsReasoning = () => API.get('/agents/reasoning').then(r => r.data)
+
+// ── ANRA (Day 2) endpoints ──
+export const getAnraIncidentCurrent = () => API.get('/anra/incident/current').then(r => r.data)
+export const getAnraTrackRecord = () => API.get('/anra/track-record').then(r => r.data)
+export const getAnraIncident = (id) => API.get(`/anra/incidents/${id}`).then(r => r.data)
+
+// ── ANDA (Day 1) endpoints ──
+export const getAndaActiveDeployment = () => API.get('/anda/active-deployment').then(r => r.data)
+export const getAndaFleetOpinions = () => API.get('/anda/fleet-opinions').then(r => r.data)
+
+// ── ANPA (Day 0) endpoints ──
+export const getInventory = () => API.get('/inventory').then(r => r.data)
+export const getInventoryHealth = () => API.get('/inventory/health').then(r => r.data)
+export const getProvisioningRequests = () => API.get('/provisioning/requests').then(r => r.data)
 
 // ── Synthetic data for demo pages ──
 // These return mock data matching Sigit's API response format
@@ -68,11 +90,8 @@ export const getEdgeEvents = () => getAlarms()
 
 // Agent API (for PageAgent component)
 export const agentAPI = {
+  chat: (agentId, msg, context) => API.post("/chat", { message: msg, agent_id: agentId, context }).then(r => r.data),
   listAgents: () => Promise.resolve([{ id: 'anra', name: 'ANRA Advisor' }]),
-  chat: async (_agentId, message) => {
-    const r = await postChat(message)
-    return { response: r.response }
-  },
   executeTool: () => Promise.resolve({}),
   recommendAgent: () => Promise.resolve({ agent: 'anra' }),
 }

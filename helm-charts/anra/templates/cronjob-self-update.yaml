@@ -1,0 +1,191 @@
+{{- if .Values.selfUpdate.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anra.fullname" . }}-self-update
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-update
+spec:
+  schedule: {{ .Values.selfUpdate.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            {{- include "anra.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: self-update
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            fsGroup: 10001
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: update-checker
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              securityContext:
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  REPO="{{ .Values.selfUpdate.registry.repository | default .Values.image.repository }}"
+                  DEPLOYMENT="{{ include "anra.fullname" . }}"
+                  NAMESPACE="{{ .Release.Namespace }}"
+                  CURRENT_TAG="{{ .Values.image.tag }}"
+                  HEALTH_ENDPOINT="http://{{ include "anra.fullname" . }}.${NAMESPACE}.svc.cluster.local:{{ .Values.webui.port }}/health"
+                  READINESS_TIMEOUT="{{ .Values.selfUpdate.safety.readinessTimeout }}"
+
+                  echo "$(date -u +%FT%TZ) [self-update] Starting update check"
+                  echo "  Repository: ${REPO}"
+                  echo "  Current tag: ${CURRENT_TAG}"
+
+                  # --- Step 1: Check maintenance window ---
+                  {{- if .Values.selfUpdate.maintenanceWindow.enabled }}
+                  HOUR=$(date -u +%H)
+                  DOW=$(date -u +%u)
+                  echo "  Current UTC hour: ${HOUR}, day-of-week: ${DOW}"
+                  # Simple window check — production would use full cron parsing
+                  if [ "${HOUR}" -lt 2 ] || [ "${HOUR}" -ge 6 ]; then
+                    echo "  Outside maintenance window (02:00-06:00 UTC). Skipping."
+                    exit 0
+                  fi
+                  {{- end }}
+
+                  # --- Step 2: Query ECR for latest tag ---
+                  echo "  Querying ECR for latest image tags..."
+                  # Parse ECR coordinates from repository URI.
+                  # Supports: ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPO_NAME
+                  # For non-ECR registries (public.ecr.aws, custom), set
+                  # selfUpdate.registry.{account,region,repoName} explicitly.
+                  ACCOUNT="{{ .Values.selfUpdate.registry.account | default "" }}"
+                  REGION="{{ .Values.selfUpdate.registry.region | default .Values.ssm.region }}"
+                  REPO_NAME="{{ .Values.selfUpdate.registry.repoName | default "" }}"
+                  if [ -z "${ACCOUNT}" ]; then
+                    ACCOUNT=$(echo "${REPO}" | cut -d'.' -f1)
+                  fi
+                  if [ -z "${REPO_NAME}" ]; then
+                    REPO_NAME=$(echo "${REPO}" | cut -d'/' -f2-)
+                  fi
+
+                  # Get ECR auth token and list tags
+                  LATEST_TAG=$(aws ecr describe-images \
+                    --repository-name "${REPO_NAME}" \
+                    --region "${REGION}" \
+                    --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' \
+                    --output text 2>/dev/null || echo "UNREACHABLE")
+
+                  if [ "${LATEST_TAG}" = "UNREACHABLE" ] || [ -z "${LATEST_TAG}" ]; then
+                    echo "  ECR unreachable — operating in disconnected mode"
+                    {{- if .Values.selfUpdate.disconnected.continueOnFailure }}
+                    echo "  continueOnFailure=true, exiting gracefully"
+                    exit 0
+                    {{- else }}
+                    exit 1
+                    {{- end }}
+                  fi
+
+                  echo "  Latest available tag: ${LATEST_TAG}"
+
+                  # --- Step 3: Compare versions ---
+                  if [ "${LATEST_TAG}" = "${CURRENT_TAG}" ]; then
+                    echo "  Already running latest version. No update needed."
+                    exit 0
+                  fi
+
+                  echo "  New version available: ${CURRENT_TAG} → ${LATEST_TAG}"
+
+                  # --- Step 4: Pre-update health check ---
+                  {{- if .Values.selfUpdate.safety.preUpdateHealthCheck }}
+                  echo "  Running pre-update health check..."
+                  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${HEALTH_ENDPOINT}" || echo "000")
+                  if [ "${HTTP_CODE}" != "200" ]; then
+                    echo "  WARN: Current instance unhealthy (HTTP ${HTTP_CODE}). Proceeding with update anyway."
+                  else
+                    echo "  Current instance healthy."
+                  fi
+                  {{- end }}
+
+                  # --- Step 5: Record current tag for rollback ---
+                  echo "  Saving rollback tag: ${CURRENT_TAG}"
+                  kubectl annotate deployment "${DEPLOYMENT}" -n "${NAMESPACE}" \
+                    anra.aws.io/previous-tag="${CURRENT_TAG}" \
+                    anra.aws.io/update-timestamp="$(date -u +%FT%TZ)" \
+                    --overwrite
+
+                  # --- Step 6: Patch deployment with new image ---
+                  # NOTE: kubectl set image intentionally drifts from Helm state.
+                  # This is the self-update pattern: the CronJob patches between
+                  # Helm releases. Next `helm upgrade` will reconcile to the charts
+                  # image.tag value. The annotation (step 5) records what was applied
+                  # so operators can audit drift. To avoid this pattern entirely,
+                  # set selfUpdate.enabled=false and use pipeline-driven upgrades.
+                  echo "  Patching deployment to ${REPO}:${LATEST_TAG}..."
+                  kubectl set image deployment/"${DEPLOYMENT}" \
+                    -n "${NAMESPACE}" \
+                    anra="${REPO}:${LATEST_TAG}"
+
+                  # --- Step 7: Wait for rollout ---
+                  echo "  Waiting for rollout (timeout: ${READINESS_TIMEOUT}s)..."
+                  if kubectl rollout status deployment/"${DEPLOYMENT}" \
+                    -n "${NAMESPACE}" \
+                    --timeout="${READINESS_TIMEOUT}s"; then
+                    echo "  ✅ Update successful: now running ${LATEST_TAG}"
+                    kubectl annotate deployment "${DEPLOYMENT}" -n "${NAMESPACE}" \
+                      anra.aws.io/last-successful-update="$(date -u +%FT%TZ)" \
+                      --overwrite
+                  else
+                    echo "  ❌ Rollout failed!"
+                    {{- if .Values.selfUpdate.safety.autoRollback }}
+                    echo "  Auto-rollback enabled — reverting to ${CURRENT_TAG}..."
+                    kubectl set image deployment/"${DEPLOYMENT}" \
+                      -n "${NAMESPACE}" \
+                      anra="${REPO}:${CURRENT_TAG}"
+                    kubectl rollout status deployment/"${DEPLOYMENT}" \
+                      -n "${NAMESPACE}" \
+                      --timeout="${READINESS_TIMEOUT}s" || true
+                    echo "  Rollback complete."
+                    {{- end }}
+                    exit 1
+                  fi
+              env:
+                - name: AWS_REGION
+                  value: {{ .Values.ssm.region | quote }}
+              volumeMounts:
+                - name: update-policy
+                  mountPath: /etc/anra/update-policy
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+          volumes:
+            - name: update-policy
+              configMap:
+                name: {{ include "anra.fullname" . }}-update-policy
+            - name: tmp
+              emptyDir: {}
+{{- end }}

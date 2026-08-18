@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anpa.fullname" . }}
+  labels:
+    {{- include "anpa.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "anpa.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anpa.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-provisioning.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: anpa
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            {{- if .Values.webhook.enabled }}
+            - name: webhook
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: AGENT_CONFIG
+              value: /etc/anpa/agent-config.yaml
+            - name: AGENT_ROLE
+              value: {{ .Values.agentRole | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: BEDROCK_MODEL_TIER
+              value: {{ .Values.bedrock.modelTier | default "smart" | quote }}
+            - name: TINKERBELL_ENABLED
+              value: {{ .Values.tinkerbell.enabled | quote }}
+            - name: TINKERBELL_NAMESPACE
+              value: {{ .Values.tinkerbell.namespace | quote }}
+            - name: EKS_K8S_VERSION
+              value: {{ .Values.aws.eks.kubernetesVersion | quote }}
+            - name: BMC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bmc.existingSecret | default (printf "%s-secrets" (include "anpa.fullname" .)) }}
+                  key: bmc-username
+                  optional: true
+            - name: BMC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bmc.existingSecret | default (printf "%s-secrets" (include "anpa.fullname" .)) }}
+                  key: bmc-password
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/anpa
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "anpa.fullname" . }}-provisioning
+        - name: tmp
+          emptyDir: {}

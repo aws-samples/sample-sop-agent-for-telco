@@ -1,15 +1,36 @@
-import { useState } from 'react'
-import { Layout, Menu, Tooltip, Modal, Form, Input, Button, message, Divider } from 'antd'
+import { useState, useEffect } from 'react'
+import { Layout, Menu, Tooltip, Modal, Form, Input, Button, message, Divider, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { DashboardOutlined, AlertOutlined, RobotOutlined, ApartmentOutlined, SyncOutlined, LogoutOutlined, UserOutlined, LockOutlined, CrownOutlined } from '@ant-design/icons'
+import {
+  DashboardOutlined,
+  AlertOutlined,
+  RobotOutlined,
+  ApartmentOutlined,
+  SyncOutlined,
+  LogoutOutlined,
+  UserOutlined,
+  LockOutlined,
+  CrownOutlined,
+  CheckCircleOutlined,
+  CloudServerOutlined,
+  DeploymentUnitOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons'
+import { getApprovals } from '../services/api'
+import { useDemoMode } from '../context/DemoContext'
 
 const PAGE_TITLES = {
-  '/': 'Dashboard',
-  '/alarms': 'Alarms & remediation',
+  '/': 'Mission Control',
+  '/anpa': 'ANPA — Autonomous Network Provisioning Agent (Day 0)',
+  '/anda': 'ANDA — Autonomous Network Deployment Agent (Day 1)',
+  '/anra': 'ANRA — Autonomous Network Remediation Agent (Day 2)',
+  '/approvals': 'Decisions & Approvals',
+  '/alarms': 'Alarms & Remediation',
   '/sops': 'SOPs',
+  '/incidents': 'Incidents',
   '/topology': 'Topology',
-  '/ask': 'Ask ANRA',
+  '/ask': 'Ask ANO',
 }
 
 const { Header, Sider, Content } = Layout
@@ -18,11 +39,29 @@ const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+  const { isDemoMode, toggleDemo } = useDemoMode()
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, changePassword } = useAuth()
-  const pageTitle = PAGE_TITLES[location.pathname] || 'ANRA'
+
+  const pageTitle = PAGE_TITLES[location.pathname] || 'ANO'
+
+  useEffect(() => {
+    const loadApprovals = () => {
+      getApprovals()
+        .then(data => {
+          const list = data?.approvals || data?.pending || (Array.isArray(data) ? data : [])
+          const pending = Array.isArray(list) ? list.filter(a => a.status === 'pending' || !a.status).length : 0
+          setPendingCount(pending)
+        })
+        .catch(() => {})
+    }
+    loadApprovals()
+    const t = setInterval(loadApprovals, 30000)
+    return () => clearInterval(t)
+  }, [])
 
   const handleChangePassword = async (values) => {
     setChangingPassword(true)
@@ -38,11 +77,29 @@ const DashboardLayout = ({ children }) => {
   }
 
   const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/', icon: <DashboardOutlined />, label: 'Mission Control' },
+    { type: 'divider' },
+    { key: '/anpa', icon: <CloudServerOutlined />, label: 'ANPA (Day 0)' },
+    { key: '/anda', icon: <DeploymentUnitOutlined />, label: 'ANDA (Day 1)' },
+    { key: '/anra', icon: <SafetyCertificateOutlined />, label: 'ANRA (Day 2)' },
+    { type: 'divider' },
+    {
+      key: '/approvals',
+      icon: <CheckCircleOutlined />,
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          Decisions
+          {pendingCount > 0 && (
+            <Badge count={pendingCount} size="small" style={{ marginLeft: 4 }} />
+          )}
+        </span>
+      ),
+    },
     { key: '/alarms', icon: <AlertOutlined />, label: 'Alarms' },
-    { key: '/sops', icon: <SyncOutlined />, label: 'SOPs' },
+    { key: '/incidents', icon: <AlertOutlined />, label: 'Incidents' },
     { key: '/topology', icon: <ApartmentOutlined />, label: 'Topology' },
-    { key: '/ask', icon: <RobotOutlined />, label: 'Ask ANRA' },
+    { key: '/sops', icon: <SyncOutlined />, label: 'SOPs' },
+    { key: '/ask', icon: <RobotOutlined />, label: 'Ask ANO' },
   ]
 
   const handleMenuClick = ({ key }) => {
@@ -75,15 +132,16 @@ const DashboardLayout = ({ children }) => {
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             color: '#FFFFFF',
-            fontSize: collapsed ? 20 : 16,
-            fontWeight: 400,
+            fontSize: collapsed ? 20 : 18,
+            fontWeight: 700,
             padding: collapsed ? '0' : '0 20px',
             background: '#161E2D',
             borderBottom: '1px solid rgba(255,255,255,0.1)',
             fontFamily: '"Amazon Ember", "Helvetica Neue", Helvetica, Arial, sans-serif',
+            letterSpacing: collapsed ? 0 : 2,
           }}
         >
-          {collapsed ? 'C' : 'ANRA'}
+          {collapsed ? 'A' : 'ANO'}
         </div>
         <Menu
           mode="inline"
@@ -282,18 +340,28 @@ const DashboardLayout = ({ children }) => {
                 fontFamily: '"Amazon Ember", "Helvetica Neue", Helvetica, Arial, sans-serif',
               }}
             >
-              Autonomous Network Remediation Agent
+              Autonomous Network Operations
             </span>
           </div>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-            <span style={{ 
-              color: '#545B64', 
+            <Tooltip title={isDemoMode ? 'Demo Mode ON — showing mock data' : 'Switch to Demo Mode'}>
+              <Button
+                size="small"
+                type={isDemoMode ? 'primary' : 'default'}
+                onClick={toggleDemo}
+                style={{ fontSize: 12 }}
+              >
+                {isDemoMode ? '🎬 Demo ON' : '🎬 Demo'}
+              </Button>
+            </Tooltip>
+            <span style={{
+              color: '#545B64',
               fontSize: 14,
               fontFamily: '"Amazon Ember", "Helvetica Neue", Helvetica, Arial, sans-serif',
             }}>
-              {new Date().toLocaleString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
+              {new Date().toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'

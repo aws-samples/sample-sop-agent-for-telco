@@ -1,0 +1,36 @@
+# NF profile: 5G gNodeB (gNB / RAN DU) — generic, ISV-agnostic.
+#
+# RAN DU has different priorities than UPF: PTP, RT kernel, very tight
+# timing, fewer cores per pod but stricter latency.
+
+nf: gnb
+description: |
+  Generic gNodeB / DU readiness profile. RT kernel + PTP + SR-IOV for
+  fronthaul. Hyper-Threading must be OFF for deterministic timing.
+
+bios:
+  required:
+    BootMode: Uefi
+    SriovGlobalEnable: Enabled
+    ProcCStates: Disabled
+    EnergyPerformanceBias: MaxPower
+    LogicalProc: Disabled        # mandatory for DU timing
+  recommended:
+    MemFrequency: MaxPerf
+
+cpu:
+  min_cores: 16
+  min_threads: 16
+  recommended_sockets: 2
+
+memory:
+  min_total_gib: 64
+
+network:
+  min_sriov_capable_nics: 1      # fronthaul NIC
+
+placement:
+  hugepages_capable: true
+  privileged_required: true
+  rt_kernel_required: true
+  ptp_capable_nic_required: true

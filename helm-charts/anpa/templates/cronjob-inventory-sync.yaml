@@ -1,0 +1,65 @@
+{{- /* BREAKING (0.2.0): Requires bmc.enabled=true. Previously the cronjob would
+       be created with inventorySync.enabled alone, but pods would crash because
+       the BMC secret doesn't exist unless bmc.enabled=true. */ -}}
+{{- if and .Values.inventorySync.enabled .Values.bmc.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anpa.fullname" . }}-inventory-sync
+  labels:
+    {{- include "anpa.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.inventorySync.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            {{- include "anpa.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: inventory-sync
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name }}
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            fsGroup: 10001
+          containers:
+            - name: inventory-sync
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["python", "-m", "anpa.inventory_sync"]
+              securityContext:
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              env:
+                - name: AWS_REGION
+                  value: {{ .Values.aws.region | quote }}
+                - name: BMC_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.bmc.existingSecret | default (printf "%s-secrets" (include "anpa.fullname" .)) }}
+                      key: bmc-username
+                - name: BMC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.bmc.existingSecret | default (printf "%s-secrets" (include "anpa.fullname" .)) }}
+                      key: bmc-password
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}

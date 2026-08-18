@@ -1,30 +1,29 @@
-# Build artifacts
-webui/frontend/dist/
-webui/frontend/node_modules/
-webui-agentcore/
-
-# Python
-__pycache__/
-*.pyc
-.pytest_cache/
-
-# Runtime
-nohup.out
-*.log
-
-# Git
 .git/
 .gitignore
+.dockerignore
+Dockerfile
+.hatch/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+private/
 
-# IDE
-.vscode/
-.idea/
-
-# Docs
-docs/
-*.md
-!sops/*.md
-
-# Misc
-AWS2026-*.pptx
-AWS2026-*.pdf
+# Build-context hygiene — Dockerfile uses an explicit COPY allowlist
+# (pyproject.toml, README.md, src/), so these never reach the image regardless.
+# Excluding here just shrinks the context upload.
+tests/
+DEVELOPING.md
+TEST_LOG.md
+brazil.ion
+.crux_dry_run_build

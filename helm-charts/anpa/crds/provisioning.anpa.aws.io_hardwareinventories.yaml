@@ -1,0 +1,103 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: hardwareinventories.provisioning.anpa.aws.io
+  labels:
+    app.kubernetes.io/part-of: ano-platform
+spec:
+  group: provisioning.anpa.aws.io
+  names:
+    kind: HardwareInventory
+    listKind: HardwareInventoryList
+    plural: hardwareinventories
+    singular: hardwareinventory
+    shortNames: [hwi]
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [hostname, bmcAddress]
+              properties:
+                hostname:
+                  type: string
+                bmcAddress:
+                  type: string
+                  description: Redfish/IPMI endpoint (e.g. https://192.168.1.100)
+                systemUUID:
+                  type: string
+                  description: |
+                    SMBIOS System UUID as reported by Redfish (System.UUID).
+                    Equals node.status.nodeInfo.systemUUID once the host joins
+                    the cluster — used as the canonical handoff identifier
+                    between Day 0 (BMC-discovered) and runtime (K8s node).
+                serialNumber:
+                  type: string
+                  description: Hardware serial number / service tag (Redfish SKU).
+                site:
+                  type: string
+                hardwareProfile:
+                  type: string
+                  description: Reference to hardware profile (e.g. dell-r750, hpe-dl380)
+                interfaces:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      mac:
+                        type: string
+                      speed:
+                        type: string
+                cpu:
+                  type: object
+                  properties:
+                    cores:
+                      type: integer
+                    model:
+                      type: string
+                memory:
+                  type: object
+                  properties:
+                    totalGiB:
+                      type: integer
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Discovered, Available, Provisioning, Provisioned, Error, Maintenance]
+                powerState:
+                  type: string
+                  enum: ["On", "Off", "Unknown"]
+                lastDiscovery:
+                  type: string
+                  format: date-time
+                assignedCluster:
+                  type: string
+      additionalPrinterColumns:
+        - name: Site
+          type: string
+          jsonPath: .spec.site
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Serial
+          type: string
+          jsonPath: .spec.serialNumber
+        - name: Power
+          type: string
+          jsonPath: .status.powerState
+        - name: Cluster
+          type: string
+          jsonPath: .status.assignedCluster
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "anda.fullname" . }}-nf-catalog
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+data:
+  catalog.yaml: |
+    nfs:
+      {{- range $name, $nf := .Values.nfCatalog }}
+      {{- if $nf.enabled }}
+      - name: {{ $name }}
+        chart: {{ $nf.chart }}
+        version: {{ $nf.version | quote }}
+        namespace: {{ $nf.namespace }}
+      {{- end }}
+      {{- end }}

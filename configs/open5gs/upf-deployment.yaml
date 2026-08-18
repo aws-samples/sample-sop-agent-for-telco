@@ -1,0 +1,79 @@
+# Open5GS UPF — deployed separately with hostNetwork on edge node
+#
+# Prerequisites:
+#   - ogstun interface on host (created by init container)
+#   - SMF config updated with UPF host IP
+#
+# The UPF runs on an edge node with hostNetwork because:
+#   - PFCP (port 8805) and GTP-U (port 2152) need to be reachable from SMF on EC2
+#   - Cilium pod IPs on edge are not routable from EC2 nodes
+#   - hostNetwork uses the node's OAM IP which IS routable via S2S VPN
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open5gs-upf-config
+data:
+  upf.yaml: |
+    logger:
+      level: info
+    upf:
+      pfcp:
+        server:
+          - address: 0.0.0.0
+      gtpu:
+        server:
+          - address: 0.0.0.0
+      session:
+        - subnet: 10.45.0.0/16
+          dnn: internet
+      metrics:
+        server:
+          - address: 0.0.0.0
+            port: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open5gs-upf
+  labels:
+    app: open5gs-upf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open5gs-upf
+  template:
+    metadata:
+      labels:
+        app: open5gs-upf
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        role: edge
+      initContainers:
+        - name: create-ogstun
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              ip tuntap add name ogstun mode tun 2>/dev/null || true
+              ip addr add 10.45.0.1/16 dev ogstun 2>/dev/null || true
+              ip link set ogstun up
+              echo "ogstun ready"
+          securityContext:
+            privileged: true
+      containers:
+        - name: upf
+          image: gradiant/open5gs:2.7.7
+          command: ["open5gs-upfd"]
+          args: ["-c", "/config/upf.yaml"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: open5gs-upf-config

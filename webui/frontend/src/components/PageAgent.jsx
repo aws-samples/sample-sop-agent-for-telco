@@ -88,7 +88,7 @@ const PageAgent = ({ pageContext, pageName, sampleQuestions = [], nodeContext = 
     if (!message.trim()) return;
 
     const userMessage = { role: 'user', content: message };
-    setChatHistory([...chatHistory, userMessage]);
+    setChatHistory(prev => [...prev, userMessage]);
     setMessage('');
     setLoading(true);
 
@@ -131,7 +131,7 @@ const PageAgent = ({ pageContext, pageName, sampleQuestions = [], nodeContext = 
     
     // Automatically send the question
     const userMessage = { role: 'user', content: question };
-    setChatHistory([...chatHistory, userMessage]);
+    setChatHistory(prev => [...prev, userMessage]);
     setLoading(true);
 
     try {

@@ -1,0 +1,39 @@
+# srsRAN gNB Deployment
+# ConfigMap created separately by: make deploy-ran
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsran-gnb
+  labels:
+    app: srsran-gnb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsran-gnb
+  template:
+    metadata:
+      labels:
+        app: srsran-gnb
+    spec:
+      hostNetwork: true
+      nodeName: mi-026bd2d584e205efb  # e.g., mi-026bd2d584e205efb
+      containers:
+        - name: gnb
+          image: softwareradiosystems/srsran-project:release_avx2-25.10
+          command: ["gnb"]
+          args: ["-c", "/config/gnb-config.yml"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: "4"
+              memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: srsran-gnb-config

@@ -1,0 +1,97 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: nfdeployments.deployment.anda.aws.io
+  labels:
+    app.kubernetes.io/part-of: ano-platform
+spec:
+  group: deployment.anda.aws.io
+  names:
+    kind: NFDeployment
+    listKind: NFDeploymentList
+    plural: nfdeployments
+    singular: nfdeployment
+    shortNames: [nfd]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [name, type, cluster]
+              properties:
+                name:
+                  type: string
+                  description: Network function instance name
+                type:
+                  type: string
+                  enum: [srsran-gnb, srsran-cu, srsran-du, open5gs-amf, open5gs-smf, open5gs-upf, open5gs-nrf, open5gs-ausf, open5gs-udm, open5gs-udr, open5gs-pcf, open5gs-nssf, monitoring]
+                cluster:
+                  type: string
+                  description: Target cluster name
+                namespace:
+                  type: string
+                chart:
+                  type: object
+                  properties:
+                    repository:
+                      type: string
+                    name:
+                      type: string
+                    version:
+                      type: string
+                values:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  description: Helm values override
+                dependencies:
+                  type: array
+                  items:
+                    type: string
+                  description: NF names this deployment depends on
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Deploying, Running, Degraded, Failed, Terminating]
+                argoApp:
+                  type: string
+                  description: ArgoCD Application name
+                syncStatus:
+                  type: string
+                  enum: [Synced, OutOfSync, Unknown]
+                healthStatus:
+                  type: string
+                  enum: [Healthy, Progressing, Degraded, Suspended, Missing, Unknown]
+                version:
+                  type: string
+                lastDeployed:
+                  type: string
+                  format: date-time
+      additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+        - name: Cluster
+          type: string
+          jsonPath: .spec.cluster
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Sync
+          type: string
+          jsonPath: .status.syncStatus
+        - name: Health
+          type: string
+          jsonPath: .status.healthStatus
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

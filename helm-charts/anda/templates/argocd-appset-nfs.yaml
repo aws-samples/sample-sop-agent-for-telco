@@ -1,0 +1,53 @@
+{{- if .Values.argocd.enabled }}
+# ANDA creates this ApplicationSet to deploy NFs across workload clusters.
+# ArgoCD reconciles the NFs; ANDA orchestrates the upgrade sequence.
+# This template is applied once — ANDA manages it via the K8s API afterward.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ include "anda.fullname" . }}-nf-deployments
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "anda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nf-deployment
+  annotations:
+    anda.aws.io/managed-by: anda-controller
+    anda.aws.io/description: "NF deployments managed by ANDA. Do not edit manually."
+spec:
+  generators:
+    # ANDA dynamically creates NFDeployment CRs; this generator watches them.
+    - clusters:
+        selector:
+          matchLabels:
+            anra.aws.io/role: workload
+  template:
+    metadata:
+      name: '{{`{{name}}`}}-nf'
+      labels:
+        app.kubernetes.io/part-of: ano-platform
+        app.kubernetes.io/managed-by: anda
+        anda.aws.io/cluster: '{{`{{name}}`}}'
+    spec:
+      project: ano-platform
+      source:
+        # ANDA patches these fields during upgrade orchestration
+        repoURL: {{ .Values.gitops.repoUrl | quote }}
+        targetRevision: {{ .Values.gitops.branch }}
+        path: '{{ .Values.gitops.basePath }}/{{`{{name}}`}}'
+      destination:
+        server: '{{`{{server}}`}}'
+        namespace: default
+      syncPolicy:
+        # CRITICAL: No automated sync — ANDA controls when sync happens.
+        # ANDA calls `argocd app sync` after completing drain/migrate steps.
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - PrunePropagationPolicy=foreground
+        retry:
+          limit: 2
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
+{{- end }}

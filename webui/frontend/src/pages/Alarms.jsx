@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Tag, Badge, Drawer, Descriptions, Spin, Alert, Row, Col, Statistic } from 'antd'
-import { AlertOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { Card, Table, Tag, Badge, Drawer, Descriptions, Spin, Alert, Row, Col, Statistic, Button } from 'antd'
+import { AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, NodeIndexOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import RemediationPipeline from '../components/RemediationPipeline'
 import ActivityFeed from '../components/ActivityFeed'
@@ -16,6 +17,7 @@ const Alarms = () => {
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState(null)
   const [ready, setReady] = useState(false)
+  const navigate = useNavigate()
 
   const load = () => {
     Promise.all([
@@ -147,10 +149,10 @@ const Alarms = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Demo — Trigger Alarm:</span>
             {[
-              { layer: 'hardware', label: 'Resource Exhaustion', color: '#fa8c16' },
-              { layer: 'infra', label: 'UPF PFCP Loss', color: '#722ed1' },
-              { layer: 'core', label: 'NF CrashLoop', color: '#1890ff' },
-              { layer: 'ran', label: 'AMF-gNB Disconnect', color: '#f5222d' },
+              { layer: 'hardware', label: 'Hardware', color: '#fa8c16' },
+              { layer: 'infra', label: 'Infra', color: '#722ed1' },
+              { layer: 'core', label: 'Core', color: '#1890ff' },
+              { layer: 'ran', label: 'RAN', color: '#f5222d' },
             ].map(({ layer, label, color }) => (
               <button key={layer} onClick={() => axios.post(`/api/alarms/trigger/${layer}`).then(() => load())}
                 style={{ background: color, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -163,7 +165,14 @@ const Alarms = () => {
       </Card>
 
       {/* Alarm Detail Drawer */}
-      <Drawer title={selected?.name} open={!!selected} onClose={() => setSelected(null)} width={480}>
+      <Drawer title={selected?.name} open={!!selected} onClose={() => setSelected(null)} width={480}
+        extra={selected?.source && (
+          <Button type="primary" icon={<NodeIndexOutlined />} size="small"
+            onClick={() => { setSelected(null); navigate(`/topology?highlight=${selected.source}`) }}>
+            View Impact
+          </Button>
+        )}
+      >
         {selected && (
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="Severity"><Tag color={SEV[selected.severity]}>{selected.severity}</Tag></Descriptions.Item>
@@ -172,6 +181,11 @@ const Alarms = () => {
             <Descriptions.Item label="Cause">{selected.probable_cause}</Descriptions.Item>
             {selected.value !== undefined && <Descriptions.Item label="Value">{selected.value} (threshold: {selected.threshold})</Descriptions.Item>}
             {selected.sop && <Descriptions.Item label="SOP">{selected.sop}</Descriptions.Item>}
+            {selected.alarmType && <Descriptions.Item label="Alarm Type (X.733)">{selected.alarmType}</Descriptions.Item>}
+            {selected.probableCauseCode > 0 && <Descriptions.Item label="Probable Cause Code">{selected.probableCauseCode}</Descriptions.Item>}
+            {selected.managedObjectClass && <Descriptions.Item label="Managed Object">{selected.managedObjectClass}</Descriptions.Item>}
+            {selected.perceivedSeverity && <Descriptions.Item label="3GPP Severity">{selected.perceivedSeverity}</Descriptions.Item>}
+            {selected.specificProblem && <Descriptions.Item label="Specific Problem">{selected.specificProblem}</Descriptions.Item>}
             <Descriptions.Item label="Time">{selected.timestamp}</Descriptions.Item>
           </Descriptions>
         )}

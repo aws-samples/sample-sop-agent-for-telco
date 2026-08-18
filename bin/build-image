@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# build-image — Build container image using BrazilContainerBuild (run-podman).
+#
+# Called by `brazil-build release` AFTER tests pass. Produces an OCI archive
+# at build/oci-archive/csetelcoautonomousnetworkagentsapp-1.0.tar that BATS
+# publishes to ECR.
+#
+# Works on both the Brazil build fleet (run-podman) and locally (docker/podman).
+set -euo pipefail
+
+# ── Determine paths ──
+if [[ -n ${BRAZIL_BUILD_HOME+x} ]]; then
+  BRAZIL_CONTEXT_BIN="${BRAZIL_BUILD_HOME}/bin/brazil-context"
+  SRC_ROOT=$("${BRAZIL_CONTEXT_BIN}" package root)
+  WORKSPACE_ROOT=$("${BRAZIL_CONTEXT_BIN}" workspace root)
+else
+  SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  WORKSPACE_ROOT="$(dirname "$(dirname "${SRC_ROOT}")")"
+fi
+
+BUILD_ROOT="${SRC_ROOT}/build"
+IMAGE_NAME="csetelcoautonomousnetworkagentsapp-1.0"
+DOCKERFILE="${SRC_ROOT}/Dockerfile"
+
+mkdir -p "${BUILD_ROOT}/oci-archive"
+
+# ── Pick container runtime ──
+CONTAINER_CMD=""
+if command -v run-podman &>/dev/null && run-podman info &>/dev/null 2>&1; then
+  CONTAINER_CMD="run-podman"
+elif command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+  CONTAINER_CMD="docker"
+elif command -v podman &>/dev/null && podman info &>/dev/null 2>&1; then
+  CONTAINER_CMD="podman"
+else
+  echo "⚠️  No container runtime available — skipping image build"
+  echo "   (This is expected in environments without Docker/Podman)"
+  exit 0
+fi
+echo "▶ Container runtime: ${CONTAINER_CMD}"
+
+# BrazilContainerBuild needs this env var on the build fleet
+export CONTAINER_BUILD_ROOT="${WORKSPACE_ROOT}/containers/build"
+
+# ── Build image ──
+echo "▶ Building container image: ${IMAGE_NAME}"
+if [[ "${CONTAINER_CMD}" == "run-podman" ]]; then
+  ${CONTAINER_CMD} build --isolation=chroot \
+    --timestamp="946684800" \
+    -f "${DOCKERFILE}" \
+    -t "${IMAGE_NAME}" \
+    "${SRC_ROOT}"
+else
+  ${CONTAINER_CMD} build \
+    -f "${DOCKERFILE}" \
+    -t "${IMAGE_NAME}" \
+    "${SRC_ROOT}"
+fi
+
+# ── Export OCI archive ──
+IMAGE_ARCHIVE="${BUILD_ROOT}/oci-archive/${IMAGE_NAME}.tar"
+echo "▶ Exporting image to: ${IMAGE_ARCHIVE}"
+
+if [[ "${CONTAINER_CMD}" == "docker" ]]; then
+  ${CONTAINER_CMD} save -o "${IMAGE_ARCHIVE}" "${IMAGE_NAME}"
+else
+  ${CONTAINER_CMD} save --format "oci-archive" --output "${IMAGE_ARCHIVE}" "${IMAGE_NAME}"
+fi
+
+echo "✅ Image archive: ${IMAGE_ARCHIVE} ($(du -h "${IMAGE_ARCHIVE}" | cut -f1))"
+
+# ── Stage publish_spec.yml for BATS ──
+if [[ -f "${SRC_ROOT}/configuration/Packaging/publish_spec.yml" ]]; then
+  cp "${SRC_ROOT}/configuration/Packaging/publish_spec.yml" "${BUILD_ROOT}/publish_spec.yml"
+  echo "✅ BATS publish_spec.yml staged"
+fi

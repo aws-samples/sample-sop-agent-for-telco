@@ -1,0 +1,29 @@
+{{- if .Values.selfUpdate.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "anra.fullname" . }}-update-policy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anra.labels" . | nindent 4 }}
+data:
+  update-policy.yaml: |
+    version: v1
+    schedule: {{ .Values.selfUpdate.schedule | quote }}
+    registry:
+      repository: {{ .Values.selfUpdate.registry.repository | default .Values.image.repository | quote }}
+      versionConstraint: {{ .Values.selfUpdate.registry.versionConstraint | quote }}
+    maintenanceWindow:
+      enabled: {{ .Values.selfUpdate.maintenanceWindow.enabled }}
+      start: {{ .Values.selfUpdate.maintenanceWindow.start | quote }}
+      durationMinutes: {{ .Values.selfUpdate.maintenanceWindow.durationMinutes }}
+    safety:
+      preUpdateHealthCheck: {{ .Values.selfUpdate.safety.preUpdateHealthCheck }}
+      autoRollback: {{ .Values.selfUpdate.safety.autoRollback }}
+      readinessTimeout: {{ .Values.selfUpdate.safety.readinessTimeout }}
+      rollbackHistory: {{ .Values.selfUpdate.safety.rollbackHistory }}
+    disconnected:
+      continueOnFailure: {{ .Values.selfUpdate.disconnected.continueOnFailure }}
+      bufferEvents: {{ .Values.selfUpdate.disconnected.bufferEvents }}
+      bufferSize: {{ .Values.selfUpdate.disconnected.bufferSize }}
+{{- end }}

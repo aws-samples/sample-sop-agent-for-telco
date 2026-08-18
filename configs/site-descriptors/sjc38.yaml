@@ -1,0 +1,64 @@
+# Site Descriptor — sjc38 Outpost
+# This file contains site-specific parameters that vary per deployment location.
+# The config generation agent merges this with the NF template to produce a deployable values.yaml.
+
+site:
+  name: sjc38
+  cluster: eks-nec-sjc38-cluster-nec-eks-outposts
+  region: us-east-1
+  namespace: aws-upf
+
+aws:
+  bedrockRoleArn: arn:aws:iam::833185305196:role/sjc38-ano-bedrock
+
+network:
+  n3:
+    vlan: 3505
+    logical_ip: 101.65.1.2/27
+    physical_ips:
+      - 100.65.1.2/27
+      - 100.65.1.34/27
+    bgp_peer: 100.65.1.1
+  n4:
+    vlan: 3501
+    logical_ip: 101.65.0.2/27
+    physical_ips:
+      - 100.65.0.2/27
+      - 100.65.0.34/27
+    bgp_peer: 100.65.0.1
+  n6:
+    vlan: 3509
+    logical_ip: 101.65.2.2/27
+    physical_ips:
+      - 100.65.2.2/27
+      - 100.65.2.34/27
+    bgp_peer: 100.65.2.1
+  bgp:
+    local_as: 65100
+    remote_as: 64764
+  ue_ip_pool: 200.0.0.0/8
+
+hardware:
+  node_affinity_label: "nf=upf-x86"
+  sriov:
+    device1: "intel.com/pci_sriov_net_datanet_a"
+    device2: "intel.com/pci_sriov_net_datanet_b"
+  hugepages_1gi: 64Gi
+  cpu_per_service_pod: 38
+  memory_per_service_pod: 64Gi
+
+images:
+  registry: 833185305196.dkr.ecr.us-east-1.amazonaws.com/outposts25-upf-ecr-repositry/interop
+  management_tag: latest
+  service_tag: cx7r6
+  rdb_tag: latest
+  pull_secret: s506-bgp-test
+
+scaling:
+  service_pod_count: 2
+  sessions_per_pod: 1000000
+  dpdk:
+    fpcore_rx: 32
+    fpcore_wk: 32
+    is_shared: true
+    hugepage_pages: 14

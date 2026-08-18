@@ -1,0 +1,42 @@
+# Default quirks — standard Redfish behavior (no vendor-specific workarounds)
+# Used when no hardware-specific quirk file matches.
+
+match:
+  model_pattern: ".*"
+  firmware_pattern: ""
+
+boot:
+  boot_source_override_writable: true
+  oem_boot: null
+  bios_boot_order: null
+
+virtual_media:
+  collection_path_preference: "managers"
+  cd_slot_id: "1"
+  rfs:
+    available: false
+
+network:
+  requires_custom_hookos: false
+  hookos_variant: "standard"
+
+timeouts:
+  bios_settings_apply: 60
+  virtual_media_mount: 30
+  boot_device_change: 10
+
+strategies:
+  - name: "default"
+    description: "Standard Redfish boot override + VirtualMedia"
+    mount_method: "virtual_media_cd"
+    boot_method: "standard_redfish_boot_override"
+    hookos_variant: "standard"
+    pre_steps:
+      - action: "mount_virtual_media"
+        params: { slot: "1" }
+      - action: "set_boot_override"
+        params: { target: "Cd", enabled: "Once" }
+    post_steps:
+      - action: "eject_virtual_media"
+        params: { slot: "1" }
+    fallback_name: null

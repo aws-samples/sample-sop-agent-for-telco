@@ -1,0 +1,86 @@
+# Dell PowerEdge XR8720t (iDRAC10) — Quirks from Ericsson D15 deployment
+# All lessons from the 18-issue debugging session encoded here.
+
+match:
+  model_pattern: "XR8720t"
+  firmware_pattern: ""  # matches all iDRAC10 firmware versions
+
+boot:
+  boot_source_override_writable: false
+  oem_boot:
+    path: "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1"
+    attribute: "ServerBoot.1.FirstBootDevice"
+    values:
+      cd: "VCD-DVD"
+      pxe: "PXE"
+      normal: "Normal"
+      bios: "BIOS"
+      sd: "SD"
+  bios_boot_order:
+    path_suffix: "/Bios/Settings"
+    attribute: "SetBootOrderEn"
+    cd_entry: "Optical.iDRACVirtual.1-1"
+
+virtual_media:
+  collection_path_preference: "systems"  # /Systems/.../VirtualMedia/ (not /Managers/)
+  cd_slot_id: "CD"
+  rfs:
+    available: true
+    attributes_prefix: "RFS.2"
+    image_attribute: "RFS.2.Image"
+    attach_state_attribute: "RFS.2.MediaAttachState"
+    attach_action: "RFS.2.Attach"
+
+network:
+  requires_custom_hookos: true
+  reason: "Intel E825-C NIC requires ice driver not in standard HookOS"
+  hookos_variant: "patched-ice"
+
+power:
+  graceful_shutdown_timeout: 30
+  force_off_delay: 5
+
+timeouts:
+  bios_settings_apply: 120
+  virtual_media_mount: 30
+  boot_device_change: 15
+  rfs_attach: 45
+
+strategies:
+  - name: "primary"
+    description: "VirtualMedia CD + Dell OEM boot override"
+    mount_method: "virtual_media_cd"
+    boot_method: "dell_oem_first_boot_device"
+    hookos_variant: "patched-ice"
+    pre_steps:
+      - action: "set_dell_oem_boot"
+        params: { device: "VCD-DVD" }
+      - action: "set_bios_boot_order"
+        params: { first_entry: "Optical.iDRACVirtual.1-1" }
+      - action: "mount_virtual_media"
+        params: { slot: "CD" }
+    post_steps:
+      - action: "eject_virtual_media"
+        params: { slot: "CD" }
+      - action: "set_dell_oem_boot"
+        params: { device: "Normal" }
+    fallback_name: "fallback_rfs"
+
+  - name: "fallback_rfs"
+    description: "Dell Remote File Share + boot order (if VirtualMedia fails)"
+    mount_method: "rfs_network_file"
+    boot_method: "dell_oem_first_boot_device"
+    hookos_variant: "patched-ice"
+    pre_steps:
+      - action: "configure_rfs"
+        params: { enable: true }
+      - action: "set_dell_oem_boot"
+        params: { device: "Normal" }
+      - action: "set_bios_boot_order"
+        params: { first_entry: "NIC.Slot.3-1" }
+    post_steps:
+      - action: "configure_rfs"
+        params: { enable: false }
+      - action: "set_dell_oem_boot"
+        params: { device: "Normal" }
+    fallback_name: null

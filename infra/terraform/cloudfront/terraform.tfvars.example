@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (not committed) and set your ALB hostname.
+# alb_dns_name = "k8s-anra-xxxxxxxxxx.us-west-1.elb.amazonaws.com"
+# aws_region   = "us-east-1"

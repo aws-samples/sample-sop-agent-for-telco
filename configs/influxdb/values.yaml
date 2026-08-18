@@ -1,0 +1,9 @@
+# influxdata/influxdb2 chart overrides
+image:
+  tag: 2.7
+adminUser:
+  organization: srs
+  bucket: srsran
+  token: srsran-metrics-token
+persistence:
+  enabled: false

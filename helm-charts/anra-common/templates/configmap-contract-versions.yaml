@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anra-contract-versions
+  namespace: {{ include "anra-common.namespace" . }}
+  labels:
+    {{- include "anra-common.labels" . | nindent 4 }}
+data:
+  topology: {{ .Values.contracts.topology | quote }}
+  sops: {{ .Values.contracts.sops | quote }}

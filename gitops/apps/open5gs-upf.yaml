@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/aws-samples/sample-sop-agent-for-telco.git
+    repoURL: ssh://git@ssh.gitlab.aws.dev/awaizkh/autonomous-network-remediation-agent.git
     targetRevision: main
     path: gitops/base/open5gs-upf
   destination:

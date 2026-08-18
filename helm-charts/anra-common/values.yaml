@@ -1,0 +1,9 @@
+# anra-common shared values
+namespace:
+  create: true
+  name: anra-system
+
+# Contract version advertisement — agents use this to verify compatibility
+contracts:
+  topology: v1alpha1
+  sops: v1alpha1

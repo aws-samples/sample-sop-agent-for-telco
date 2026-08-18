@@ -1,0 +1,237 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "amzn-cse-telco-autonomous-network-agents-app"
+version = "1.0"
+readme = "README.md"
+# When making changes to any dependencies:
+# - commit all updated requirements files.
+dependencies = [
+  "aws-requests-auth==0.4.3",
+  "boto3==1.40.71",
+  "fastapi==0.115.0",
+  "networkx==3.6.1",
+  "opentelemetry-instrumentation-requests==0.58b0",
+  "PyYAML==6.0.3",
+  "requests==2.32.3",
+  "strands-agents==1.36.0",
+  "strands-agents-evals==0.1.15",
+  "strands-agents-tools==0.2.14",
+  "uvicorn[standard]==0.32.0",
+  "watchdog==6.0.0",
+]
+requires-python = ">=3.11"
+
+[tool.hatch.envs.default]
+# This controls what version of Python you want to be the default
+# when running any scripts or tools to do things like debug test failures
+# or do general development.  It's lockfile is ./requirements.txt
+python = "3.12"
+dependencies = [
+    "pytest",
+    "mypy",
+    "ruff>=0.4",
+    "bandit",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "asyncio: mark test as async (requires pytest-asyncio)",
+]
+addopts = [
+    "--durations=5",
+    "--color=yes",
+]
+testpaths = [ "tests" ]
+
+[tool.coverage.run]
+source_pkgs = ["amzn_cse_telco_autonomous_network_agents_app"]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+"amzn_cse_telco_autonomous_network_agents_app" = ["src/amzn_cse_telco_autonomous_network_agents_app", "**/site-packages/amzn_cse_telco_autonomous_network_agents_app"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+show_missing = true
+fail_under = 45
+
+[tool.coverage.xml]
+
+[tool.coverage.html]
+
+[tool.ruff]
+# Ported telco-ops legacy modules predate this package's ruff config and are
+# listed in `extend-exclude` below. Hand-written modules (api.py, entrypoint.py,
+# routers/health.py, __init__.py) are kept in scope. See the per-file-ignores
+# block below for the (now-empty) suppression story for hand-written code.
+extend-exclude = [
+  "build",
+  ".hatch",
+  "private",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/agents",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/core",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/mcp",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/agents.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/alarms.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/approvals.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/chat.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/deployments.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/inventory.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/metrics.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/nodes.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/provisioning.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/sops.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/timeline.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/webhooks.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/adaptive_steering.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/app_state.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/cluster.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/config.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/correlator.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/event_store.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/live_topology.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/monitor.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/monitoring_stats.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/redfish_events.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/sop_executor.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/sop_graph.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/sop_nodes.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/standards.py",
+  "src/amzn_cse_telco_autonomous_network_agents_app/agent/topology.py",
+  "evals",
+  "examples",
+  "gitops",
+  "infra",
+  "manifests",
+  "configs",
+  "sops",
+  "alarm-references",
+]
+
+[tool.ruff.lint]
+isort.known-first-party = ["amzn_cse_telco_autonomous_network_agents_app"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use magic values, assertions, relative imports, private-member
+# access (testing module internals via patch.object), unused mock signatures,
+# late imports (per-test env isolation), and string-literal exceptions.
+"tests/**/*" = [
+  "PLR2004",
+  "S101",
+  "TID252",
+  "SLF001",
+  "ARG001",
+  "PLC0415",
+  "EM101",
+  "TRY003",
+]
+
+# api.py + entrypoint.py per-file-ignores were removed in cr-cleanup-b once
+# the offending lines were rewritten (assigned exception messages to local
+# vars, switched f-string log calls to format-args, etc.). Remaining
+# legitimately-deferred suppressions live as `# noqa: <CODE>` markers at
+# the call site with a one-line rationale. Hardcoded-secret rules
+# (S105/S106/S608) stay globally live. S110 is suppressed only inline at
+# api.py BasicAuthMiddleware (decode/split failure → 401, not 500), with
+# the rationale documented at that call site.
+
+[tool.hatch.build]
+directory = "./build"
+
+[tool.hatch.envs.hatch-build]
+python = "3.12"
+
+[tool.hatch.envs.hatch-static-analysis]
+python = "3.12"
+
+[tool.hatch.env]
+requires = [ "hatch-pip-compile" ]
+
+[tool.hatch.envs.default.scripts]
+# Lint gate — runs ruff + bandit on src/ (blocks build on failure)
+lint = [
+  "ruff check src/",
+  "ruff format --check src/",
+  "bandit -r src/amzn_cse_telco_autonomous_network_agents_app/agent/ -s B603,B602,B404,B607,B104,B110,B112,B107 -ll -q",
+]
+typing = [
+  "mkdir -p .mypy_cache",
+  # Ported telco-ops legacy modules under agent/** do not yet pass strict mypy.
+  # New hand-written modules (api.py, entrypoint.py, routers/health.py,
+  # __init__.py) stay in scope so the only files we authored under agent/ get
+  # type-checked. Cleanup of the legacy subtree is tracked as a follow-up.
+  "mypy --install-types --non-interactive --exclude 'src/amzn_cse_telco_autonomous_network_agents_app/agent/(agents|core|mcp|adaptive_steering|app_state|cluster|config|correlator|event_store|live_topology|monitor|monitoring_stats|redfish_events|sop_executor|sop_graph|sop_nodes|standards|topology)|src/amzn_cse_telco_autonomous_network_agents_app/agent/routers/(agents|alarms|approvals|chat|deployments|inventory|metrics|nodes|provisioning|sops|timeline|webhooks)|tests' src/amzn_cse_telco_autonomous_network_agents_app"
+]
+
+# CI scripts invoked by Pipeline's TestOnDemandApprovalWorkflowStep
+docker-build = "bash scripts/ci-docker-build.sh"
+deploy = "bash scripts/ci-helm-deploy.sh"
+e2e = "bash scripts/ci-e2e-test.sh"
+
+# This command is for updating all your lock files across all environments
+update = [ "hatch-pip-compile --upgrade --all" ]
+
+# Stage the Docker build context into build/ for the pipeline's BATS DockerImage
+# transform (which builds the image in the Packaging stage). See bin/stage-image-context.
+stage-image-context = "bash bin/stage-image-context"
+
+# Local-only: build the container image directly (requires a container runtime).
+# Not used by the pipeline — BATS builds the image from the staged context above.
+build-image = "bash bin/build-image"
+
+release = [
+    "lint",
+    "typing",
+    "hatch test --all --cover",
+    "stage-image-context",
+]
+
+[tool.hatch.envs.hatch-test]
+extra-dependencies = [
+  "httpx",  # required by fastapi.testclient
+]
+
+[[tool.hatch.envs.hatch-test.matrix]]
+# This defines multiple variables you can generate combinations
+# to test underneath different environments.  A separate environment and
+# lock file will be created for every combination located in `./requirements/`
+python = ["3.11", "3.12"]
+
+## This environment is used solely to generate a lock file on hatch,
+# and hatch-pip-compile that can be automatically updated
+[tool.hatch.envs.build-tools]
+# This version states what version your build tools build with.  To change it,
+# you will need to:
+# * Remove the `requirements/requirements-build-tools.txt` file
+python = "3.12"
+detached = true
+skip-install = true
+dependencies = [
+  "hatch",
+  "hatch-pip-compile",
+]
+
+# PeruHatch repository and package locking plugin
+[tool.hatch.env.collectors.custom]
+path = ".hatch/hatch_plugin.py"
+# This package is configured to prohibit updates to its requirements files on the build fleet.
+# This enforces that all dependencies used during build fleet builds are determined by the
+# requirements files together with the VersionSet revision.
+disable_lockfile_update_on_build_fleet = true
+
+# This is necessary to use 'uv' as the resolver if this is the top-level package
+# in a monorepo (which is usually the case).  Remove this if copying the
+# package into a monorepo
+[tool.uv.workspace]
+
+# Pipeline: the CDK (CseTelcoAutonomousNetworkAgentsCDK) builds this package's
+# container image via the BATS DockerImage transform (ImageAsset.ecrImageFromBrazil),
+# using the Docker build context staged into build/ by bin/stage-image-context.

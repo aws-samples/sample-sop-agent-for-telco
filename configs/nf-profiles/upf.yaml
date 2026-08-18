@@ -1,0 +1,53 @@
+# NF profile: 5G User Plane Function (UPF) — generic, ISV-agnostic.
+#
+# Declarative requirements only. The preflight reasoner compares these
+# against discovered hardware (Redfish + cluster state) and reports gaps.
+# No vendor-specific component names belong here.
+#
+# Field semantics:
+#   bios.<key>  : exact value the BIOS attribute must have
+#   bios.<key>__one_of: list — accept any value in the list
+#   bios.<key>__any: true — only require that the key exists (vendor-portable)
+#
+# Severity:
+#   required  : missing → server is NOT ready
+#   recommended: missing → noted as gap but does not block readiness
+
+nf: upf
+description: |
+  Generic UPF readiness profile. Targets DPDK-driven user-plane workloads
+  with SR-IOV, hugepages, and dedicated CPU isolation. Override
+  per-vendor (e.g. NEC, Nokia) only when the generic baseline is wrong.
+
+bios:
+  required:
+    BootMode: Uefi
+    SriovGlobalEnable: Enabled
+    ProcCStates: Disabled
+    EnergyPerformanceBias: MaxPower
+  recommended:
+    LogicalProc: Disabled        # Hyper-Threading off — DPDK PMDs prefer this
+    MemFrequency: MaxPerf
+    SubNumaCluster: Enabled      # better NUMA locality for high-core SKUs
+
+cpu:
+  min_cores: 38                  # NEC UPF + headroom
+  min_threads: 38
+  recommended_sockets: 2
+
+memory:
+  min_total_gib: 256
+
+network:
+  min_sriov_capable_nics: 2      # at least N3+N6 separation
+  recommended_speed_mbps_per_port: 25000
+
+firmware:
+  # Best-effort minimum versions — the reasoner uses string-compare and
+  # treats missing-from-inventory as a gap, not a failure.
+  recommended_minimum:
+    "Intel E810": "4.30"
+
+placement:
+  hugepages_capable: true
+  privileged_required: true

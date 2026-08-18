@@ -1,0 +1,48 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-controller
+  labels:
+    app.kubernetes.io/name: ano-topology
+    app.kubernetes.io/instance: {{ .Release.Name }}
+rules:
+  # Watch topology CRDs (input)
+  - apiGroups: ["topology.ano.aws.io"]
+    resources: ["physicaltopologies", "servicetopologies"]
+    verbs: ["get", "list", "watch"]
+  # Write ImpactMap CRD (output)
+  - apiGroups: ["topology.ano.aws.io"]
+    resources: ["impactmaps"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  # Nodes: cluster-wide (nodes are cluster-scoped resources)
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Pods: cluster-wide because NFs run in open5gs, srsran, and agent namespaces;
+  # controller maps pod-to-node for ServiceTopology enrichment
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # Kopf needs events + lease for leader election
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-controller
+  labels:
+    app.kubernetes.io/name: ano-topology
+    app.kubernetes.io/instance: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-controller
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}

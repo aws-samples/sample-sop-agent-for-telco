@@ -1,0 +1,14 @@
+mcc: '999'
+mnc: '70'
+nci: '0x000000010'
+idLength: 32
+tac: 1
+linkIp: 0.0.0.0
+ngapIp: 0.0.0.0
+gtpIp: 0.0.0.0
+amfConfigs:
+  - address: open5gs-amf-ngap.open5gs.svc.cluster.local
+    port: 38412
+slices:
+  - sst: 1
+ignoreStreamIds: true
