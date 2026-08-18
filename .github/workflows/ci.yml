@@ -45,11 +45,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install tools
-        run: pip install ruff
+        run: pip install ruff==0.11.12
       - name: Ruff lint
-        run: ruff check src/ tests/ --output-format=github
+        run: ruff check src/ tests/ --select E,F,W,I --output-format=github
       - name: Ruff format check
-        run: ruff format --check src/
+        run: ruff format --check src/ tests/
 
   security:
     name: Security scan
