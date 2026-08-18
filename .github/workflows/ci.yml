@@ -81,8 +81,10 @@ jobs:
               helm lint "$chart/" || true
             fi
           done
-      - name: Helm template (anra)
-        run: helm template test helm-charts/anra/ --set image.repository=anra --set image.tag=ci > /dev/null
+      - name: Build dependencies & template (anra)
+        run: |
+          helm dependency build helm-charts/anra/
+          helm template test helm-charts/anra/ --set image.repository=anra --set image.tag=ci > /dev/null
 
   shellcheck:
     name: Shell scripts lint
