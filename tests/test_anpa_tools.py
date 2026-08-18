@@ -8,11 +8,9 @@ Each PROVISION_TOOL must:
   3. Return a structured tool_result without raising.
 """
 
-import sys
 from dataclasses import dataclass
 from unittest.mock import patch
 
-import pytest
 
 # strands is stubbed in conftest.py with @tool as a passthrough — no manual setup needed
 

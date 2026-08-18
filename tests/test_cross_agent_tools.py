@@ -6,7 +6,6 @@ import sys
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.modules.setdefault("strands", MagicMock())
 

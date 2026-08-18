@@ -5,7 +5,6 @@
 import json
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.bmc_profiler import (
     BMCProfile,

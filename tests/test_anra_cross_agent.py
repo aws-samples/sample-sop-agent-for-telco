@@ -3,7 +3,6 @@
 """Tests for ANRA cross-agent tools — trigger_anda_redeploy + watch_anda_deployment_completion."""
 
 from unittest.mock import patch, MagicMock
-import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
     trigger_anda_redeploy,

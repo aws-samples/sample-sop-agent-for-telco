@@ -6,7 +6,6 @@ import sys
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-import pytest
 
 sys.modules.setdefault("strands", MagicMock())
 

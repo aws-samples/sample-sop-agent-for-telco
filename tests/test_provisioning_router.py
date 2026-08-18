@@ -6,7 +6,6 @@ The POST /api/provisioning/requests endpoint had the same wrong API group
 that discovery.py had — fixed alongside Phase 1 cleanup.
 """
 
-import json
 from dataclasses import dataclass
 from unittest.mock import patch
 

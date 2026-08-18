@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for topology.py — YamlTopology provider."""
-from pathlib import Path
 
 
 import amzn_cse_telco_autonomous_network_agents_app.agent.topology as topology

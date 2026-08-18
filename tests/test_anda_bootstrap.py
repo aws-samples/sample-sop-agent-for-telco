@@ -7,7 +7,6 @@ import sys
 from dataclasses import dataclass
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 # Stub strands before importing agent modules
 sys.modules.setdefault("strands", MagicMock())

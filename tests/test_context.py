@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for core/context.py — standardized context schemas."""
 import time
-from pathlib import Path
 
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.core.context import AlarmContext, CorrelationResult, ExecutionResult, RemediationPlan, VerificationResult

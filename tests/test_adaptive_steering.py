@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for adaptive_steering.py — failure pattern learning and steering decisions."""
 import json
-from pathlib import Path
 
 import pytest
 

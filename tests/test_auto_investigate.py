@@ -3,17 +3,14 @@
 """Unit tests for auto-investigation of escalating trends."""
 
 import sys
-import time
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.modules.setdefault("strands", MagicMock())
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.auto_investigate import (
     clear_investigated,
     maybe_investigate_trend,
-    _INVESTIGATION_COOLDOWN,
 )
 
 

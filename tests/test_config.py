@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for config.py — YAML parsing, node lookups, BMC paths."""
-from pathlib import Path
 
 import pytest
 

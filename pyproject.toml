@@ -132,6 +132,10 @@ isort.known-first-party = ["amzn_cse_telco_autonomous_network_agents_app"]
   "PLC0415",
   "EM101",
   "TRY003",
+  "E402",
+  "F841",
+  "E741",
+  "E731",
 ]
 
 # api.py + entrypoint.py per-file-ignores were removed in cr-cleanup-b once

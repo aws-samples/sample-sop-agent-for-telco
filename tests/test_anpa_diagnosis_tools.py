@@ -6,7 +6,6 @@ import json
 from dataclasses import dataclass
 from unittest.mock import patch
 
-import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import diagnosis_tools
 

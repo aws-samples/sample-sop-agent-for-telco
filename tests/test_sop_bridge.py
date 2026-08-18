@@ -2,18 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the AI-first SOP Bridge."""
 
-import os
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import patch
 
-import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge import (
     SOPBridge,
     SOPResult,
-    GENERATED_CONFIG_DIR,
 )
 
 

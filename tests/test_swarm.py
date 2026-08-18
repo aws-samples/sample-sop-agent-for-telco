@@ -5,7 +5,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.modules.setdefault("strands", MagicMock())
 sys.modules.setdefault("strands.multiagent", MagicMock())

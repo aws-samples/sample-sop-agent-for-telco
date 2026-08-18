@@ -37,7 +37,6 @@ except (ImportError, ModuleNotFoundError):
 # SPDX-License-Identifier: MIT-0
 import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest

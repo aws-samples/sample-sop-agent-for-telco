@@ -3,7 +3,6 @@
 """Unit tests for site descriptor validation and config generation (CSE-2997)."""
 
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

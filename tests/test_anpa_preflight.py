@@ -9,16 +9,11 @@ Verifies:
   - The inventory router exposes /api/inventory/{hostname}/readiness.
 """
 
-import sys
-from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.preflight_reasoner import (
-    ReadinessGap,
-    ReadinessReport,
     assess_readiness,
     load_profile,
 )

@@ -4,10 +4,8 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.strategy_engine import (
-    ProvisioningStrategy,
     StrategyEngine,
 )
 

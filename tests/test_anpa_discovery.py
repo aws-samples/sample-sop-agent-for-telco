@@ -3,7 +3,6 @@
 """Unit tests for ANPA discovery — Phase 0.1 CRD group + schema fixes,
 Phase 0.3 BMC cred env-var fallback."""
 
-import os
 import sys
 from dataclasses import dataclass
 from unittest.mock import patch

@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for standards.py — auto-classification of alarms."""
-from pathlib import Path
 
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.standards import classify_alarm
