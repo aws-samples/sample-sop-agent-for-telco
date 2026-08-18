@@ -9,11 +9,11 @@ import pytest
 import yaml
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.config import SiteConfig
+from amzn_cse_telco_autonomous_network_agents_app.agent.core import config_store
 from amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store import (
     get_config,
     set_config,
 )
-from amzn_cse_telco_autonomous_network_agents_app.agent.core import config_store
 from amzn_cse_telco_autonomous_network_agents_app.agent.core.config_watcher import (
     ConfigWatcher,
 )

@@ -6,7 +6,6 @@ import sys
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
-
 sys.modules.setdefault("strands", MagicMock())
 
 
@@ -30,7 +29,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anpa_provisioning_status_success(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anpa_provisioning_status
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anpa_provisioning_status,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -42,7 +43,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anpa_provisioning_status_unreachable(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anpa_provisioning_status
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anpa_provisioning_status,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=False, output="", stderr="Connection refused"
@@ -52,7 +55,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anpa_hardware_inventory(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anpa_hardware_inventory
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anpa_hardware_inventory,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -63,7 +68,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anda_recent_deployments_no_filter(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anda_recent_deployments
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anda_recent_deployments,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -75,7 +82,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anda_recent_deployments_with_namespace(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anda_recent_deployments
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anda_recent_deployments,
+        )
 
         mock_run.return_value = FakeCmdResult(success=True, output='{"plans":[]}')
         ask_anda_recent_deployments(namespace="core")
@@ -83,7 +92,9 @@ class TestAnraCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_ask_anda_deployment_plan_status(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anda_deployment_plan_status
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anda_deployment_plan_status,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -98,7 +109,9 @@ class TestAnpaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent.run_cmd")
     def test_ask_anra_node_health(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import ask_anra_node_health
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import (
+            ask_anra_node_health,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -110,7 +123,9 @@ class TestAnpaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent.run_cmd")
     def test_ask_anra_active_alarms_no_filter(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import ask_anra_active_alarms
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import (
+            ask_anra_active_alarms,
+        )
 
         mock_run.return_value = FakeCmdResult(success=True, output='{"alarms":[]}')
         result = ask_anra_active_alarms()
@@ -119,7 +134,9 @@ class TestAnpaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent.run_cmd")
     def test_ask_anra_active_alarms_with_node(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import ask_anra_active_alarms
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import (
+            ask_anra_active_alarms,
+        )
 
         mock_run.return_value = FakeCmdResult(success=True, output='{"alarms":[]}')
         ask_anra_active_alarms(node_name="worker-003")
@@ -127,7 +144,9 @@ class TestAnpaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent.run_cmd")
     def test_ask_anda_workloads_on_node(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import ask_anda_workloads_on_node
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import (
+            ask_anda_workloads_on_node,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -142,7 +161,9 @@ class TestAndaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent.run_cmd")
     def test_ask_anra_cluster_health(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import ask_anra_cluster_health
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import (
+            ask_anra_cluster_health,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -153,7 +174,9 @@ class TestAndaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent.run_cmd")
     def test_ask_anra_cluster_health_with_namespace(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import ask_anra_cluster_health
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import (
+            ask_anra_cluster_health,
+        )
 
         mock_run.return_value = FakeCmdResult(success=True, output='{}')
         ask_anra_cluster_health(namespace="core")
@@ -161,7 +184,9 @@ class TestAndaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent.run_cmd")
     def test_ask_anpa_node_readiness(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import ask_anpa_node_readiness
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import (
+            ask_anpa_node_readiness,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -172,7 +197,9 @@ class TestAndaCrossAgentTools:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent.run_cmd")
     def test_ask_anpa_node_readiness_unreachable(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import ask_anpa_node_readiness
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.tools_cross_agent import (
+            ask_anpa_node_readiness,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=False, output="", stderr="timeout"

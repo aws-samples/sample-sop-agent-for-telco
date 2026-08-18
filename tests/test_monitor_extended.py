@@ -98,7 +98,9 @@ class TestAlarmDedup:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._query_influx")
     def test_same_alarm_not_repeated(self, mock_query):
         """Monitor should only report new alarms, not repeat seen ones."""
-        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import evaluate_ran_thresholds
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
+            evaluate_ran_thresholds,
+        )
         mock_query.side_effect = [
             {"du_du_high_mac_dl_0_cpu_usage_percent": 85},
             {},
@@ -119,7 +121,9 @@ class TestAlarmDedup:
 class TestSOPGeneration:
     def test_resolve_sop_with_existing(self, tmp_path):
         import amzn_cse_telco_autonomous_network_agents_app.agent.monitor as monitor
-        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
+            resolve_sop,
+        )
         sop_dir = tmp_path / "sops" / "day2-remediate" / "ran"
         sop_dir.mkdir(parents=True)
         (sop_dir / "remediate-du-cpu-overload.md").write_text("# Test")
@@ -133,7 +137,9 @@ class TestSOPGeneration:
             monitor.SOP_REPO = old
 
     def test_resolve_sop_no_match(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
+            resolve_sop,
+        )
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._generate_sop", return_value=None):
             result = resolve_sop({"name": "unknown", "sop": ""})
             assert result is None

@@ -5,9 +5,9 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
+    _MODEL_TIER_MAP,
     ARGOCD_TOOLS,
     BASE_TOOLS,
-    _MODEL_TIER_MAP,
     CmdResult,
     get_tools_for_sop,
     parse_sop,
@@ -169,8 +169,12 @@ class TestSingleSourceOfTruth:
     """
 
     def test_primitives_are_core_objects(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+        from amzn_cse_telco_autonomous_network_agents_app.agent import (
+            sop_executor as se,
+        )
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+            executor as core,
+        )
 
         assert se.run_cmd is core.run_cmd
         assert se.kubectl is core.kubectl
@@ -178,8 +182,12 @@ class TestSingleSourceOfTruth:
         assert se.redfish_query is core.redfish_query
 
     def test_tool_lists_are_core_objects(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+        from amzn_cse_telco_autonomous_network_agents_app.agent import (
+            sop_executor as se,
+        )
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+            executor as core,
+        )
 
         assert se.BASE_TOOLS is core.BASE_TOOLS
         assert se.get_tools_for_sop is core.get_tools_for_sop
@@ -187,8 +195,12 @@ class TestSingleSourceOfTruth:
     def test_argocd_selection_returns_core_tool_set(self):
         # Ties "symbols are shared" to "selection logic returns the core tools" —
         # asserts the exact set, not just len > base.
-        from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor as se
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core
+        from amzn_cse_telco_autonomous_network_agents_app.agent import (
+            sop_executor as se,
+        )
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+            executor as core,
+        )
 
         assert se.get_tools_for_sop("sops/07-argocd-monitoring.md") == core.BASE_TOOLS + core.ARGOCD_TOOLS
 
@@ -200,7 +212,9 @@ class TestToolInputSafety:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_kubectl_passes_args(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import kubectl
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
+            kubectl,
+        )
         mock_run.return_value = CmdResult("ok", "", 0)
         kubectl("get pods -n aws-app")
         mock_run.assert_called_once()
@@ -209,7 +223,9 @@ class TestToolInputSafety:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_ssh_command_constructs_properly(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import ssh_command
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
+            ssh_command,
+        )
         mock_run.return_value = CmdResult("ok", "", 0)
         ssh_command("10.10.4.238", "ls /tmp", user="nec")
         call_args = mock_run.call_args[0][0]
@@ -218,7 +234,9 @@ class TestToolInputSafety:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_telcocli_includes_profile(self, mock_run):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import telcocli
+        from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
+            telcocli,
+        )
         mock_run.return_value = CmdResult("ok", "", 0)
         telcocli("list-outposts")
         call_args = mock_run.call_args[0][0]

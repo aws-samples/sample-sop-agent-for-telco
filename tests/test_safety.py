@@ -3,8 +3,11 @@
 """Tests for agents/remediation/safety.py — guardrails and rate limiting."""
 import time
 
-
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.remediation.safety import RateLimiter, is_command_blocked, is_namespace_protected
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.remediation.safety import (
+    RateLimiter,
+    is_command_blocked,
+    is_namespace_protected,
+)
 
 
 class TestIsCommandBlocked:

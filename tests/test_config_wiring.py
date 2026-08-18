@@ -181,7 +181,9 @@ class TestApprovalModeLive:
             "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
             return_value=cfg,
         ):
-            from amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store import get_config
+            from amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store import (
+                get_config,
+            )
 
             result = get_config()
             assert result.approval_mode == "manual"

@@ -6,7 +6,6 @@ import sys
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-
 sys.modules.setdefault("strands", MagicMock())
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.trend import (

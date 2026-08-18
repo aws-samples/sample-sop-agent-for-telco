@@ -28,7 +28,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tuning_gener
     tuning_profile_name,
 )
 
-
 # ---- representative topologies -----------------------------------------------
 
 ONE_SOCKET_32C = {"sockets": 1, "total_cores": 32}

@@ -5,7 +5,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 sys.modules.setdefault("strands", MagicMock())
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.auto_investigate import (

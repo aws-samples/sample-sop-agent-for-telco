@@ -49,6 +49,7 @@ import pytest
 # ---------------------------------------------------------------------------
 try:
     import strands  # noqa: F401
+
     # Verify it's a real package, not a stale mock
     import strands.types.tools  # noqa: F401
 except (ImportError, ModuleNotFoundError):

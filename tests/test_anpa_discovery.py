@@ -11,7 +11,10 @@ import pytest
 
 sys.modules.setdefault("strands", __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock())
 
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.discovery import create_hardware_inventory_cr, scan_redfish_endpoints
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.discovery import (
+    create_hardware_inventory_cr,
+    scan_redfish_endpoints,
+)
 
 
 @dataclass

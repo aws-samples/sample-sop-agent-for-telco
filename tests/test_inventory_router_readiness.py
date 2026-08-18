@@ -1,4 +1,5 @@
 import pytest
+
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Integration test for /api/inventory/{hostname}/readiness — Phase 2.4."""

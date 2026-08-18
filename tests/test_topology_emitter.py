@@ -5,7 +5,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter import (
     _compute_links,
     update_service_topology,

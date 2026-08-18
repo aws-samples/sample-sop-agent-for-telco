@@ -216,7 +216,9 @@ def run_api(role: str, port: int, log_level: str) -> None:
     # graph including bedrock/strands.
     import uvicorn  # noqa: PLC0415
 
-    from amzn_cse_telco_autonomous_network_agents_app.agent.api import create_app  # noqa: PLC0415
+    from amzn_cse_telco_autonomous_network_agents_app.agent.api import (
+        create_app,  # noqa: PLC0415
+    )
 
     app = create_app(role=role)
     uvicorn.run(

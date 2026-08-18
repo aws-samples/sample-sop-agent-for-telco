@@ -3,8 +3,7 @@
 """Tests for bmc_profiler — BMC capability discovery via Redfish."""
 
 import json
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.bmc_profiler import (
     BMCProfile,

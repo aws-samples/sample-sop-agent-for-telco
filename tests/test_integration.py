@@ -9,8 +9,8 @@ Spins up all three agent roles as FastAPI TestClients and verifies:
 4. Failure handler invocation path
 """
 
-import sys
 import os
+import sys
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
@@ -122,7 +122,9 @@ class TestCrossAgentToolsEndToEnd:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent.run_cmd")
     def test_anra_queries_anda_deployments(self, mock_run):
         """ANRA asks ANDA for recent deployments — simulates the full flow."""
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import ask_anda_recent_deployments
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+            ask_anda_recent_deployments,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -140,7 +142,9 @@ class TestCrossAgentToolsEndToEnd:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent.run_cmd")
     def test_anpa_queries_anra_for_node_health(self, mock_run):
         """ANPA asks ANRA if a node is healthy — used during failure diagnosis."""
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import ask_anra_node_health
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools_cross_agent import (
+            ask_anra_node_health,
+        )
 
         mock_run.return_value = FakeCmdResult(
             success=True,
@@ -193,7 +197,9 @@ class TestFailureHandlerIntegration:
         mock_instance.return_value = "Diagnosis: disk failure on worker-003"
         MockAgent.return_value = mock_instance
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler import handle_provisioning_failure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler import (
+            handle_provisioning_failure,
+        )
 
         result = handle_provisioning_failure(
             name="req-001",

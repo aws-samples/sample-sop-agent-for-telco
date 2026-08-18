@@ -4,7 +4,9 @@
 
 
 
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.threshold import _eval_condition
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.threshold import (
+    _eval_condition,
+)
 
 
 class TestEvalCondition:

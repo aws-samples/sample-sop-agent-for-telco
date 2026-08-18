@@ -1,0 +1,6 @@
+dependencies:
+- name: anra-common
+  repository: file://../anra-common
+  version: 0.2.0
+digest: sha256:82e1bffa4ba5ee4b304b49913d0beba414068408e238c50e97c256415c3251d3
+generated: "2026-08-18T03:43:21.310105597Z"

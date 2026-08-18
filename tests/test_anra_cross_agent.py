@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for ANRA cross-agent tools — trigger_anda_redeploy + watch_anda_deployment_completion."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.tools_cross_agent import (
+    CROSS_AGENT_TOOLS,
     trigger_anda_redeploy,
     watch_anda_deployment_completion,
-    CROSS_AGENT_TOOLS,
 )
 
 

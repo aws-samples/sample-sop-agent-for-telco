@@ -4,8 +4,13 @@
 
 import pytest
 
-
-from amzn_cse_telco_autonomous_network_agents_app.agent.config import BMCConfig, NodeConfig, SiteConfig, _parse, load_config
+from amzn_cse_telco_autonomous_network_agents_app.agent.config import (
+    BMCConfig,
+    NodeConfig,
+    SiteConfig,
+    _parse,
+    load_config,
+)
 
 
 class TestBMCConfig:
@@ -314,6 +319,7 @@ class TestConfigBackwardCompat:
 
     def test_anra_config_env_still_works(self, tmp_path, monkeypatch):
         import warnings as w
+
         import yaml
         cfg_file = tmp_path / "old-config.yaml"
         cfg_file.write_text(yaml.dump({"cluster": {"name": "from-anra-env", "region": "us-west-1"}}))

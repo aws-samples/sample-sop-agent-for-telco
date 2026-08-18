@@ -5,7 +5,6 @@ import json
 
 import pytest
 
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.adaptive_steering import (
     AdaptiveSteeringHandler,
     _build_guidance,

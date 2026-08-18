@@ -1,7 +1,12 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for 3GPP standards module."""
-from amzn_cse_telco_autonomous_network_agents_app.agent.standards import ALARM_TYPES, PROBABLE_CAUSES, SEVERITIES, build_managed_object_dn
+from amzn_cse_telco_autonomous_network_agents_app.agent.standards import (
+    ALARM_TYPES,
+    PROBABLE_CAUSES,
+    SEVERITIES,
+    build_managed_object_dn,
+)
 
 
 def test_alarm_types_complete():

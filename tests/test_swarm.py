@@ -5,11 +5,12 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 sys.modules.setdefault("strands", MagicMock())
 sys.modules.setdefault("strands.multiagent", MagicMock())
 
-from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import is_complex_query
+from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import (
+    is_complex_query,
+)
 
 
 class TestIsComplexQuery:
@@ -52,7 +53,9 @@ class TestCreateAnoSwarm:
         mock_swarm_mod = MagicMock()
         sys.modules["strands.multiagent"] = mock_swarm_mod
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import create_ano_swarm
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import (
+            create_ano_swarm,
+        )
         create_ano_swarm()
 
         # Agent called 3 times (ANPA, ANDA, ANRA)

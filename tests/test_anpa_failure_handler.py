@@ -5,10 +5,11 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 sys.modules.setdefault("strands", MagicMock())
 
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler import handle_provisioning_failure
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler import (
+    handle_provisioning_failure,
+)
 
 
 class TestFailureHandler:
@@ -97,6 +98,7 @@ class TestDiagnosisPersistence:
     def test_persists_ai_diagnosis(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
         import importlib
+
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
         importlib.reload(fh)
 
@@ -128,6 +130,7 @@ class TestDiagnosisPersistence:
     def test_persists_fallback_when_agent_crashes(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
         import importlib
+
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
         importlib.reload(fh)
 
@@ -146,6 +149,7 @@ class TestDiagnosisPersistence:
     def test_get_last_diagnosis_returns_none_when_absent(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
         import importlib
+
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
         importlib.reload(fh)
         assert fh.get_last_diagnosis("ns", "missing") is None
@@ -157,6 +161,7 @@ class TestToolSetEnrichment:
     def test_diagnosis_tools_passed_to_agent(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
         import importlib
+
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
         importlib.reload(fh)
 

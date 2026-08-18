@@ -24,12 +24,16 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.config import SiteConfig
 from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import (
     ExtensionKind,
 )
-from amzn_cse_telco_autonomous_network_agents_app.agent.framework.registry import registry
+from amzn_cse_telco_autonomous_network_agents_app.agent.framework.registry import (
+    registry,
+)
 
 
 class TestCliIntegrationSeam:
     def test_telcocli_registered_as_command_integration(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor  # noqa: F401
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+            executor,  # noqa: F401
+        )
         from amzn_cse_telco_autonomous_network_agents_app.agent.framework.contracts import (
             CommandIntegration,
         )
@@ -40,7 +44,9 @@ class TestCliIntegrationSeam:
 
     def test_run_uses_config_profile_and_region(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import CmdResult
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import (
+            CmdResult,
+        )
 
         cfg = SiteConfig(cli_profile="acme", cli_region="eu-west-1")
         captured = {}
@@ -63,7 +69,9 @@ class TestCliIntegrationSeam:
         # Empty config values fall back to the values previously baked into the
         # engine ("nec" / "us-east-1") — the no-config-change guarantee.
         from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import CmdResult
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import (
+            CmdResult,
+        )
 
         cfg = SiteConfig(cli_profile="", cli_region="")
         captured = {}
@@ -83,7 +91,9 @@ class TestCliIntegrationSeam:
         # Regression guard: a failing telcocli command must surface success=False,
         # not be masked as success (CmdResult.output is never empty).
         from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor
-        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import CmdResult
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import (
+            CmdResult,
+        )
 
         cfg = SiteConfig()
         with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(

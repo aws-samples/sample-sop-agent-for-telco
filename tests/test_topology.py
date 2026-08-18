@@ -5,6 +5,7 @@
 
 import amzn_cse_telco_autonomous_network_agents_app.agent.topology as topology
 
+
 class TestYamlTopology:
     def setup_method(self):
         topology._provider = None

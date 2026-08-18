@@ -6,7 +6,6 @@ Tests pure functions only — no strands dependency, no subprocess calls.
 """
 from __future__ import annotations
 
-
 import yaml
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
@@ -17,7 +16,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config impor
     load_nf_catalog,
     load_upgrade_strategy,
 )
-
 
 # ---------------------------------------------------------------------------
 # NF Catalog loading
@@ -126,7 +124,9 @@ class TestNFOrdering:
     def test_canonical_order(self):
         """NFs should be sorted in 3GPP startup dependency order."""
         # Import the private function — it's pure logic
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _resolve_nf_order
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _resolve_nf_order,
+        )
 
         nfs = [
             {"name": "amf", "type": "open5gs-amf"},
@@ -147,7 +147,9 @@ class TestNFOrdering:
         assert names.index("amf") < names.index("gnb")
 
     def test_unknown_nfs_appended_last(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _resolve_nf_order
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _resolve_nf_order,
+        )
 
         nfs = [
             {"name": "custom-app", "type": "custom-app"},
@@ -159,10 +161,14 @@ class TestNFOrdering:
         assert names[-1] == "custom-app"
 
     def test_empty_list(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _resolve_nf_order
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _resolve_nf_order,
+        )
         assert _resolve_nf_order([]) == []
 
     def test_single_nf(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _resolve_nf_order
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _resolve_nf_order,
+        )
         nfs = [{"name": "amf", "type": "open5gs-amf"}]
         assert _resolve_nf_order(nfs) == nfs

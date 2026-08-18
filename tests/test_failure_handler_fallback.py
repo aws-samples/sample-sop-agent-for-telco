@@ -4,7 +4,6 @@
 
 from unittest.mock import MagicMock, patch
 
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler import (
     _classify_failure,
     try_deterministic_fallback,

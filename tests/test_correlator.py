@@ -4,9 +4,15 @@
 import time
 from unittest.mock import MagicMock, patch
 
-import amzn_cse_telco_autonomous_network_agents_app.agent.correlator as correlator
 import pytest
-from amzn_cse_telco_autonomous_network_agents_app.agent.correlator import build_graph, correlate, correlate_batch, rca_investigate
+
+import amzn_cse_telco_autonomous_network_agents_app.agent.correlator as correlator
+from amzn_cse_telco_autonomous_network_agents_app.agent.correlator import (
+    build_graph,
+    correlate,
+    correlate_batch,
+    rca_investigate,
+)
 
 
 @pytest.fixture(autouse=True)

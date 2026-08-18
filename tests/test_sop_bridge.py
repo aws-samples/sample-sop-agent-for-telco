@@ -4,12 +4,10 @@
 
 from unittest.mock import patch
 
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge import (
     SOPBridge,
     SOPResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

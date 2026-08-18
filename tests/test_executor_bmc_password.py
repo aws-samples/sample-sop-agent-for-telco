@@ -88,7 +88,9 @@ def test_executor_redfish_query_errors_when_password_unset(monkeypatch: pytest.M
 def test_sop_executor_redfish_query_uses_env_password(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BMC_PASSWORD", "another-password")
     from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor
-    from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core_executor
+    from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+        executor as core_executor,
+    )
 
     fake_site = SimpleNamespace(
         get_node_by_bmc=lambda _ip: _fake_node(),
@@ -115,7 +117,9 @@ def test_sop_executor_redfish_query_uses_env_password(monkeypatch: pytest.Monkey
 def test_sop_executor_redfish_query_errors_when_password_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("BMC_PASSWORD", raising=False)
     from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor
-    from amzn_cse_telco_autonomous_network_agents_app.agent.core import executor as core_executor
+    from amzn_cse_telco_autonomous_network_agents_app.agent.core import (
+        executor as core_executor,
+    )
 
     fake_site = SimpleNamespace(
         get_node_by_bmc=lambda _ip: _fake_node(),

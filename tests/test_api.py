@@ -101,7 +101,9 @@ def test_unknown_role_does_not_crash_create_app() -> None:
 
 
 def _parse_origins():
-    from amzn_cse_telco_autonomous_network_agents_app.agent.api import _parse_cors_origins
+    from amzn_cse_telco_autonomous_network_agents_app.agent.api import (
+        _parse_cors_origins,
+    )
     return _parse_cors_origins()
 
 

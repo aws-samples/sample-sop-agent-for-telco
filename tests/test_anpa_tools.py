@@ -11,11 +11,13 @@ Each PROVISION_TOOL must:
 from dataclasses import dataclass
 from unittest.mock import patch
 
-
 # strands is stubbed in conftest.py with @tool as a passthrough — no manual setup needed
-
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import tools  # noqa: E402
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools import _run  # noqa: E402
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+    tools,  # noqa: E402
+)
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools import (
+    _run,  # noqa: E402
+)
 
 
 @dataclass

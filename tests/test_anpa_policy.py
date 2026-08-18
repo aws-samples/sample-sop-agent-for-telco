@@ -6,9 +6,8 @@ All functions under test are *pure* (no I/O, no side effects, no cluster
 access), so the vast majority of tests need no mocking at all.
 """
 
-from datetime import datetime, timezone
-
 import sys
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 # ---------------------------------------------------------------------------
@@ -31,7 +30,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.policy impor
     should_deprovision,
     should_provision,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test-data factories

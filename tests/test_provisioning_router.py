@@ -13,7 +13,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from amzn_cse_telco_autonomous_network_agents_app.agent.routers.provisioning import router
+from amzn_cse_telco_autonomous_network_agents_app.agent.routers.provisioning import (
+    router,
+)
 
 
 @dataclass
@@ -75,6 +77,7 @@ def _make_client():
 def test_diagnosis_endpoint_returns_persisted_record(tmp_path, monkeypatch):
     monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
     import importlib
+
     import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
     importlib.reload(fh)
     fh._persist_diagnosis("anpa-system", "rq-1", {
@@ -92,6 +95,7 @@ def test_diagnosis_endpoint_returns_persisted_record(tmp_path, monkeypatch):
 def test_diagnosis_endpoint_404_when_no_record(tmp_path, monkeypatch):
     monkeypatch.setenv("ANPA_DIAGNOSIS_DIR", str(tmp_path))
     import importlib
+
     import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
     importlib.reload(fh)
     r = _make_client().get("/api/provisioning/requests/never-failed/diagnosis")

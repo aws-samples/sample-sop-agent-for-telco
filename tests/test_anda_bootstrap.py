@@ -5,8 +5,7 @@
 import os
 import sys
 from dataclasses import dataclass
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 
 # Stub strands before importing agent modules
 sys.modules.setdefault("strands", MagicMock())
@@ -25,12 +24,16 @@ class TestInfrastructureCatalog:
     """Tests for the infrastructure catalog in anda/config.py."""
 
     def test_catalog_has_entries(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import INFRASTRUCTURE_CATALOG
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            INFRASTRUCTURE_CATALOG,
+        )
 
         assert len(INFRASTRUCTURE_CATALOG) >= 4
 
     def test_catalog_entries_have_required_fields(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import INFRASTRUCTURE_CATALOG
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            INFRASTRUCTURE_CATALOG,
+        )
 
         for c in INFRASTRUCTURE_CATALOG:
             assert c.name
@@ -42,7 +45,9 @@ class TestInfrastructureCatalog:
             assert isinstance(c.depends_on, list)
 
     def test_catalog_wave_ordering(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import INFRASTRUCTURE_CATALOG
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            INFRASTRUCTURE_CATALOG,
+        )
 
         infra = [c for c in INFRASTRUCTURE_CATALOG if c.type == "infrastructure"]
         for c in infra:
@@ -52,7 +57,9 @@ class TestInfrastructureCatalog:
                 assert dep_comp.wave < c.wave, f"{c.name} (wave {c.wave}) depends on {dep} (wave {dep_comp.wave})"
 
     def test_get_infra_component(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import get_infra_component
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            get_infra_component,
+        )
 
         kro = get_infra_component("kro")
         assert kro is not None
@@ -60,7 +67,9 @@ class TestInfrastructureCatalog:
         assert kro.namespace == "kro-system"
 
     def test_get_infra_component_not_found(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import get_infra_component
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            get_infra_component,
+        )
 
         assert get_infra_component("nonexistent") is None
 
@@ -71,7 +80,9 @@ class TestGetMissingInfrastructure:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_all_healthy(self, mock_run):
         mock_run.return_value = FakeCmdResult(success=True, output="1")
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import get_missing_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            get_missing_infrastructure,
+        )
 
         missing = get_missing_infrastructure()
         assert missing == []
@@ -79,7 +90,9 @@ class TestGetMissingInfrastructure:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.run_cmd")
     def test_all_missing(self, mock_run):
         mock_run.return_value = FakeCmdResult(success=False, output="")
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import get_missing_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            get_missing_infrastructure,
+        )
 
         missing = get_missing_infrastructure()
         assert len(missing) >= 4
@@ -92,7 +105,9 @@ class TestGetMissingInfrastructure:
             return FakeCmdResult(success=False, output="")
 
         mock_run.side_effect = side_effect
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import get_missing_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            get_missing_infrastructure,
+        )
 
         missing = get_missing_infrastructure()
         names = [c.name for c in missing]
@@ -107,7 +122,9 @@ class TestBootstrapOrchestration:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_bootstrap_skipped_when_healthy(self, mock_run, mock_missing):
         mock_missing.return_value = []
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _check_and_bootstrap_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _check_and_bootstrap_infrastructure,
+        )
 
         _check_and_bootstrap_infrastructure()
         mock_run.assert_not_called()
@@ -117,7 +134,9 @@ class TestBootstrapOrchestration:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.get_missing_infrastructure")
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_bootstrap_deploys_in_wave_order(self, mock_run, mock_missing, mock_healthy, mock_activity):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import InfraComponent
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            InfraComponent,
+        )
 
         mock_missing.return_value = [
             InfraComponent(name="b", type="infrastructure", install_method="helm",
@@ -128,7 +147,9 @@ class TestBootstrapOrchestration:
         mock_healthy.return_value = True
         mock_run.return_value = FakeCmdResult(success=True, output="deployed")
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _check_and_bootstrap_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _check_and_bootstrap_infrastructure,
+        )
         _check_and_bootstrap_infrastructure()
 
         # Should deploy 'a' before 'b' (wave ordering)
@@ -142,7 +163,9 @@ class TestBootstrapOrchestration:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.get_missing_infrastructure")
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_bootstrap_skips_when_deps_not_met(self, mock_run, mock_missing, mock_healthy, mock_activity):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import InfraComponent
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            InfraComponent,
+        )
 
         mock_missing.return_value = [
             InfraComponent(name="child", type="infrastructure", install_method="helm",
@@ -151,7 +174,9 @@ class TestBootstrapOrchestration:
         mock_healthy.return_value = False  # parent not healthy
         mock_run.return_value = FakeCmdResult(success=True, output="ok")
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _check_and_bootstrap_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _check_and_bootstrap_infrastructure,
+        )
         _check_and_bootstrap_infrastructure()
 
         # Should NOT deploy child since parent dep not met
@@ -162,7 +187,9 @@ class TestBootstrapOrchestration:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.get_missing_infrastructure")
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_bootstrap_uses_correct_method(self, mock_run, mock_missing, mock_healthy, mock_activity):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import InfraComponent
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import (
+            InfraComponent,
+        )
 
         mock_missing.return_value = [
             InfraComponent(name="helm-comp", type="infrastructure", install_method="helm",
@@ -173,7 +200,9 @@ class TestBootstrapOrchestration:
         mock_healthy.return_value = True
         mock_run.return_value = FakeCmdResult(success=True, output="ok")
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import _check_and_bootstrap_infrastructure
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            _check_and_bootstrap_infrastructure,
+        )
         _check_and_bootstrap_infrastructure()
 
         calls = [c[0][0] for c in mock_run.call_args_list]
@@ -187,18 +216,24 @@ class TestComponentIsHealthy:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_healthy_component(self, mock_run):
         mock_run.return_value = FakeCmdResult(success=True, output="1")
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import component_is_healthy
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            component_is_healthy,
+        )
 
         assert component_is_healthy("kro") is True
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_unhealthy_component(self, mock_run):
         mock_run.return_value = FakeCmdResult(success=False, output="")
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import component_is_healthy
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            component_is_healthy,
+        )
 
         assert component_is_healthy("kro") is False
 
     def test_unknown_component_is_healthy(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import component_is_healthy
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
+            component_is_healthy,
+        )
 
         assert component_is_healthy("nonexistent") is True

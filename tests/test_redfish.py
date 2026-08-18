@@ -11,7 +11,10 @@ class TestRedfishEventHandler:
         from io import BytesIO
         from unittest.mock import Mock
 
-        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import RedfishEventHandler, event_queue
+        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import (
+            RedfishEventHandler,
+            event_queue,
+        )
 
         # Clear queue
         while not event_queue.empty():
@@ -48,7 +51,9 @@ class TestEventEnrichment:
         # subprocess call; node_name/node_roles are populated from site config.
         # (Previously this patched sop_executor.run_cmd, which enrich_event never
         # calls — a dead mock removed during the S2.2 executor unification.)
-        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import enrich_event
+        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import (
+            enrich_event,
+        )
         cfg = load_config()
 
         event = {
@@ -63,7 +68,9 @@ class TestEventEnrichment:
         assert result["node_roles"] == ["upf"]
 
     def test_enrich_unknown_bmc(self):
-        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import enrich_event
+        from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import (
+            enrich_event,
+        )
         cfg = load_config()
         event = {"message_id": "X", "bmc_ip": "1.2.3.4", "source": "redfish"}
         result = enrich_event(event, cfg)

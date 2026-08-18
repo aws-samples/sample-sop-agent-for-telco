@@ -8,7 +8,11 @@ import pytest
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring import (
     anomaly_detection,
 )
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.anomaly_detection import _baselines, evaluate_dynamic_anomalies, reset_baselines
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.anomaly_detection import (
+    _baselines,
+    evaluate_dynamic_anomalies,
+    reset_baselines,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -82,8 +86,9 @@ class TestBaselineAccumulation:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.influx_source.query_influx_all")
     def test_cooldown_prevents_repeated_classification(self, mock_query):
         """Bedrock classification is rate-limited."""
-        import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.anomaly_detection as mod
         import time
+
+        import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.anomaly_detection as mod
 
         mock_query.return_value = {"cpu": 50.0}
         for _ in range(20):

@@ -16,7 +16,7 @@ as EKS-H's API. These tests assert:
   7. CR is applied via kubectl apply (not just generated).
 """
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -105,7 +105,9 @@ def _capture_apply_yaml(spec_capture: dict):
 # -------- happy-path: the CR has every EKS-H field at the right values --------
 
 def test_emit_includes_every_eks_h_field(base_spec):
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -119,7 +121,9 @@ def test_emit_includes_every_eks_h_field(base_spec):
 
 def test_emit_uses_hardwareinventory_mac(base_spec):
     """Discovery-derived MAC comes from HardwareInventory, not the spec."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -130,7 +134,9 @@ def test_emit_uses_hardwareinventory_mac(base_spec):
 
 def test_emit_uses_intent_ip_and_cluster(base_spec):
     """Per-node IP from intent; cluster fields from request spec."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -144,7 +150,9 @@ def test_emit_uses_intent_ip_and_cluster(base_spec):
 
 def test_emit_includes_tuning_fields(base_spec):
     """Tuning fields wired through unchanged for the RGD's tuning stage."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -157,7 +165,9 @@ def test_emit_includes_tuning_fields(base_spec):
 
 def test_emit_targets_eks_h_namespace_and_marks_ownership(base_spec):
     """CR goes into the namespace EKS-H's bare-metal-kro RGD watches; ANPA labels mark ownership."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -170,7 +180,9 @@ def test_emit_targets_eks_h_namespace_and_marks_ownership(base_spec):
 
 def test_emit_uses_kro_run_apiversion(base_spec):
     """The CR must use kro.run/v1alpha1 — that's the EKS-H bare-metal-kro RGD's group."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     captured: dict = {}
     with patch.object(reconciler, "run_cmd", side_effect=_capture_apply_yaml(captured)):
@@ -184,7 +196,9 @@ def test_emit_uses_kro_run_apiversion(base_spec):
 
 def test_emit_one_cr_per_node(base_spec):
     """A multi-node ProvisioningRequest emits one CR per node."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     base_spec["nodes"] = [
         {"hostname": "dell-r760-001", "ip": "192.168.40.11", "role": "worker"},
@@ -210,7 +224,9 @@ def test_emit_one_cr_per_node(base_spec):
 
 def test_emit_raises_on_missing_hardwareinventory(base_spec):
     """If preflight passed but HWI vanished, surface the bug clearly."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     def _se(cmd, **kw):
         if cmd.startswith("kubectl get hardwareinventory"):
@@ -224,7 +240,9 @@ def test_emit_raises_on_missing_hardwareinventory(base_spec):
 
 def test_emit_raises_when_hwi_has_no_mac(base_spec):
     """Discovery should always produce at least one MAC; if not, fail loudly."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     hwi_no_mac = json.dumps({
         "spec": {"hostname": "dell-r760-001", "interfaces": [{"name": "eno1"}]}
@@ -242,7 +260,9 @@ def test_emit_raises_when_hwi_has_no_mac(base_spec):
 
 def test_emit_raises_on_kubectl_apply_failure(base_spec):
     """Surface kubectl apply errors as RuntimeError (so reconciler can retry)."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import reconciler
+    from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+        reconciler,
+    )
 
     def _se(cmd, **kw):
         if cmd.startswith("kubectl get hardwareinventory"):

@@ -18,7 +18,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.preflight_re
     load_profile,
 )
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROFILES_DIR = REPO_ROOT / "configs" / "nf-profiles"
 

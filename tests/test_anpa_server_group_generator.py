@@ -19,7 +19,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tuning_gener
     tuning_profile_name,
 )
 
-
 SAMPLE_HWI_30_10 = {
     "hostname": "mi-0c32a0cb4c4c06fdd",
     "bmcAddress": "192.168.30.10",

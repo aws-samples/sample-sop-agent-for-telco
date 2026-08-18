@@ -6,8 +6,9 @@ import json
 from dataclasses import dataclass
 from unittest.mock import patch
 
-
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import bios_inspector
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
+    bios_inspector,
+)
 
 
 @dataclass
