@@ -68,6 +68,7 @@ fail_under = 45
 [tool.coverage.html]
 
 [tool.ruff]
+line-length = 200
 # Ported telco-ops legacy modules predate this package's ruff config and are
 # listed in `extend-exclude` below. Hand-written modules (api.py, entrypoint.py,
 # routers/health.py, __init__.py) are kept in scope. See the per-file-ignores
@@ -117,6 +118,8 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
 isort.known-first-party = ["amzn_cse_telco_autonomous_network_agents_app"]
 
 [tool.ruff.lint.per-file-ignores]
