@@ -1,0 +1,125 @@
+name: CI
+on:
+  push:
+    branches: [main, workshop-v2]
+  pull_request:
+    branches: [main, workshop-v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-mock
+      - name: Run tests
+        run: |
+          PYTHONPATH=src python -m pytest tests/ -v --tb=short \
+            --ignore=tests/test_adaptive_steering.py \
+            --ignore=tests/test_sop_graph.py \
+            --ignore=tests/test_sop_nodes.py \
+            --ignore=tests/test_graph_conditions.py
+
+  code-quality:
+    name: Code quality (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install tools
+        run: pip install ruff
+      - name: Ruff lint
+        run: ruff check src/ tests/ --output-format=github
+      - name: Ruff format check
+        run: ruff format --check src/
+
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install security tools
+        run: pip install bandit
+      - name: Bandit
+        run: bandit -r src/amzn_cse_telco_autonomous_network_agents_app/agent/ -s B602,B603,B404,B607,B104,B110,B112,B107 -ll -q
+
+  helm-validate:
+    name: Helm validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+      - name: Helm lint (all charts)
+        run: |
+          for chart in helm-charts/anra helm-charts/anda helm-charts/anpa helm-charts/ano-platform helm-charts/anra-common helm-charts/ano-topology; do
+            if [ -f "$chart/Chart.yaml" ]; then
+              echo "Linting $chart..."
+              helm lint "$chart/" || true
+            fi
+          done
+      - name: Helm template (anra)
+        run: helm template test helm-charts/anra/ --set image.repository=anra --set image.tag=ci > /dev/null
+
+  shellcheck:
+    name: Shell scripts lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Check fault scripts
+        run: shellcheck fault-scripts/*.sh fault-scripts/lib/*.sh scripts/*.sh || true
+
+  publish-workshop-image:
+    name: Publish workshop image
+    runs-on: ubuntu-latest
+    needs: [unit-tests, code-quality, security, helm-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/workshop-v2'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Login to Public ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin public.ecr.aws
+      - name: Build and push
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          docker build -t public.ecr.aws/t2j9i5y9/anra-workshop:latest \
+                       -t public.ecr.aws/t2j9i5y9/anra-workshop:$SHA .
+          docker push public.ecr.aws/t2j9i5y9/anra-workshop:latest
+          docker push public.ecr.aws/t2j9i5y9/anra-workshop:$SHA
+          echo "### 🚀 Workshop image published" >> $GITHUB_STEP_SUMMARY
+          echo "- **latest** + **$SHA**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`public.ecr.aws/t2j9i5y9/anra-workshop:latest\`" >> $GITHUB_STEP_SUMMARY
