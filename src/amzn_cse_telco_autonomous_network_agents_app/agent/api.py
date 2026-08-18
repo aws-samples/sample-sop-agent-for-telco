@@ -79,9 +79,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
             try:
                 decoded = base64.b64decode(auth[6:]).decode()
                 user, password = decoded.split(":", 1)
-                if secrets.compare_digest(user, ANRA_USER) and secrets.compare_digest(
-                    password, ANRA_PASS
-                ):
+                if secrets.compare_digest(user, ANRA_USER) and secrets.compare_digest(password, ANRA_PASS):
                     return await call_next(request)
             except Exception:  # noqa: BLE001, S110 - any decode/split failure → 401, not 500
                 pass
@@ -129,9 +127,7 @@ def create_app(role: str = "anra") -> FastAPI:
     all_router_names = SHARED_ROUTERS + ROLE_ROUTERS.get(role, [])
     for name in all_router_names:
         try:
-            module = importlib.import_module(
-                f"amzn_cse_telco_autonomous_network_agents_app.agent.routers.{name}"
-            )
+            module = importlib.import_module(f"amzn_cse_telco_autonomous_network_agents_app.agent.routers.{name}")
             if hasattr(module, "router"):
                 app.include_router(module.router)
                 log.debug("Registered router: %s", name)
@@ -143,9 +139,7 @@ def create_app(role: str = "anra") -> FastAPI:
     # This allows the ANRA dashboard to show ANPA and ANDA activity.
     for cross_module in ["inventory", "provisioning", "deployments"]:
         try:
-            mod = importlib.import_module(
-                f"amzn_cse_telco_autonomous_network_agents_app.agent.routers.{cross_module}"
-            )
+            mod = importlib.import_module(f"amzn_cse_telco_autonomous_network_agents_app.agent.routers.{cross_module}")
             if hasattr(mod, "router"):
                 app.include_router(mod.router)
                 log.debug("Registered cross-agent router: %s", cross_module)
@@ -172,9 +166,7 @@ def create_app(role: str = "anra") -> FastAPI:
         None,
     )
     if role == "anra" and _static_dir is not None:
-        app.mount(
-            "/assets", StaticFiles(directory=str(_static_dir / "assets")), name="assets"
-        )
+        app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="assets")
 
         @app.get("/", include_in_schema=False)
         async def serve_index():

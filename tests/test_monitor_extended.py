@@ -6,6 +6,7 @@ SEL polling moved to agents/anra/monitoring/hardware_event_log.py; these tests
 import + patch it there (poll_redfish_sel calls util.bmc.curl_bmc, which runs
 subprocess.run, so patching subprocess.run at the module level intercepts it).
 """
+
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -22,30 +23,32 @@ class TestSELPolling:
             _sel_last_id,
             poll_redfish_sel,
         )
+
         _sel_last_id.clear()
         hw_log._sel_initialized = False
 
-        seed_response = json.dumps({
-            "Members": [
-                {"Id": "4", "MessageId": "old_event", "Message": "Old event",
-                 "Severity": "OK", "SensorType": "test", "Created": "2026-01-28T00:00:00"},
-            ]
-        })
-        new_response = json.dumps({
-            "Members": [
-                {"Id": "4", "MessageId": "old_event", "Message": "Old event",
-                 "Severity": "OK", "SensorType": "test", "Created": "2026-01-28T00:00:00"},
-                {"Id": "5", "MessageId": "6f03ffff", "Message": "PSU 2 lost power",
-                 "Severity": "Critical", "SensorType": "Power Supply", "Created": "2026-01-29T17:20:53"},
-            ]
-        })
+        seed_response = json.dumps(
+            {
+                "Members": [
+                    {"Id": "4", "MessageId": "old_event", "Message": "Old event", "Severity": "OK", "SensorType": "test", "Created": "2026-01-28T00:00:00"},
+                ]
+            }
+        )
+        new_response = json.dumps(
+            {
+                "Members": [
+                    {"Id": "4", "MessageId": "old_event", "Message": "Old event", "Severity": "OK", "SensorType": "test", "Created": "2026-01-28T00:00:00"},
+                    {"Id": "5", "MessageId": "6f03ffff", "Message": "PSU 2 lost power", "Severity": "Critical", "SensorType": "Power Supply", "Created": "2026-01-29T17:20:53"},
+                ]
+            }
+        )
         mock_run.side_effect = [
             MagicMock(returncode=0, stdout=seed_response, stderr=""),  # BMC1 seed
             MagicMock(returncode=0, stdout=seed_response, stderr=""),  # BMC2 seed
-            MagicMock(returncode=0, stdout=new_response, stderr=""),   # BMC1 poll
-            MagicMock(returncode=0, stdout=new_response, stderr=""),   # BMC2 poll
-            MagicMock(returncode=1, stdout="", stderr=""),             # EEMI lookup (may fail)
-            MagicMock(returncode=1, stdout="", stderr=""),             # EEMI lookup
+            MagicMock(returncode=0, stdout=new_response, stderr=""),  # BMC1 poll
+            MagicMock(returncode=0, stdout=new_response, stderr=""),  # BMC2 poll
+            MagicMock(returncode=1, stdout="", stderr=""),  # EEMI lookup (may fail)
+            MagicMock(returncode=1, stdout="", stderr=""),  # EEMI lookup
         ]
 
         # First call seeds IDs
@@ -65,12 +68,11 @@ class TestSELPolling:
             _sel_last_id,
             poll_redfish_sel,
         )
+
         _sel_last_id.clear()
         hw_log._sel_initialized = True  # skip seeding: exercise the dedup path directly
 
-        sel = json.dumps({"Members": [
-            {"Id": "5", "MessageId": "test", "Message": "test", "Severity": "Critical", "SensorType": "test"}
-        ]})
+        sel = json.dumps({"Members": [{"Id": "5", "MessageId": "test", "Message": "test", "Severity": "Critical", "SensorType": "test"}]})
         mock_run.return_value = MagicMock(returncode=0, stdout=sel, stderr="")
 
         alerts1 = poll_redfish_sel()
@@ -88,6 +90,7 @@ class TestSELPolling:
             _sel_last_id,
             poll_redfish_sel,
         )
+
         _sel_last_id.clear()
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="timeout")
         alerts = poll_redfish_sel()
@@ -101,6 +104,7 @@ class TestAlarmDedup:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
             {"du_du_high_mac_dl_0_cpu_usage_percent": 85},
             {},
@@ -124,6 +128,7 @@ class TestSOPGeneration:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             resolve_sop,
         )
+
         sop_dir = tmp_path / "sops" / "day2-remediate" / "ran"
         sop_dir.mkdir(parents=True)
         (sop_dir / "remediate-du-cpu-overload.md").write_text("# Test")
@@ -140,6 +145,7 @@ class TestSOPGeneration:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             resolve_sop,
         )
+
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._generate_sop", return_value=None):
             result = resolve_sop({"name": "unknown", "sop": ""})
             assert result is None

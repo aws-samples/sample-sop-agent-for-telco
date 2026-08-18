@@ -100,15 +100,12 @@ class TestDiagnosisPersistence:
         import importlib
 
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
         importlib.reload(fh)
 
         with patch.object(fh, "Agent") as MockAgent:
             mock_instance = MagicMock()
-            mock_instance.return_value = (
-                "ROOT CAUSE: stream-image checksum mismatch. "
-                "EVIDENCE: get_workflow_logs returned STATE_FAILED. "
-                "RECOMMENDATION: bump_provision_hash."
-            )
+            mock_instance.return_value = "ROOT CAUSE: stream-image checksum mismatch. EVIDENCE: get_workflow_logs returned STATE_FAILED. RECOMMENDATION: bump_provision_hash."
             MockAgent.return_value = mock_instance
 
             diagnosis = fh.handle_provisioning_failure(
@@ -132,6 +129,7 @@ class TestDiagnosisPersistence:
         import importlib
 
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
         importlib.reload(fh)
 
         with patch.object(fh, "Agent", side_effect=RuntimeError("Bedrock throttled")):
@@ -151,6 +149,7 @@ class TestDiagnosisPersistence:
         import importlib
 
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
         importlib.reload(fh)
         assert fh.get_last_diagnosis("ns", "missing") is None
 
@@ -163,6 +162,7 @@ class TestToolSetEnrichment:
         import importlib
 
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
         importlib.reload(fh)
 
         with patch.object(fh, "Agent") as MockAgent:

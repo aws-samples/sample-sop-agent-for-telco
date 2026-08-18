@@ -18,9 +18,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
 
 
 def _r(stdout="", returncode=0, stderr=""):
-    return SimpleNamespace(
-        stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0
-    )
+    return SimpleNamespace(stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0)
 
 
 class TestProvisioningProgress:
@@ -43,18 +41,12 @@ class TestProvisioningProgress:
     @patch.object(provisioning_progress, "run_cmd")
     def test_eks_node_ready_true(self, mock_run):
         mock_run.return_value = _r(stdout="True")
-        assert (
-            provisioning_progress._check_eks_node_ready("req", {"hostname": "n1"})
-            is True
-        )
+        assert provisioning_progress._check_eks_node_ready("req", {"hostname": "n1"}) is True
 
     @patch.object(provisioning_progress, "run_cmd")
     def test_eks_node_not_ready_false(self, mock_run):
         mock_run.return_value = _r(stdout="")
-        assert (
-            provisioning_progress._check_eks_node_ready("req", {"hostname": "n1"})
-            is False
-        )
+        assert provisioning_progress._check_eks_node_ready("req", {"hostname": "n1"}) is False
 
     @patch.object(provisioning_progress, "run_cmd")
     def test_multi_node_all_must_be_ready(self, mock_run):

@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for agents/kpi_monitor/threshold.py — condition evaluation and config-driven thresholds."""
 
-
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.threshold import (
     _eval_condition,
 )

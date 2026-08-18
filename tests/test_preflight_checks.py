@@ -18,9 +18,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
 
 
 def _r(stdout="", returncode=0, stderr=""):
-    return SimpleNamespace(
-        stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0
-    )
+    return SimpleNamespace(stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0)
 
 
 class TestPreflightChecks:

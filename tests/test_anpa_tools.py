@@ -70,9 +70,7 @@ class TestProvisionToolsCallable:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools.run_cmd")
     def test_get_workflow_status(self, mock_run):
-        mock_run.return_value = FakeCmdResult(
-            stdout='{"status":{"state":"SUCCESS"}}', returncode=0
-        )
+        mock_run.return_value = FakeCmdResult(stdout='{"status":{"state":"SUCCESS"}}', returncode=0)
         result = tools.get_workflow_status("srv1", "tinkerbell")
         assert isinstance(result, str)
 
@@ -127,8 +125,14 @@ def test_provision_tools_list_complete():
     """Sanity: PROVISION_TOOLS exposes the expected nine tools."""
     names = {t.__name__ for t in tools.PROVISION_TOOLS}
     expected = {
-        "toggle_provision", "bump_provision_hash", "get_workflow_status",
-        "get_node_status", "create_ssm_activation", "drain_and_delete_node",
-        "power_cycle_server", "get_hardware_health", "ssm_run_command",
+        "toggle_provision",
+        "bump_provision_hash",
+        "get_workflow_status",
+        "get_node_status",
+        "create_ssm_activation",
+        "drain_and_delete_node",
+        "power_cycle_server",
+        "get_hardware_health",
+        "ssm_run_command",
     }
     assert names == expected

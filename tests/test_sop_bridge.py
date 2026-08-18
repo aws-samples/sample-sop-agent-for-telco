@@ -112,8 +112,13 @@ class TestContextPrompt:
 
     def test_prompt_includes_nf_and_namespace(self):
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="open5gs", cluster="site-002",
-            intent="deploy", reason="", vendor="open5gs", strategy=None,
+            nf_name="amf",
+            namespace="open5gs",
+            cluster="site-002",
+            intent="deploy",
+            reason="",
+            vendor="open5gs",
+            strategy=None,
         )
         assert "amf" in prompt
         assert "open5gs" in prompt
@@ -121,8 +126,13 @@ class TestContextPrompt:
 
     def test_prompt_includes_intent(self):
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="ns", cluster="c1",
-            intent="remediation", reason="pod crashloop", vendor="x", strategy=None,
+            nf_name="amf",
+            namespace="ns",
+            cluster="c1",
+            intent="remediation",
+            reason="pod crashloop",
+            vendor="x",
+            strategy=None,
         )
         assert "remediation" in prompt
         assert "pod crashloop" in prompt
@@ -133,8 +143,13 @@ class TestContextPrompt:
         values_file.write_text("global: {}")
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge.GENERATED_CONFIG_DIR", str(tmp_path)):
             prompt = self.bridge._build_context_prompt(
-                nf_name="amf", namespace="ns", cluster="c1",
-                intent="deploy", reason="", vendor="x", strategy=None,
+                nf_name="amf",
+                namespace="ns",
+                cluster="c1",
+                intent="deploy",
+                reason="",
+                vendor="x",
+                strategy=None,
             )
             assert "amf-values.yaml" in prompt
             assert "helm upgrade -f" in prompt
@@ -142,8 +157,13 @@ class TestContextPrompt:
     def test_prompt_includes_assess_decide_execute_verify(self):
         """Prompt has the 4-step structure."""
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="ns", cluster="c1",
-            intent="deploy", reason="", vendor="x", strategy=None,
+            nf_name="amf",
+            namespace="ns",
+            cluster="c1",
+            intent="deploy",
+            reason="",
+            vendor="x",
+            strategy=None,
         )
         assert "ASSESS" in prompt
         assert "DECIDE" in prompt
@@ -153,8 +173,13 @@ class TestContextPrompt:
     def test_prompt_includes_adaptability_rules(self):
         """Prompt tells agent to adapt, not blindly follow SOPs."""
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="ns", cluster="c1",
-            intent="deploy", reason="", vendor="x", strategy=None,
+            nf_name="amf",
+            namespace="ns",
+            cluster="c1",
+            intent="deploy",
+            reason="",
+            vendor="x",
+            strategy=None,
         )
         assert "Do NOT blindly follow" in prompt
         assert "Adapt to what you actually observe" in prompt

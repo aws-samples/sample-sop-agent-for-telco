@@ -16,46 +16,58 @@ class FakeR:
     stdout: str = ""
     stderr: str = ""
     returncode: int = 0
+
     @property
-    def success(self) -> bool: return self.returncode == 0
+    def success(self) -> bool:
+        return self.returncode == 0
 
 
 # ----------------------------- get_workflow_logs -----------------------------
 
 
-WORKFLOW_FAILED_JSON = json.dumps({
-    "items": [{
-        "metadata": {"name": "provision-server-1-v1"},
-        "status": {
-            "state": "STATE_FAILED",
-            "tasks": [{
-                "name": "provision-os",
-                "actions": [
-                    {"name": "stream-image", "status": "STATE_SUCCESS", "seconds": 120},
-                    {"name": "kexec",       "status": "STATE_FAILED",
-                     "message": "kexec failed: bad image checksum",
-                     "seconds": 5},
-                ],
-            }],
-        },
-    }],
-})
+WORKFLOW_FAILED_JSON = json.dumps(
+    {
+        "items": [
+            {
+                "metadata": {"name": "provision-server-1-v1"},
+                "status": {
+                    "state": "STATE_FAILED",
+                    "tasks": [
+                        {
+                            "name": "provision-os",
+                            "actions": [
+                                {"name": "stream-image", "status": "STATE_SUCCESS", "seconds": 120},
+                                {"name": "kexec", "status": "STATE_FAILED", "message": "kexec failed: bad image checksum", "seconds": 5},
+                            ],
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+)
 
-WORKFLOW_SUCCESS_JSON = json.dumps({
-    "items": [{
-        "metadata": {"name": "provision-server-1-v1"},
-        "status": {
-            "state": "STATE_SUCCESS",
-            "tasks": [{
-                "name": "provision-os",
-                "actions": [
-                    {"name": "stream-image", "status": "STATE_SUCCESS", "seconds": 110},
-                    {"name": "kexec",       "status": "STATE_SUCCESS", "seconds": 8},
-                ],
-            }],
-        },
-    }],
-})
+WORKFLOW_SUCCESS_JSON = json.dumps(
+    {
+        "items": [
+            {
+                "metadata": {"name": "provision-server-1-v1"},
+                "status": {
+                    "state": "STATE_SUCCESS",
+                    "tasks": [
+                        {
+                            "name": "provision-os",
+                            "actions": [
+                                {"name": "stream-image", "status": "STATE_SUCCESS", "seconds": 110},
+                                {"name": "kexec", "status": "STATE_SUCCESS", "seconds": 8},
+                            ],
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+)
 
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tools.run_cmd")
@@ -99,25 +111,27 @@ def test_get_workflow_logs_kubectl_error(mock_run):
 # ----------------------------- read_bmc_sel ---------------------------------
 
 
-SEL_JSON = json.dumps({
-    "Members@odata.count": 2,
-    "Members": [
-        {
-            "Id": "1",
-            "Created": "2026-01-01T12:00:00Z",
-            "Severity": "Critical",
-            "Message": "CPU1 thermal trip",
-            "SensorType": "Temperature",
-            "EntryType": "SEL",
-        },
-        {
-            "Id": "2",
-            "Created": "2026-01-02T03:00:00Z",
-            "Severity": "OK",
-            "Message": "Power cycle",
-        },
-    ],
-})
+SEL_JSON = json.dumps(
+    {
+        "Members@odata.count": 2,
+        "Members": [
+            {
+                "Id": "1",
+                "Created": "2026-01-01T12:00:00Z",
+                "Severity": "Critical",
+                "Message": "CPU1 thermal trip",
+                "SensorType": "Temperature",
+                "EntryType": "SEL",
+            },
+            {
+                "Id": "2",
+                "Created": "2026-01-02T03:00:00Z",
+                "Severity": "OK",
+                "Message": "Power cycle",
+            },
+        ],
+    }
+)
 
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc")
@@ -154,10 +168,12 @@ def test_read_bmc_sel_unreachable(mock_run):
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.diagnosis_tools._run")
 def test_inspect_node_join_node_exists_and_ready(mock_run):
-    node = {"status": {
-        "conditions": [{"type": "Ready", "status": "True"}],
-        "nodeInfo": {"kubeletVersion": "v1.31.0", "systemUUID": "uuid-1"},
-    }}
+    node = {
+        "status": {
+            "conditions": [{"type": "Ready", "status": "True"}],
+            "nodeInfo": {"kubeletVersion": "v1.31.0", "systemUUID": "uuid-1"},
+        }
+    }
     mock_run.side_effect = [
         (json.dumps(node), "", 0),  # kubectl get node
         (json.dumps({"InstanceInformationList": [{"PingStatus": "Online"}]}), "", 0),  # ssm

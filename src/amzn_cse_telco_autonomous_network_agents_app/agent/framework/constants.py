@@ -19,7 +19,4 @@ DEFAULT_BEDROCK_REGION = "us-west-2"
 # load-once-at-boot: Python cannot safely unload a module whose tools an
 # in-flight agent loop is holding, so a change to the plugin set takes effect
 # only on pod restart.
-PLUGINS_RELOAD_REQUIRES_RESTART = (
-    "The 'plugins' list changed but plugin loading is applied only at startup; "
-    "restart the pod for the change to take effect."
-)
+PLUGINS_RELOAD_REQUIRES_RESTART = "The 'plugins' list changed but plugin loading is applied only at startup; restart the pod for the change to take effect."

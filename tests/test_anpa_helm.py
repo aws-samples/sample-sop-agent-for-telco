@@ -29,15 +29,23 @@ def _render(*extra_args):
     if not shutil.which("helm"):
         pytest.skip("helm not installed")
     cmd = [
-        "helm", "template", "anpa", str(CHART_DIR),
-        "--namespace", "anpa-system",
-        "--set", "image.repository=test",
+        "helm",
+        "template",
+        "anpa",
+        str(CHART_DIR),
+        "--namespace",
+        "anpa-system",
+        "--set",
+        "image.repository=test",
         # bmc.enabled defaults to false (CI-safe). Most BMC tests need it on,
         # so we enable it here; tests that verify disabled behavior override
         # with --set bmc.enabled=false (last --set wins in Helm).
-        "--set", "bmc.enabled=true",
-        "--set", "bmc.username=admin",
-        "--set", "bmc.password=calvin",
+        "--set",
+        "bmc.enabled=true",
+        "--set",
+        "bmc.username=admin",
+        "--set",
+        "bmc.password=calvin",
         *extra_args,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -85,11 +93,18 @@ class TestBmcSecret:
         if not shutil.which("helm"):
             pytest.skip("helm not installed")
         import subprocess
+
         cmd = [
-            "helm", "template", "anpa", str(CHART_DIR),
-            "--namespace", "anpa-system",
-            "--set", "image.repository=test",
-            "--set", "bmc.enabled=true",
+            "helm",
+            "template",
+            "anpa",
+            str(CHART_DIR),
+            "--namespace",
+            "anpa-system",
+            "--set",
+            "image.repository=test",
+            "--set",
+            "bmc.enabled=true",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         assert result.returncode != 0, "expected helm template to fail without BMC creds"

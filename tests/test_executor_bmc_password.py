@@ -49,8 +49,7 @@ def test_executor_redfish_query_uses_env_password(monkeypatch: pytest.MonkeyPatc
         captured["password"] = password
         return _FakeCompleted()
 
-    with patch.object(executor, "_get_site_config", return_value=fake_site), \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_fake_curl):
+    with patch.object(executor, "_get_site_config", return_value=fake_site), patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_fake_curl):
         executor.redfish_query("10.0.0.1", "/Thermal")
 
     # Password is handed to the hardened helper as an arg (it goes on stdin from
@@ -71,8 +70,7 @@ def test_executor_redfish_query_errors_when_password_unset(monkeypatch: pytest.M
     def _should_not_be_called(*_a, **_kw):
         raise AssertionError("run_cmd must not be invoked when BMC_PASSWORD is unset")
 
-    with patch.object(executor, "_get_site_config", return_value=fake_site), \
-         patch.object(executor, "run_cmd", side_effect=_should_not_be_called):
+    with patch.object(executor, "_get_site_config", return_value=fake_site), patch.object(executor, "run_cmd", side_effect=_should_not_be_called):
         result = executor.redfish_query("10.0.0.1", "/Thermal")
 
     assert "BMC_PASSWORD" in result
@@ -107,8 +105,7 @@ def test_sop_executor_redfish_query_uses_env_password(monkeypatch: pytest.Monkey
         captured["password"] = password
         return _FakeCompleted()
 
-    with patch.object(core_executor, "_get_site_config", lambda: fake_site), \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_fake_curl):
+    with patch.object(core_executor, "_get_site_config", lambda: fake_site), patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_fake_curl):
         sop_executor.redfish_query("10.0.0.2", "/Power")
 
     assert captured["password"] == "another-password"
@@ -129,8 +126,7 @@ def test_sop_executor_redfish_query_errors_when_password_unset(monkeypatch: pyte
     def _should_not_be_called(*_a, **_kw):
         raise AssertionError("run_cmd must not be invoked when BMC_PASSWORD is unset")
 
-    with patch.object(core_executor, "_get_site_config", lambda: fake_site), \
-         patch.object(core_executor, "run_cmd", side_effect=_should_not_be_called):
+    with patch.object(core_executor, "_get_site_config", lambda: fake_site), patch.object(core_executor, "run_cmd", side_effect=_should_not_be_called):
         result = sop_executor.redfish_query("10.0.0.2", "/Power")
 
     assert "BMC_PASSWORD" in result
@@ -182,8 +178,7 @@ def test_subscribe_bmc_skips_when_password_unset(monkeypatch: pytest.MonkeyPatch
     # subscribe_bmc delegates to util.bmc.curl_bmc; patch there (patching
     # redfish_events.subprocess would never fire) so the early-return guard is
     # genuinely exercised.
-    with patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_should_not_be_called), \
-         patch.object(redfish_events.log, "error") as mock_error:
+    with patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc", side_effect=_should_not_be_called), patch.object(redfish_events.log, "error") as mock_error:
         result = redfish_events.subscribe_bmc(_fake_bmc_node(), "https://anra/webhook")
 
     assert result is None

@@ -90,9 +90,7 @@ class TestConfigWatcher:
             reloaded_cfg["cfg"] = new_cfg
             reloaded.set()
 
-        watcher = ConfigWatcher(
-            path=str(config_file), role="anra", on_reload=on_reload
-        )
+        watcher = ConfigWatcher(path=str(config_file), role="anra", on_reload=on_reload)
         watcher.start()
 
         try:
@@ -122,9 +120,7 @@ class TestConfigWatcher:
             set_config(new_cfg)
             reload_called.set()
 
-        watcher = ConfigWatcher(
-            path=str(config_file), role="anra", on_reload=on_reload
-        )
+        watcher = ConfigWatcher(path=str(config_file), role="anra", on_reload=on_reload)
         watcher.start()
 
         try:
@@ -158,9 +154,7 @@ class TestConfigWatcher:
         def on_reload(new_cfg):
             reload_called.set()
 
-        watcher = ConfigWatcher(
-            path=str(config_file), role="anra", on_reload=on_reload
-        )
+        watcher = ConfigWatcher(path=str(config_file), role="anra", on_reload=on_reload)
         watcher.start()
         time.sleep(0.5)
 

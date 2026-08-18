@@ -15,9 +15,7 @@ from typing import Optional
 import boto3  # type: ignore[import-untyped]  # boto3 ships no type stubs
 
 
-def aws_session(
-    profile: Optional[str] = None, region: Optional[str] = None
-) -> boto3.Session:
+def aws_session(profile: Optional[str] = None, region: Optional[str] = None) -> boto3.Session:
     """Build a boto3 Session with the project's profile/region convention.
 
     An empty-string profile is treated as "no profile" (use the default

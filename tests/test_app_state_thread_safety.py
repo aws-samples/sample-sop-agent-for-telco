@@ -156,11 +156,7 @@ def test_snapshot_alarms_with_active_names_consistent_under_writers() -> None:
                 errors.append(f"active names without alarm entries: {missing}")
                 return
 
-    threads = (
-        [threading.Thread(target=writer) for _ in range(3)]
-        + [threading.Thread(target=churner) for _ in range(2)]
-        + [threading.Thread(target=checker) for _ in range(3)]
-    )
+    threads = [threading.Thread(target=writer) for _ in range(3)] + [threading.Thread(target=churner) for _ in range(2)] + [threading.Thread(target=checker) for _ in range(3)]
     for t in threads:
         t.start()
     threading.Event().wait(0.2)

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for agents/remediation/safety.py — guardrails and rate limiting."""
+
 import time
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.remediation.safety import (

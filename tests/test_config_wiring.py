@@ -62,12 +62,15 @@ class TestModelResolverConfig:
 
         # Mock active profiles to contain the first haiku model
         haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=cfg,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={haiku_model},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=cfg,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={haiku_model},
+            ),
         ):
             result = model_resolver.get_model(tier="smart")  # caller says smart, config says fast
         assert result == haiku_model
@@ -79,12 +82,15 @@ class TestModelResolverConfig:
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="smart")
 
         sonnet_model = "us.anthropic.claude-sonnet-4-20250514-v1:0"
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=cfg,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={sonnet_model},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=cfg,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={sonnet_model},
+            ),
         ):
             result = model_resolver.get_model(tier="fast")  # caller says fast, config says smart
         assert result == sonnet_model
@@ -119,12 +125,15 @@ class TestModelResolverConfig:
         monkeypatch.setenv("BEDROCK_MODEL_TIER", "smart")
 
         sonnet_model = "us.anthropic.claude-sonnet-4-6"
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={sonnet_model},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={sonnet_model},
+            ),
         ):
             result = model_resolver.get_model(tier="fast")
         assert result == sonnet_model
@@ -136,12 +145,15 @@ class TestModelResolverConfig:
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="fast")  # config says fast
 
         haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=cfg,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={haiku_model},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=cfg,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={haiku_model},
+            ),
         ):
             result = model_resolver.get_model(tier="smart")
         # Config says fast, so we should get haiku even though env says smart
@@ -160,12 +172,15 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
 
         haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={haiku_model},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={haiku_model},
+            ),
         ):
             result = model_resolver.get_model(tier="fast")
         assert result == haiku_model

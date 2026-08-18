@@ -46,19 +46,23 @@ class TestProfileBmc:
         responses = {
             "/redfish/v1": json.dumps({"RedfishVersion": "1.17", "Oem": {"Dell": {}}}),
             "/redfish/v1/Systems": json.dumps({"Members": [{"@odata.id": "/redfish/v1/Systems/System.Embedded.1"}]}),
-            "/redfish/v1/Systems/System.Embedded.1": json.dumps({
-                "Model": "PowerEdge XR8720t",
-                "Manufacturer": "Dell Inc.",
-                "Boot": {
-                    "BootSourceOverrideTarget": "None",
-                    "BootSourceOverrideTarget@Redfish.AllowableValues": ["None", "Cd", "Pxe"],
-                },
-            }),
+            "/redfish/v1/Systems/System.Embedded.1": json.dumps(
+                {
+                    "Model": "PowerEdge XR8720t",
+                    "Manufacturer": "Dell Inc.",
+                    "Boot": {
+                        "BootSourceOverrideTarget": "None",
+                        "BootSourceOverrideTarget@Redfish.AllowableValues": ["None", "Cd", "Pxe"],
+                    },
+                }
+            ),
             "/redfish/v1/Managers": json.dumps({"Members": [{"@odata.id": "/redfish/v1/Managers/iDRAC.Embedded.1"}]}),
-            "/redfish/v1/Managers/iDRAC.Embedded.1": json.dumps({
-                "FirmwareVersion": "7.10.30.00",
-                "Oem": {"Dell": {}},
-            }),
+            "/redfish/v1/Managers/iDRAC.Embedded.1": json.dumps(
+                {
+                    "FirmwareVersion": "7.10.30.00",
+                    "Oem": {"Dell": {}},
+                }
+            ),
         }
 
         def side_effect(url, username=None, password=None, *, method=None, **kwargs):
@@ -84,11 +88,13 @@ class TestProfileBmc:
         responses = {
             "/redfish/v1": json.dumps({"RedfishVersion": "1.13", "Oem": {}}),
             "/redfish/v1/Systems": json.dumps({"Members": [{"@odata.id": "/redfish/v1/Systems/1"}]}),
-            "/redfish/v1/Systems/1": json.dumps({
-                "Model": "ProLiant DL380",
-                "Manufacturer": "HPE",
-                "Boot": {"BootSourceOverrideTarget": "None"},
-            }),
+            "/redfish/v1/Systems/1": json.dumps(
+                {
+                    "Model": "ProLiant DL380",
+                    "Manufacturer": "HPE",
+                    "Boot": {"BootSourceOverrideTarget": "None"},
+                }
+            ),
             "/redfish/v1/Managers": json.dumps({"Members": []}),
         }
 
@@ -111,20 +117,27 @@ class TestProfileBmc:
         responses = {
             "/redfish/v1": json.dumps({"RedfishVersion": "1.17", "Oem": {"Dell": {}}}),
             "/redfish/v1/Systems": json.dumps({"Members": [{"@odata.id": "/redfish/v1/Systems/System.Embedded.1"}]}),
-            "/redfish/v1/Systems/System.Embedded.1": json.dumps({
-                "Model": "XR8720t", "Manufacturer": "Dell",
-                "Boot": {"BootSourceOverrideTarget": "None"},
-            }),
+            "/redfish/v1/Systems/System.Embedded.1": json.dumps(
+                {
+                    "Model": "XR8720t",
+                    "Manufacturer": "Dell",
+                    "Boot": {"BootSourceOverrideTarget": "None"},
+                }
+            ),
             "/redfish/v1/Managers": json.dumps({"Members": []}),
-            "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces": json.dumps({
-                "Members": [{"@odata.id": "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/NIC.Slot.3-1"}],
-            }),
-            "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/NIC.Slot.3-1": json.dumps({
-                "Id": "NIC.Slot.3-1",
-                "MACAddress": "d0:37:45:39:94:5a",
-                "Description": "Intel E825-C 100GbE",
-                "SpeedMbps": 100000,
-            }),
+            "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces": json.dumps(
+                {
+                    "Members": [{"@odata.id": "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/NIC.Slot.3-1"}],
+                }
+            ),
+            "/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/NIC.Slot.3-1": json.dumps(
+                {
+                    "Id": "NIC.Slot.3-1",
+                    "MACAddress": "d0:37:45:39:94:5a",
+                    "Description": "Intel E825-C 100GbE",
+                    "SpeedMbps": 100000,
+                }
+            ),
         }
 
         def side_effect(url, username=None, password=None, *, method=None, **kwargs):

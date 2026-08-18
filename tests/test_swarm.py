@@ -56,6 +56,7 @@ class TestCreateAnoSwarm:
         from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import (
             create_ano_swarm,
         )
+
         create_ano_swarm()
 
         # Agent called 3 times (ANPA, ANDA, ANRA)

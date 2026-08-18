@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for standards.py — auto-classification of alarms."""
 
-
 from amzn_cse_telco_autonomous_network_agents_app.agent.standards import classify_alarm
 
 

@@ -16,18 +16,13 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
 
 
 def _r(stdout="", returncode=0, stderr=""):
-    return SimpleNamespace(
-        stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0
-    )
+    return SimpleNamespace(stdout=stdout, stderr=stderr, returncode=returncode, success=returncode == 0)
 
 
 class TestNodeHealthDiscovery:
     @patch.object(node_health_discovery, "run_cmd")
     def test_health_check_all_ready_no_warn(self, mock_run):
-        mock_run.return_value = _r(
-            stdout='{"items":[{"metadata":{"name":"n1"},'
-            '"status":{"conditions":[{"type":"Ready","status":"True"}]}}]}'
-        )
+        mock_run.return_value = _r(stdout='{"items":[{"metadata":{"name":"n1"},"status":{"conditions":[{"type":"Ready","status":"True"}]}}]}')
         # Should not raise; returns None
         assert node_health_discovery._check_node_health() is None
 

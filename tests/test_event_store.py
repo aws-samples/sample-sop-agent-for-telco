@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for event_store.py — ring buffer and event recording."""
+
 import time
 
 import amzn_cse_telco_autonomous_network_agents_app.agent.event_store as event_store

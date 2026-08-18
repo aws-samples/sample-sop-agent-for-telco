@@ -23,8 +23,10 @@ class FakeR:
     stdout: str = ""
     stderr: str = ""
     returncode: int = 0
+
     @property
-    def success(self) -> bool: return self.returncode == 0
+    def success(self) -> bool:
+        return self.returncode == 0
 
 
 @pytest.fixture
@@ -62,7 +64,6 @@ def test_provisioning_request_uses_correct_api_group(mock_run, client):
     assert 'provisioning.anpa.aws.io/managed: "true"' in body
 
 
-
 # ============================================================================
 # Phase 4.3 — GET /api/provisioning/requests/{name}/diagnosis
 # ============================================================================
@@ -79,12 +80,21 @@ def test_diagnosis_endpoint_returns_persisted_record(tmp_path, monkeypatch):
     import importlib
 
     import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
     importlib.reload(fh)
-    fh._persist_diagnosis("anpa-system", "rq-1", {
-        "name": "rq-1", "namespace": "anpa-system",
-        "phase": "Provisioning", "diagnosis": "ROOT CAUSE: x",
-        "source": "ai", "hostnames": ["server-1"], "error": "e",
-    })
+    fh._persist_diagnosis(
+        "anpa-system",
+        "rq-1",
+        {
+            "name": "rq-1",
+            "namespace": "anpa-system",
+            "phase": "Provisioning",
+            "diagnosis": "ROOT CAUSE: x",
+            "source": "ai",
+            "hostnames": ["server-1"],
+            "error": "e",
+        },
+    )
     r = _make_client().get("/api/provisioning/requests/rq-1/diagnosis")
     assert r.status_code == 200
     body = r.json()
@@ -97,6 +107,7 @@ def test_diagnosis_endpoint_404_when_no_record(tmp_path, monkeypatch):
     import importlib
 
     import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.failure_handler as fh
+
     importlib.reload(fh)
     r = _make_client().get("/api/provisioning/requests/never-failed/diagnosis")
     assert r.status_code == 404

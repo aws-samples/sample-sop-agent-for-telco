@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for correlator.py — dependency graph, rule-based correlation, RCA."""
+
 import time
 from unittest.mock import MagicMock, patch
 
@@ -25,14 +26,13 @@ def reset_graph():
 @pytest.fixture
 def alarm_ref():
     from amzn_cse_telco_autonomous_network_agents_app.agent.config import load_config
+
     cfg = load_config()
-    return {a.name: {"layer": a.layer, "depends_on": a.depends_on, "nf_scope": a.nf_scope,
-                      "severity": a.severity} for a in cfg.alarms}
+    return {a.name: {"layer": a.layer, "depends_on": a.depends_on, "nf_scope": a.nf_scope, "severity": a.severity} for a in cfg.alarms}
 
 
 def make_event(name, layer=2, node="", ts_offset=0):
-    return {"ts": time.time() - ts_offset, "name": name, "severity": "critical",
-            "layer": layer, "source": "influxdb", "node": node, "nf": "", "value": 0}
+    return {"ts": time.time() - ts_offset, "name": name, "severity": "critical", "layer": layer, "source": "influxdb", "node": node, "nf": "", "value": 0}
 
 
 @pytest.fixture
@@ -57,6 +57,7 @@ class TestBuildGraph:
 
     def test_no_cycles(self, alarm_ref):
         import networkx as nx
+
         G = build_graph(alarm_ref)
         assert nx.is_directed_acyclic_graph(G)
 

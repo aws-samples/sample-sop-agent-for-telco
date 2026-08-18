@@ -35,9 +35,7 @@ class TestVocabularyContents:
         assert ResolutionMode.values() == frozenset({"select", "collect"})
 
     def test_extension_kinds_cover_declared_seams(self):
-        assert {"tool", "cli", "topology", "metric_source", "model", "agent_role"} == (
-            ExtensionKind.values()
-        )
+        assert {"tool", "cli", "topology", "metric_source", "model", "agent_role"} == (ExtensionKind.values())
 
     def test_config_value_enums(self):
         assert TopologyProviderKind.values() == frozenset({"yaml", "neptune"})

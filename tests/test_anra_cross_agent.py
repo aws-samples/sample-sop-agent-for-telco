@@ -24,9 +24,7 @@ class TestTriggerAndaRedeploy:
 
     def test_creates_cr_and_wakes_anda(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="created")
-        result = trigger_anda_redeploy(
-            nf_name="amf", namespace="open5gs", reason="CrashLoopBackOff detected"
-        )
+        result = trigger_anda_redeploy(nf_name="amf", namespace="open5gs", reason="CrashLoopBackOff detected")
         assert "✅ Created DeploymentPlan" in result
         assert "amf" in result
         assert "remediation" in result
@@ -35,17 +33,12 @@ class TestTriggerAndaRedeploy:
 
     def test_emergency_priority(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="created")
-        result = trigger_anda_redeploy(
-            nf_name="upf", namespace="open5gs",
-            reason="UPF crash", priority="emergency"
-        )
+        result = trigger_anda_redeploy(nf_name="upf", namespace="open5gs", reason="UPF crash", priority="emergency")
         assert "emergency" in result.lower() or "Priority: emergency" in result
 
     def test_cr_creation_failure(self, mock_run):
         mock_run.return_value = _CmdResult(success=False, stderr="forbidden")
-        result = trigger_anda_redeploy(
-            nf_name="amf", namespace="open5gs", reason="test"
-        )
+        result = trigger_anda_redeploy(nf_name="amf", namespace="open5gs", reason="test")
         assert "❌" in result
         assert "Failed to create" in result
 
@@ -55,38 +48,27 @@ class TestTriggerAndaRedeploy:
             _CmdResult(success=True, stdout="created"),
             _CmdResult(success=False, stderr="connection refused"),
         ]
-        result = trigger_anda_redeploy(
-            nf_name="nrf", namespace="open5gs", reason="redeploy needed"
-        )
+        result = trigger_anda_redeploy(nf_name="nrf", namespace="open5gs", reason="redeploy needed")
         assert "✅ Created DeploymentPlan" in result
         assert "wake failed" in result
 
     def test_custom_intent_and_vendor(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="created")
-        result = trigger_anda_redeploy(
-            nf_name="upf", namespace="open5gs",
-            reason="upgrade", intent="upgrade", vendor="nec"
-        )
+        result = trigger_anda_redeploy(nf_name="upf", namespace="open5gs", reason="upgrade", intent="upgrade", vendor="nec")
         assert "upgrade" in result.lower() or "Intent: upgrade" in result
 
     def test_single_quote_in_reason_safe(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="created")
-        result = trigger_anda_redeploy(
-            nf_name="amf", namespace="open5gs",
-            reason="it's broken; rm -rf /"
-        )
+        result = trigger_anda_redeploy(nf_name="amf", namespace="open5gs", reason="it's broken; rm -rf /")
         assert "✅ Created DeploymentPlan" in result
         # Verify shlex.quote was used (no raw <<< pattern)
         cmd_arg = mock_run.call_args_list[0][0][0]
         assert "<<<" not in cmd_arg
         assert "echo" in cmd_arg
 
-
     def test_plan_name_contains_nf(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="created")
-        result = trigger_anda_redeploy(
-            nf_name="smf", namespace="open5gs", reason="test"
-        )
+        result = trigger_anda_redeploy(nf_name="smf", namespace="open5gs", reason="test")
         assert "anra-smf-" in result
 
 
@@ -96,17 +78,13 @@ class TestWatchAndaDeploymentCompletion:
 
     def test_completed_immediately(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="Completed")
-        result = watch_anda_deployment_completion(
-            plan_name="anra-amf-123", timeout_seconds=30
-        )
+        result = watch_anda_deployment_completion(plan_name="anra-amf-123", timeout_seconds=30)
         assert "✅" in result
         assert "completed successfully" in result
 
     def test_failed_status(self, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="Failed")
-        result = watch_anda_deployment_completion(
-            plan_name="anra-amf-123", timeout_seconds=30
-        )
+        result = watch_anda_deployment_completion(plan_name="anra-amf-123", timeout_seconds=30)
         assert "❌" in result
         assert "Failed" in result
 
@@ -115,9 +93,7 @@ class TestWatchAndaDeploymentCompletion:
     def test_timeout(self, mock_time, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="InProgress")
         mock_time.side_effect = [0, 0, 301]
-        result = watch_anda_deployment_completion(
-            plan_name="anra-amf-123", timeout_seconds=300
-        )
+        result = watch_anda_deployment_completion(plan_name="anra-amf-123", timeout_seconds=300)
         assert "⏰" in result
         assert "Timed out" in result
 
@@ -127,9 +103,7 @@ class TestWatchAndaDeploymentCompletion:
             _CmdResult(success=True, stdout="Completed"),
             _CmdResult(success=True, stdout='{"phase":"Completed","nfStatuses":{"amf":"Deployed"}}'),
         ]
-        result = watch_anda_deployment_completion(
-            plan_name="anra-amf-123", timeout_seconds=30
-        )
+        result = watch_anda_deployment_completion(plan_name="anra-amf-123", timeout_seconds=30)
         assert "✅" in result
 
 

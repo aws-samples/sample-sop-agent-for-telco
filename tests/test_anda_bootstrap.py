@@ -139,10 +139,8 @@ class TestBootstrapOrchestration:
         )
 
         mock_missing.return_value = [
-            InfraComponent(name="b", type="infrastructure", install_method="helm",
-                           source="chart-b", namespace="ns-b", wave=2, depends_on=["a"]),
-            InfraComponent(name="a", type="infrastructure", install_method="helm",
-                           source="chart-a", namespace="ns-a", wave=1, depends_on=[]),
+            InfraComponent(name="b", type="infrastructure", install_method="helm", source="chart-b", namespace="ns-b", wave=2, depends_on=["a"]),
+            InfraComponent(name="a", type="infrastructure", install_method="helm", source="chart-a", namespace="ns-a", wave=1, depends_on=[]),
         ]
         mock_healthy.return_value = True
         mock_run.return_value = FakeCmdResult(success=True, output="deployed")
@@ -150,6 +148,7 @@ class TestBootstrapOrchestration:
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
             _check_and_bootstrap_infrastructure,
         )
+
         _check_and_bootstrap_infrastructure()
 
         # Should deploy 'a' before 'b' (wave ordering)
@@ -168,8 +167,7 @@ class TestBootstrapOrchestration:
         )
 
         mock_missing.return_value = [
-            InfraComponent(name="child", type="infrastructure", install_method="helm",
-                           source="chart-child", namespace="ns", wave=2, depends_on=["parent"]),
+            InfraComponent(name="child", type="infrastructure", install_method="helm", source="chart-child", namespace="ns", wave=2, depends_on=["parent"]),
         ]
         mock_healthy.return_value = False  # parent not healthy
         mock_run.return_value = FakeCmdResult(success=True, output="ok")
@@ -177,6 +175,7 @@ class TestBootstrapOrchestration:
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
             _check_and_bootstrap_infrastructure,
         )
+
         _check_and_bootstrap_infrastructure()
 
         # Should NOT deploy child since parent dep not met
@@ -192,10 +191,8 @@ class TestBootstrapOrchestration:
         )
 
         mock_missing.return_value = [
-            InfraComponent(name="helm-comp", type="infrastructure", install_method="helm",
-                           source="oci://chart", namespace="ns1", wave=1, depends_on=[]),
-            InfraComponent(name="kubectl-comp", type="platform", install_method="kubectl_apply",
-                           source="manifest.yaml", namespace="ns2", wave=1, depends_on=[]),
+            InfraComponent(name="helm-comp", type="infrastructure", install_method="helm", source="oci://chart", namespace="ns1", wave=1, depends_on=[]),
+            InfraComponent(name="kubectl-comp", type="platform", install_method="kubectl_apply", source="manifest.yaml", namespace="ns2", wave=1, depends_on=[]),
         ]
         mock_healthy.return_value = True
         mock_run.return_value = FakeCmdResult(success=True, output="ok")
@@ -203,6 +200,7 @@ class TestBootstrapOrchestration:
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
             _check_and_bootstrap_infrastructure,
         )
+
         _check_and_bootstrap_infrastructure()
 
         calls = [c[0][0] for c in mock_run.call_args_list]

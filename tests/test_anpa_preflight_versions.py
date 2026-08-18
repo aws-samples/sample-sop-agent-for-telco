@@ -14,21 +14,21 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.preflight_re
 
 def test_version_lt_handles_multi_digit_segments() -> None:
     # The two cases the bug actually mishandled.
-    assert _version_lt("2.9", "2.10") is True       # 2.9 < 2.10
-    assert _version_lt("2.10", "2.9") is False      # 2.10 NOT < 2.9
-    assert _version_lt("4.9", "4.30") is True       # 4.9 < 4.30
+    assert _version_lt("2.9", "2.10") is True  # 2.9 < 2.10
+    assert _version_lt("2.10", "2.9") is False  # 2.10 NOT < 2.9
+    assert _version_lt("4.9", "4.30") is True  # 4.9 < 4.30
     assert _version_lt("4.30", "4.9") is False
 
 
 def test_version_lt_basic() -> None:
     assert _version_lt("1.0.0", "1.0.1") is True
     assert _version_lt("1.0.1", "1.0.0") is False
-    assert _version_lt("1.0.0", "1.0.0") is False   # equal is not less
+    assert _version_lt("1.0.0", "1.0.0") is False  # equal is not less
 
 
 def test_version_lt_unequal_segment_counts() -> None:
     # Missing segments treated as 0.
-    assert _version_lt("4", "4.30") is True         # 4.0 < 4.30
+    assert _version_lt("4", "4.30") is True  # 4.0 < 4.30
     assert _version_lt("4.30", "4") is False
     assert _version_lt("1.2.3.4", "1.2.3") is False  # extra segments don't drop the comparison
     assert _version_lt("1.2.3", "1.2.3.4") is True

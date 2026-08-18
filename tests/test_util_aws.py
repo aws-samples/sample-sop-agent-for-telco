@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for util.aws.aws_session — the shared boto3 session helper."""
+
 from unittest.mock import patch
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.util import aws

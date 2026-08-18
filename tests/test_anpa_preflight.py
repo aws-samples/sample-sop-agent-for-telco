@@ -29,7 +29,7 @@ GOOD_BIOS_DELL = {
     "SriovGlobalEnable": "Enabled",
     "ProcCStates": "Disabled",
     "EnergyPerformanceBias": "MaxPower",
-    "LogicalProc": "Disabled",       # HT off — UPF-recommended
+    "LogicalProc": "Disabled",  # HT off — UPF-recommended
     "MemFrequency": "MaxPerf",
     "SubNumaCluster": "Enabled",
 }
@@ -39,9 +39,9 @@ LIVE_BIOS_DELL_3010 = {  # what we actually saw on .30.10
     "SriovGlobalEnable": "Enabled",
     "ProcCStates": "Disabled",
     "EnergyPerformanceBias": "MaxPower",
-    "LogicalProc": "Enabled",        # HT ON — UPF wants OFF (recommended gap)
+    "LogicalProc": "Enabled",  # HT ON — UPF wants OFF (recommended gap)
     "MemFrequency": "MaxPerf",
-    "SubNumaCluster": "Disabled",    # UPF prefers Enabled (recommended gap)
+    "SubNumaCluster": "Disabled",  # UPF prefers Enabled (recommended gap)
 }
 
 GOOD_HWI_SPEC = {
@@ -166,10 +166,7 @@ class TestReadinessAssessment:
         )
         # recommended only — does NOT flip ready=False
         assert report.ready is True
-        assert any(
-            g.severity == "recommended" and g.category == "firmware"
-            for g in report.gaps
-        )
+        assert any(g.severity == "recommended" and g.category == "firmware" for g in report.gaps)
 
     def test_summary_is_structured_and_useful(self):
         bad = {**GOOD_BIOS_DELL, "BootMode": "Bios"}

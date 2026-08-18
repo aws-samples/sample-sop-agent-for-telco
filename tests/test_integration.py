@@ -76,8 +76,10 @@ class TestChatRouting:
         mock_swarm_instance.return_value = "Swarm diagnosis: root cause is SMF upgrade"
         mock_swarm_instance.__str__ = MagicMock(return_value="Swarm diagnosis: root cause is SMF upgrade")
 
-        with patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm.is_complex_query", return_value=True), \
-             patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm.create_ano_swarm", return_value=mock_swarm_instance):
+        with (
+            patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm.is_complex_query", return_value=True),
+            patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm.create_ano_swarm", return_value=mock_swarm_instance),
+        ):
             resp = anra_client.post(
                 "/api/chat",
                 json={"message": "why did the deployment cause alarms?"},

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 def _fresh_app(role: str):
     from amzn_cse_telco_autonomous_network_agents_app.agent.api import create_app
+
     return create_app(role=role)
 
 
@@ -104,6 +105,7 @@ def _parse_origins():
     from amzn_cse_telco_autonomous_network_agents_app.agent.api import (
         _parse_cors_origins,
     )
+
     return _parse_cors_origins()
 
 
@@ -129,6 +131,7 @@ def test_cors_dev_truthy_values_open_to_wildcard(
     monkeypatch.setenv("CORS_DEV", truthy)
     monkeypatch.delenv("CORS_ALLOW_ORIGINS", raising=False)
     import logging
+
     with caplog.at_level(logging.WARNING):
         result = _parse_origins()
     assert result == ["*"]
@@ -145,6 +148,7 @@ def test_cors_dev_unrecognized_value_warns_and_falls_through(
     monkeypatch.setenv("CORS_DEV", "enabled")
     monkeypatch.delenv("CORS_ALLOW_ORIGINS", raising=False)
     import logging
+
     with caplog.at_level(logging.WARNING):
         result = _parse_origins()
     assert result == []  # falls through to default-deny
@@ -181,6 +185,7 @@ def test_cors_dev_overrides_explicit_allowlist(monkeypatch: pytest.MonkeyPatch) 
 
 def _is_bypass(path: str) -> bool:
     from amzn_cse_telco_autonomous_network_agents_app.agent.api import _is_auth_bypass
+
     return _is_auth_bypass(path)
 
 

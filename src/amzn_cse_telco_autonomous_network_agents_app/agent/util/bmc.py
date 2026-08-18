@@ -119,6 +119,4 @@ def curl_bmc(
         # curl didn't self-terminate within its budget + buffer. Surface a
         # curl-28-shaped result so callers checking returncode degrade gracefully
         # (the old run_cmd path returned a failure result rather than raising).
-        return subprocess.CompletedProcess(
-            args, 28, stdout="", stderr="operation timed out"
-        )
+        return subprocess.CompletedProcess(args, 28, stdout="", stderr="operation timed out")

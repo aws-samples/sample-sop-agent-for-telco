@@ -56,7 +56,7 @@ class TestCurlBmc:
         with patch.object(bmc.subprocess, "run", side_effect=fake_run):
             bmc.curl_bmc("https://h/x", "root", 'p$`"\\w', timeout=5)
 
-        assert 'p$`' not in " ".join(captured["args"])  # not on argv
+        assert "p$`" not in " ".join(captured["args"])  # not on argv
         # quote and backslash are escaped in the config payload
         assert '\\"' in captured["input"] and "\\\\" in captured["input"]
 

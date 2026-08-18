@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for evals/ — evaluators and SOP corrector."""
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -83,6 +84,7 @@ class TestCorrectSopRateLimit:
 
         counter = {"test": MAX_CORRECTIONS_PER_SESSION}
         from sop_corrector import correct_sop
+
         result = correct_sop([report], str(sop), _correction_count=counter)
         assert result is None  # rate limited
 
@@ -94,6 +96,7 @@ class TestCorrectSopRateLimit:
         report.reasons = ["ok"]
         report.scores = [1.0]
         from sop_corrector import correct_sop
+
         result = correct_sop([report], str(sop))
         assert result is None
 
@@ -108,6 +111,7 @@ class TestEvaluatorsImport:
             SteeringEffectivenessEvaluator,
             ToolSuccessRateEvaluator,
         )
+
         assert callable(SteeringEffectivenessEvaluator)
         assert callable(SOPCompletionEvaluator)
         assert callable(ExecutionTimeEvaluator)
@@ -115,11 +119,13 @@ class TestEvaluatorsImport:
 
     def test_extract_tool_spans_empty(self):
         from evaluators import _extract_tool_spans
+
         assert _extract_tool_spans(None) == []
         assert _extract_tool_spans("not a session") == []
 
     def test_evaluators_have_evaluate_method(self):
         from evaluators import SOPCompletionEvaluator, SteeringEffectivenessEvaluator
+
         assert hasattr(SOPCompletionEvaluator(), "evaluate")
         assert hasattr(SteeringEffectivenessEvaluator(), "evaluate")
 
@@ -127,6 +133,7 @@ class TestEvaluatorsImport:
 class TestSOPCompletionEvaluator:
     def test_empty_output_flagged(self):
         from evaluators import SOPCompletionEvaluator
+
         evaluator = SOPCompletionEvaluator()
         case = MagicMock()
         case.actual_trajectory = None
@@ -137,6 +144,7 @@ class TestSOPCompletionEvaluator:
 
     def test_failure_marker_detected(self):
         from evaluators import SOPCompletionEvaluator
+
         evaluator = SOPCompletionEvaluator()
         case = MagicMock()
         case.actual_trajectory = None
@@ -147,6 +155,7 @@ class TestSOPCompletionEvaluator:
 
     def test_no_issues_passes(self):
         from evaluators import SOPCompletionEvaluator
+
         evaluator = SOPCompletionEvaluator()
         case = MagicMock()
         case.actual_trajectory = None
@@ -159,6 +168,7 @@ class TestSOPCompletionEvaluator:
 class TestSteeringEffectivenessEvaluator:
     def test_no_spans_returns_neutral(self):
         from evaluators import SteeringEffectivenessEvaluator
+
         evaluator = SteeringEffectivenessEvaluator()
         case = MagicMock()
         case.actual_trajectory = None
@@ -171,6 +181,7 @@ class TestSteeringEffectivenessEvaluator:
 class TestExecutionTimeEvaluator:
     def test_no_time_recorded(self):
         from evaluators import ExecutionTimeEvaluator
+
         evaluator = ExecutionTimeEvaluator()
         case = MagicMock()
         case.metadata = {}
@@ -179,6 +190,7 @@ class TestExecutionTimeEvaluator:
 
     def test_within_budget(self):
         from evaluators import ExecutionTimeEvaluator
+
         evaluator = ExecutionTimeEvaluator()
         case = MagicMock()
         case.metadata = {"execution_time_s": 60, "bash_blocks": 5, "lines": 50}
@@ -187,6 +199,7 @@ class TestExecutionTimeEvaluator:
 
     def test_over_budget(self):
         from evaluators import ExecutionTimeEvaluator
+
         evaluator = ExecutionTimeEvaluator()
         case = MagicMock()
         case.metadata = {"execution_time_s": 500, "bash_blocks": 3, "lines": 20}

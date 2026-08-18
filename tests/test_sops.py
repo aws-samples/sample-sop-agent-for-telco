@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for SOP content — validates all SOPs have required sections."""
+
 from pathlib import Path
 
 import pytest
@@ -37,20 +38,17 @@ class TestSOPStructure:
         content = sop_path.read_text()
         assert "## Prerequisites" in content or "## Prerequisite" in content, f"{sop_path.name} missing Prerequisites"
 
-    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)],
-                             ids=lambda p: p.name)
+    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)], ids=lambda p: p.name)
     def test_day2_has_troubleshooting(self, sop_path):
         content = sop_path.read_text()
         assert "## Troubleshooting" in content, f"{sop_path.name} missing Troubleshooting table"
 
-    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)],
-                             ids=lambda p: p.name)
+    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)], ids=lambda p: p.name)
     def test_day2_has_rollback(self, sop_path):
         content = sop_path.read_text()
         assert "## Rollback" in content, f"{sop_path.name} missing Rollback section"
 
-    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)],
-                             ids=lambda p: p.name)
+    @pytest.mark.parametrize("sop_path", [s for s in REAL_SOPS if "day2-remediate" in str(s)], ids=lambda p: p.name)
     def test_day2_has_severity(self, sop_path):
         content = sop_path.read_text()
         assert "**Severity:**" in content, f"{sop_path.name} missing Severity field"

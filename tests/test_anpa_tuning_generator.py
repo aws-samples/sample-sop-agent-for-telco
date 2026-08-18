@@ -21,6 +21,7 @@ downstream Tinkerbell action consuming the strings will misparse):
   * ``tuningSysctl`` — semicolon-separated ``key=value`` pairs, sorted
   * ``tuningDisabledServices`` — comma-separated systemd unit names
 """
+
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.tuning_generator import (
     TuningRequest,
     generate_tuning_fields,
@@ -36,6 +37,7 @@ EMPTY_TOPO = {}
 
 
 # ---- generate_tuning_profile (existing) --------------------------------------
+
 
 class TestGenerateTuningProfile:
     def test_two_socket_isolates_correct_range(self):
@@ -76,6 +78,7 @@ class TestGenerateTuningProfile:
 
 
 # ---- generate_tuning_fields (new, RGD-direct) --------------------------------
+
 
 class TestGenerateTuningFields:
     def test_returns_only_the_three_eks_h_keys(self):
@@ -144,6 +147,7 @@ class TestGenerateTuningFields:
 
 
 # ---- tuning_profile_name (helper, unchanged) ---------------------------------
+
 
 class TestTuningProfileName:
     def test_basic_naming(self):

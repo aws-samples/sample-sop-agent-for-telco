@@ -14,6 +14,7 @@ is exactly that case.
 
 Concurrency invariants are covered separately by ``test_app_state_thread_safety.py``.
 """
+
 from amzn_cse_telco_autonomous_network_agents_app.agent import app_state
 from amzn_cse_telco_autonomous_network_agents_app.agent.core import state as _state
 

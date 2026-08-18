@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for SOP enrichment pipeline and core Prometheus alarm rules."""
+
 from unittest.mock import MagicMock, patch
 
 
@@ -12,6 +13,7 @@ class TestCorePrometheusAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
             {},  # RAN metrics
             {"amf_fivegs_amffunction_rm_reginitfail": 5},  # Core metrics
@@ -24,6 +26,7 @@ class TestCorePrometheusAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
             {},
             {"amf_fivegs_amffunction_amf_authreject": 1},
@@ -36,6 +39,7 @@ class TestCorePrometheusAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
             {},
             {"smf_fivegs_smffunction_sm_n4sessionestabfail": 3},
@@ -48,6 +52,7 @@ class TestCorePrometheusAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
             {},
             {"upf_fivegs_ep_n3_gtp_indatapktn3upf": 0},
@@ -60,18 +65,20 @@ class TestCorePrometheusAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             evaluate_ran_thresholds,
         )
+
         mock_query.side_effect = [
-            {"cells_0_ue_list_0_dl_brate": 66_000_000, "cells_0_cell_metrics_error_indication_count": 0,
-             "du_du_high_mac_dl_0_cpu_usage_percent": 0.001},
-            {"amf_gnb_connected": 1, "core_nf_health_pct": 100,
-             "amf_fivegs_amffunction_rm_reginitfail": 0,
-             "amf_fivegs_amffunction_amf_authreject": 0,
-             "smf_fivegs_smffunction_sm_n4sessionestabfail": 0,
-             "upf_fivegs_ep_n3_gtp_indatapktn3upf": 100},
+            {"cells_0_ue_list_0_dl_brate": 66_000_000, "cells_0_cell_metrics_error_indication_count": 0, "du_du_high_mac_dl_0_cpu_usage_percent": 0.001},
+            {
+                "amf_gnb_connected": 1,
+                "core_nf_health_pct": 100,
+                "amf_fivegs_amffunction_rm_reginitfail": 0,
+                "amf_fivegs_amffunction_amf_authreject": 0,
+                "smf_fivegs_smffunction_sm_n4sessionestabfail": 0,
+                "upf_fivegs_ep_n3_gtp_indatapktn3upf": 100,
+            },
         ]
         alerts = evaluate_ran_thresholds()
-        core_alarms = [a for a in alerts if a["name"] in
-                       ("amf_registration_failure", "amf_auth_rejection", "smf_pfcp_failure", "upf_no_traffic")]
+        core_alarms = [a for a in alerts if a["name"] in ("amf_registration_failure", "amf_auth_rejection", "smf_pfcp_failure", "upf_no_traffic")]
         assert len(core_alarms) == 0
 
 
@@ -82,6 +89,7 @@ class TestAlarmReferenceNewAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import (
             load_config,
         )
+
         cfg = load_config()
         return {a.name: {"layer": a.layer, "depends_on": a.depends_on, "nf_scope": a.nf_scope} for a in cfg.alarms}
 
@@ -105,6 +113,7 @@ class TestAlarmReferenceNewAlarms:
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import (
             load_config,
         )
+
         assert len(load_config().alarms) >= 7
 
 
@@ -117,6 +126,7 @@ class TestEnvironmentScanners:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             _scan_environment,
         )
+
         scan = _scan_environment({"name": "amf_gnb_disconnect"})
         assert "pods" in scan or "tools" in scan
 
@@ -126,6 +136,7 @@ class TestEnvironmentScanners:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             _scan_environment,
         )
+
         scan = _scan_environment({"name": "du_timing_failure"})
         assert "ran_info" in scan
         assert "no ductl" in scan["ran_info"].lower() or "NO vendor CLI" in scan["ran_info"]
@@ -137,6 +148,7 @@ class TestEnvironmentScanners:
             _alarm_ref,
             _scan_environment,
         )
+
         # Add a fake UE alarm to alarm_ref so scanner picks layer 4
         _alarm_ref["ue_registration_failure"] = {"layer": 4}
         scan = _scan_environment({"name": "ue_registration_failure"})
@@ -153,6 +165,7 @@ class TestSOPEnrichment:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             _enrich_sop,
         )
+
         # Will fail on Bedrock call but scan should be called
         _enrich_sop("# Raw SOP", {"name": "du_timing_failure"})
         mock_scan.assert_called_once()
@@ -163,6 +176,7 @@ class TestSOPEnrichment:
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import (
             _enrich_sop,
         )
+
         original = "# Original SOP content"
         result = _enrich_sop(original, {"name": "test"})
         assert result == original

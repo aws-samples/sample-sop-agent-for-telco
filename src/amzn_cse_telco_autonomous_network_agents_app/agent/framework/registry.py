@@ -36,9 +36,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import (
 class _KindSpec:
     """Internal: the declaration of one extension kind."""
 
-    def __init__(
-        self, kind: ExtensionKind, mode: ResolutionMode, contract: Optional[type]
-    ) -> None:
+    def __init__(self, kind: ExtensionKind, mode: ResolutionMode, contract: Optional[type]) -> None:
         self.kind = kind
         self.mode = mode
         self.contract = contract
@@ -71,19 +69,14 @@ class Registry:
             existing = self._kinds.get(kind)
             if existing is not None:
                 if existing.mode != mode or existing.contract is not contract:
-                    msg = (
-                        f"Extension kind {kind!r} already declared with a "
-                        f"different mode/contract; refusing to redeclare."
-                    )
+                    msg = f"Extension kind {kind!r} already declared with a different mode/contract; refusing to redeclare."
                     raise ValueError(msg)
                 return
             self._kinds[kind] = _KindSpec(kind, mode, contract)
 
     # ── Registration ──
 
-    def register(
-        self, kind: ExtensionKind, name: str, obj: Any, *, override: bool = False
-    ) -> None:
+    def register(self, kind: ExtensionKind, name: str, obj: Any, *, override: bool = False) -> None:
         """Register ``obj`` under ``(kind, name)``.
 
         Raises if the kind is undeclared, the name is already taken (unless
@@ -103,10 +96,7 @@ class Registry:
                 msg = f"Cannot register an empty name under kind {kind!r}."
                 raise ValueError(msg)
             if name in spec.items and not override:
-                msg = (
-                    f"Duplicate registration for {kind.value}:{name!r}. Pass "
-                    f"override=True to intentionally replace it."
-                )
+                msg = f"Duplicate registration for {kind.value}:{name!r}. Pass override=True to intentionally replace it."
                 raise ValueError(msg)
             self._validate_contract(spec, name, obj)
             spec.items[name] = obj
@@ -126,10 +116,7 @@ class Registry:
         if contract is None:
             return
         if not isinstance(obj, contract):
-            msg = (
-                f"{spec.kind.value}:{name!r} must be an INSTANCE of "
-                f"{contract.__name__}, got {obj!r}."
-            )
+            msg = f"{spec.kind.value}:{name!r} must be an INSTANCE of {contract.__name__}, got {obj!r}."
             raise TypeError(msg)
 
     # ── Resolution ──
@@ -143,18 +130,12 @@ class Registry:
         with self._lock:
             spec = self._require_kind(kind)
             if spec.mode is not ResolutionMode.SELECT:
-                msg = (
-                    f"get_one is only valid for SELECT kinds; {kind!r} is "
-                    f"{spec.mode.value}. Use get_all."
-                )
+                msg = f"get_one is only valid for SELECT kinds; {kind!r} is {spec.mode.value}. Use get_all."
                 raise ValueError(msg)
             obj = spec.items.get(name)
             if obj is None:
                 known = sorted(spec.items)
-                msg = (
-                    f"No {kind.value} registered under {name!r}. "
-                    f"Known: {known or '(none)'}."
-                )
+                msg = f"No {kind.value} registered under {name!r}. Known: {known or '(none)'}."
                 raise KeyError(msg)
             return obj
 
@@ -168,10 +149,7 @@ class Registry:
         with self._lock:
             spec = self._require_kind(kind)
             if spec.mode is not ResolutionMode.COLLECT:
-                msg = (
-                    f"get_all is only valid for COLLECT kinds; {kind!r} is "
-                    f"{spec.mode.value}. Use get_one."
-                )
+                msg = f"get_all is only valid for COLLECT kinds; {kind!r} is {spec.mode.value}. Use get_one."
                 raise ValueError(msg)
             return list(spec.items.values())
 
@@ -220,12 +198,8 @@ def _declare_select_kinds() -> None:
         TopologyProvider,
     )
 
-    registry.define_kind(
-        ExtensionKind.CLI, mode=ResolutionMode.SELECT, contract=CommandIntegration
-    )
-    registry.define_kind(
-        ExtensionKind.TOPOLOGY, mode=ResolutionMode.SELECT, contract=TopologyProvider
-    )
+    registry.define_kind(ExtensionKind.CLI, mode=ResolutionMode.SELECT, contract=CommandIntegration)
+    registry.define_kind(ExtensionKind.TOPOLOGY, mode=ResolutionMode.SELECT, contract=TopologyProvider)
     # METRIC_SOURCE / MODEL contracts are declared as their seams are migrated
     # onto the registry in later CRs.
 

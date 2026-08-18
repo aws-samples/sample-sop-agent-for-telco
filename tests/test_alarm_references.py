@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for alarm rules loaded from config."""
+
 import pytest
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.config import load_config
@@ -52,5 +53,6 @@ class TestSchema:
         from amzn_cse_telco_autonomous_network_agents_app.agent.correlator import (
             build_graph,
         )
+
         G = build_graph(alarm_ref)
         assert nx.is_directed_acyclic_graph(G)

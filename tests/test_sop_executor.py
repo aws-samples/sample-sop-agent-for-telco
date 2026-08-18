@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for sop_executor.py — tools, parsing, command execution."""
+
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +16,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
 )
 
 # ── CmdResult ──
+
 
 class TestCmdResult:
     def test_success_property(self):
@@ -39,6 +41,7 @@ class TestCmdResult:
 
 
 # ── run_cmd ──
+
 
 class TestRunCmd:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.executor.subprocess.run")
@@ -68,6 +71,7 @@ class TestRunCmd:
 
 
 # ── parse_sop ──
+
 
 class TestParseSop:
     SAMPLE_SOP = """# Test SOP
@@ -123,6 +127,7 @@ kubectl exec -n aws-app $POD -- echo test
 
 # ── get_tools_for_sop ──
 
+
 class TestGetToolsForSop:
     def test_argocd_sop_gets_argocd_tools(self):
         tools = get_tools_for_sop("sops/07-argocd-monitoring.md")
@@ -138,6 +143,7 @@ class TestGetToolsForSop:
 
 
 # ── Tool function contracts ──
+
 
 class TestToolContracts:
     """Verify tools are callable and have proper signatures."""
@@ -159,6 +165,7 @@ class TestToolContracts:
 
 
 # ── Modularity guardrail (S2.2) ──
+
 
 class TestSingleSourceOfTruth:
     """Guardrail: sop_executor must REUSE core.executor's primitives, not re-fork them.
@@ -207,6 +214,7 @@ class TestSingleSourceOfTruth:
 
 # ── Tool input safety ──
 
+
 class TestToolInputSafety:
     """Verify tools handle edge cases."""
 
@@ -215,6 +223,7 @@ class TestToolInputSafety:
         from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
             kubectl,
         )
+
         mock_run.return_value = CmdResult("ok", "", 0)
         kubectl("get pods -n aws-app")
         mock_run.assert_called_once()
@@ -226,6 +235,7 @@ class TestToolInputSafety:
         from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
             ssh_command,
         )
+
         mock_run.return_value = CmdResult("ok", "", 0)
         ssh_command("10.10.4.238", "ls /tmp", user="nec")
         call_args = mock_run.call_args[0][0]
@@ -237,6 +247,7 @@ class TestToolInputSafety:
         from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
             telcocli,
         )
+
         mock_run.return_value = CmdResult("ok", "", 0)
         telcocli("list-outposts")
         call_args = mock_run.call_args[0][0]

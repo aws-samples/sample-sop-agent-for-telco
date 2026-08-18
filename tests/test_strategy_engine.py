@@ -90,9 +90,7 @@ class TestStrategySelection:
 
     def test_custom_hookos_propagated(self):
         engine = StrategyEngine()
-        profile = _make_profile(
-            boot_override_writable=True, requires_custom_hookos=True
-        )
+        profile = _make_profile(boot_override_writable=True, requires_custom_hookos=True)
         strategy = engine.select(profile, {"strategies": []})
         assert strategy.hookos_variant == "patched-ice"
 
@@ -107,30 +105,22 @@ class TestStrategySelection:
 class TestFallbackChain:
     def test_fallback_for_virtual_media_failure(self):
         engine = StrategyEngine()
-        fallback = engine.get_fallback_for_failure(
-            "primary", "VIRTUAL_MEDIA_MOUNT_FAILED", DELL_QUIRKS
-        )
+        fallback = engine.get_fallback_for_failure("primary", "VIRTUAL_MEDIA_MOUNT_FAILED", DELL_QUIRKS)
         assert fallback is not None
         assert fallback.name == "fallback_rfs"
         assert fallback.mount_method == "rfs_network_file"
 
     def test_no_fallback_from_last_strategy(self):
         engine = StrategyEngine()
-        fallback = engine.get_fallback_for_failure(
-            "fallback_rfs", "SOME_FAILURE", DELL_QUIRKS
-        )
+        fallback = engine.get_fallback_for_failure("fallback_rfs", "SOME_FAILURE", DELL_QUIRKS)
         assert fallback is None
 
     def test_unknown_strategy_returns_none(self):
         engine = StrategyEngine()
-        fallback = engine.get_fallback_for_failure(
-            "nonexistent", "SOME_FAILURE", DELL_QUIRKS
-        )
+        fallback = engine.get_fallback_for_failure("nonexistent", "SOME_FAILURE", DELL_QUIRKS)
         assert fallback is None
 
     def test_default_strategy_has_no_fallback(self):
         engine = StrategyEngine()
-        fallback = engine.get_fallback_for_failure(
-            "default", "SOME_FAILURE", DEFAULT_QUIRKS
-        )
+        fallback = engine.get_fallback_for_failure("default", "SOME_FAILURE", DEFAULT_QUIRKS)
         assert fallback is None

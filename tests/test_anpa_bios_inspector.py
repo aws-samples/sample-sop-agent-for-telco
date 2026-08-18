@@ -16,17 +16,17 @@ class FakeR:
     stdout: str = ""
     stderr: str = ""
     returncode: int = 0
+
     @property
-    def success(self) -> bool: return self.returncode == 0
+    def success(self) -> bool:
+        return self.returncode == 0
 
 
 class TestBiosAttributes:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc")
     def test_returns_attributes_map(self, mock_run, monkeypatch):
         monkeypatch.setenv("BMC_PASSWORD", "calvin")
-        mock_run.return_value = FakeR(stdout=json.dumps({
-            "Attributes": {"BootMode": "Uefi", "SriovGlobalEnable": "Enabled"}
-        }))
+        mock_run.return_value = FakeR(stdout=json.dumps({"Attributes": {"BootMode": "Uefi", "SriovGlobalEnable": "Enabled"}}))
         attrs = bios_inspector.get_bios_attributes("192.168.30.10")
         assert attrs["BootMode"] == "Uefi"
         assert attrs["SriovGlobalEnable"] == "Enabled"
@@ -59,12 +59,16 @@ class TestFirmwareInventory:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc")
     def test_walks_collection(self, mock_run):
         responses = [
-            FakeR(stdout=json.dumps({
-                "Members": [
-                    {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/A"},
-                    {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/B"},
-                ]
-            })),
+            FakeR(
+                stdout=json.dumps(
+                    {
+                        "Members": [
+                            {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/A"},
+                            {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/B"},
+                        ]
+                    }
+                )
+            ),
             FakeR(stdout=json.dumps({"Id": "A", "Name": "BIOS", "Version": "2.10", "Updateable": True})),
             FakeR(stdout=json.dumps({"Id": "B", "Name": "Intel E810", "Version": "4.30", "Updateable": True})),
         ]
@@ -77,12 +81,16 @@ class TestFirmwareInventory:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc")
     def test_skips_failed_members(self, mock_run):
         mock_run.side_effect = [
-            FakeR(stdout=json.dumps({
-                "Members": [
-                    {"@odata.id": "/a"},
-                    {"@odata.id": "/b"},
-                ]
-            })),
+            FakeR(
+                stdout=json.dumps(
+                    {
+                        "Members": [
+                            {"@odata.id": "/a"},
+                            {"@odata.id": "/b"},
+                        ]
+                    }
+                )
+            ),
             FakeR(returncode=7),  # member fetch fails
             FakeR(stdout=json.dumps({"Id": "B", "Name": "OK"})),
         ]
@@ -94,9 +102,7 @@ class TestProcessorTopology:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.bmc.curl_bmc")
     def test_aggregates_two_sockets(self, mock_run):
         mock_run.side_effect = [
-            FakeR(stdout=json.dumps({
-                "Members": [{"@odata.id": "/cpu1"}, {"@odata.id": "/cpu2"}, {"@odata.id": "/gpu"}]
-            })),
+            FakeR(stdout=json.dumps({"Members": [{"@odata.id": "/cpu1"}, {"@odata.id": "/cpu2"}, {"@odata.id": "/gpu"}]})),
             FakeR(stdout=json.dumps({"ProcessorType": "CPU", "TotalCores": 32, "TotalThreads": 64, "Model": "Xeon"})),
             FakeR(stdout=json.dumps({"ProcessorType": "CPU", "TotalCores": 32, "TotalThreads": 64, "Model": "Xeon"})),
             FakeR(stdout=json.dumps({"ProcessorType": "GPU"})),  # filtered out

@@ -15,6 +15,7 @@ as EKS-H's API. These tests assert:
   6. Multi-node ProvisioningRequests emit one CR per node.
   7. CR is applied via kubectl apply (not just generated).
 """
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -24,14 +25,32 @@ import pytest
 # schema EKS-H's bare-metal-kro RGD watches. This is the contract surface
 # between ANPA and EKS-H.
 EKS_H_PROVISION_FIELDS = {
-    "name", "mac", "ip", "machineProfile", "osProfile",
-    "destDisk", "efiPartition", "rootPartition",
-    "kernelPath", "initrdPath",
-    "osArchive", "osArchiveType", "osArchiveChecksum", "osFsType",
-    "gateway", "netmaskCIDR", "dnsServers",
-    "serverGroup", "namespace", "provisionHash",
-    "clusterName", "clusterRegion", "hybridNodesRole",
-    "tuningKernelCmdline", "tuningSysctl", "tuningDisabledServices",
+    "name",
+    "mac",
+    "ip",
+    "machineProfile",
+    "osProfile",
+    "destDisk",
+    "efiPartition",
+    "rootPartition",
+    "kernelPath",
+    "initrdPath",
+    "osArchive",
+    "osArchiveType",
+    "osArchiveChecksum",
+    "osFsType",
+    "gateway",
+    "netmaskCIDR",
+    "dnsServers",
+    "serverGroup",
+    "namespace",
+    "provisionHash",
+    "clusterName",
+    "clusterRegion",
+    "hybridNodesRole",
+    "tuningKernelCmdline",
+    "tuningSysctl",
+    "tuningDisabledServices",
 }
 
 
@@ -41,27 +60,29 @@ def _ok(stdout="", stderr="", returncode=0):
     r.stdout = stdout
     r.stderr = stderr
     r.returncode = returncode
-    r.success = (returncode == 0)
+    r.success = returncode == 0
     return r
 
 
 def _hwi_json(name="dell-r760-001", mac="aa:bb:cc:dd:ee:01"):
     """A representative HardwareInventory-like JSON, as kubectl get -o json prints."""
-    return json.dumps({
-        "apiVersion": "provisioning.anpa.aws.io/v1alpha1",
-        "kind": "HardwareInventory",
-        "metadata": {"name": name},
-        "spec": {
-            "hostname": name,
-            "bmcAddress": "192.168.30.10",
-            "systemUUID": "4c4c4544-0057-5a10-8035-b7c04f364734",
-            "serialNumber": "7WZ56G4",
-            "interfaces": [
-                {"name": "eno1", "mac": mac},
-                {"name": "eno2", "mac": "aa:bb:cc:dd:ee:02"},
-            ],
-        },
-    })
+    return json.dumps(
+        {
+            "apiVersion": "provisioning.anpa.aws.io/v1alpha1",
+            "kind": "HardwareInventory",
+            "metadata": {"name": name},
+            "spec": {
+                "hostname": name,
+                "bmcAddress": "192.168.30.10",
+                "systemUUID": "4c4c4544-0057-5a10-8035-b7c04f364734",
+                "serialNumber": "7WZ56G4",
+                "interfaces": [
+                    {"name": "eno1", "mac": mac},
+                    {"name": "eno2", "mac": "aa:bb:cc:dd:ee:02"},
+                ],
+            },
+        }
+    )
 
 
 @pytest.fixture
@@ -90,6 +111,7 @@ def base_spec():
 
 def _capture_apply_yaml(spec_capture: dict):
     """Build a run_cmd side_effect that captures the YAML written to the apply file."""
+
     def _se(cmd, **kw):
         if cmd.startswith("kubectl get hardwareinventory"):
             return _ok(stdout=_hwi_json())
@@ -99,10 +121,12 @@ def _capture_apply_yaml(spec_capture: dict):
                 spec_capture["yaml"] = f.read()
             return _ok()
         return _ok()
+
     return _se
 
 
 # -------- happy-path: the CR has every EKS-H field at the right values --------
+
 
 def test_emit_includes_every_eks_h_field(base_spec):
     from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa import (
@@ -174,7 +198,7 @@ def test_emit_targets_eks_h_namespace_and_marks_ownership(base_spec):
         reconciler._emit_baremetal_provision_cr("upf-req-1", "anpa-system", base_spec)
 
     assert "namespace: tinkerbell" in captured["yaml"]
-    assert "provisioning.anpa.aws.io/managed: \"true\"" in captured["yaml"]
+    assert 'provisioning.anpa.aws.io/managed: "true"' in captured["yaml"]
     assert "provisioning.anpa.aws.io/provisioning-request: upf-req-1" in captured["yaml"]
 
 
@@ -193,6 +217,7 @@ def test_emit_uses_kro_run_apiversion(base_spec):
 
 
 # -------- multi-node and edge cases --------
+
 
 def test_emit_one_cr_per_node(base_spec):
     """A multi-node ProvisioningRequest emits one CR per node."""
@@ -244,9 +269,7 @@ def test_emit_raises_when_hwi_has_no_mac(base_spec):
         reconciler,
     )
 
-    hwi_no_mac = json.dumps({
-        "spec": {"hostname": "dell-r760-001", "interfaces": [{"name": "eno1"}]}
-    })
+    hwi_no_mac = json.dumps({"spec": {"hostname": "dell-r760-001", "interfaces": [{"name": "eno1"}]}})
 
     def _se(cmd, **kw):
         if cmd.startswith("kubectl get hardwareinventory"):

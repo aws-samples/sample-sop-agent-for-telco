@@ -19,8 +19,10 @@ class FakeR:
     stdout: str = ""
     stderr: str = ""
     returncode: int = 0
+
     @property
-    def success(self) -> bool: return self.returncode == 0
+    def success(self) -> bool:
+        return self.returncode == 0
 
 
 @pytest.fixture
@@ -30,17 +32,19 @@ def client():
     return TestClient(app)
 
 
-HWI_BODY = json.dumps({
-    "metadata": {"name": "mi-test"},
-    "spec": {
-        "hostname": "mi-test",
-        "bmcAddress": "192.168.30.10",
-        "systemUUID": "uuid-1",
-        "serialNumber": "7WZ56G4",
-        "cpu": {"cores": 64},
-        "memory": {"totalGiB": 256},
-    },
-})
+HWI_BODY = json.dumps(
+    {
+        "metadata": {"name": "mi-test"},
+        "spec": {
+            "hostname": "mi-test",
+            "bmcAddress": "192.168.30.10",
+            "systemUUID": "uuid-1",
+            "serialNumber": "7WZ56G4",
+            "cpu": {"cores": 64},
+            "memory": {"totalGiB": 256},
+        },
+    }
+)
 
 LIVE_BIOS = {
     "Attributes": {
@@ -93,8 +97,6 @@ def test_readiness_unknown_host_returns_404(router_run, client):
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.routers.inventory.run_cmd")
 @pytest.mark.skip(reason="inventory/readiness endpoint not yet ported")
 def test_readiness_no_bmc_address_returns_409(router_run, bios_run, client):
-    router_run.return_value = FakeR(stdout=json.dumps({
-        "metadata": {"name": "x"}, "spec": {"hostname": "x"}
-    }))
+    router_run.return_value = FakeR(stdout=json.dumps({"metadata": {"name": "x"}, "spec": {"hostname": "x"}}))
     r = client.get("/api/inventory/x/readiness?nf=upf")
     assert r.status_code == 409

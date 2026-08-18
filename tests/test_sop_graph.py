@@ -55,9 +55,7 @@ class TestBuildSopGraph:
         edges = resolve_dependencies(metas)
         stem_set = {m["stem"] for m in metas}
         nodes_with_incoming = {to for _, to in edges if to in stem_set}
-        entry_points = [
-            m["stem"] for m in metas if m["stem"] not in nodes_with_incoming
-        ]
+        entry_points = [m["stem"] for m in metas if m["stem"] not in nodes_with_incoming]
         # deploy-5g-core should be an entry point (no dependencies)
         assert len(entry_points) >= 1  # ANRA SOPs have no inter-SOP dependencies
 
@@ -75,11 +73,7 @@ class TestBuildEvalLoop:
         mock_result = MagicMock()
         mock_result.status = Status.COMPLETED
         mock_agent_result = MagicMock()
-        mock_agent_result.message.content = [
-            ContentBlock(
-                text="SteeringEff: 1.0\nSOPCompl: 0.4\n  FAIL: missing tools\nNEEDS_CORRECTION"
-            )
-        ]
+        mock_agent_result.message.content = [ContentBlock(text="SteeringEff: 1.0\nSOPCompl: 0.4\n  FAIL: missing tools\nNEEDS_CORRECTION")]
         mock_result.get_agent_results.return_value = [mock_agent_result]
         mock_state.results = {"eval": mock_result}
 
@@ -89,11 +83,7 @@ class TestBuildEvalLoop:
         assert r is not None
         assert r.status == Status.COMPLETED
         results = r.get_agent_results()
-        has_correction = any(
-            "NEEDS_CORRECTION" in str(ar.message.content)
-            for ar in results
-            if ar.message
-        )
+        has_correction = any("NEEDS_CORRECTION" in str(ar.message.content) for ar in results if ar.message)
         assert has_correction is True
 
     def test_eval_loop_passing_no_correction(self):
@@ -104,19 +94,13 @@ class TestBuildEvalLoop:
         mock_result = MagicMock()
         mock_result.status = Status.COMPLETED
         mock_agent_result = MagicMock()
-        mock_agent_result.message.content = [
-            ContentBlock(text="SteeringEff: 1.0\nSOPCompl: 1.0\n  PASS: all good")
-        ]
+        mock_agent_result.message.content = [ContentBlock(text="SteeringEff: 1.0\nSOPCompl: 1.0\n  PASS: all good")]
         mock_result.get_agent_results.return_value = [mock_agent_result]
         mock_state.results = {"eval": mock_result}
 
         r = mock_state.results.get("eval")
         results = r.get_agent_results()
-        has_correction = any(
-            "NEEDS_CORRECTION" in str(ar.message.content)
-            for ar in results
-            if ar.message
-        )
+        has_correction = any("NEEDS_CORRECTION" in str(ar.message.content) for ar in results if ar.message)
         assert has_correction is False
 
     def test_build_eval_loop_invokes_end_to_end(self):

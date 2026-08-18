@@ -39,17 +39,10 @@ def _all_upstreams_passed(terminal_ids: list[str], target: str = ""):
     """
 
     def check(state: GraphState) -> bool:
-        satisfied = [
-            tid
-            for tid in terminal_ids
-            if (r := state.results.get(tid)) is not None
-            and r.status == Status.COMPLETED
-        ]
+        satisfied = [tid for tid in terminal_ids if (r := state.results.get(tid)) is not None and r.status == Status.COMPLETED]
         result = len(satisfied) == len(terminal_ids)
         if satisfied:  # Only log when at least one upstream done (avoid noise)
-            logger.info(
-                f"AND-join {target}: {len(satisfied)}/{len(terminal_ids)} satisfied={satisfied} → {'PASS' if result else 'WAIT'}"
-            )
+            logger.info(f"AND-join {target}: {len(satisfied)}/{len(terminal_ids)} satisfied={satisfied} → {'PASS' if result else 'WAIT'}")
         return result
 
     return check
@@ -67,11 +60,7 @@ def _corrector_made_changes(corrector_id: str):
         if not r or r.status != Status.COMPLETED:
             return False
         results = r.get_agent_results()
-        return any(
-            SOP_PATCHED_MARKER in str(ar.message["content"])
-            for ar in results
-            if ar.message
-        )
+        return any(SOP_PATCHED_MARKER in str(ar.message["content"]) for ar in results if ar.message)
 
     return check
 
@@ -85,17 +74,11 @@ def _needs_correction(eval_id: str, max_retries: int = 2):
         if not r or r.status != Status.COMPLETED:
             return False
         results = r.get_agent_results()
-        needs = any(
-            NEEDS_CORRECTION_MARKER in str(ar.message["content"])
-            for ar in results
-            if ar.message
-        )
+        needs = any(NEEDS_CORRECTION_MARKER in str(ar.message["content"]) for ar in results if ar.message)
         if needs:
             attempts["count"] += 1
             if attempts["count"] > max_retries:
-                logger.warning(
-                    f"{eval_id}: max correction retries ({max_retries}) reached, skipping"
-                )
+                logger.warning(f"{eval_id}: max correction retries ({max_retries}) reached, skipping")
                 return False
         return needs
 

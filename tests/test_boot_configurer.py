@@ -19,9 +19,7 @@ def _make_profile(**kwargs):
     p = MagicMock()
     p.system_path = kwargs.get("system_path", "/redfish/v1/Systems/System.Embedded.1")
     p.manager_path = kwargs.get("manager_path", "/redfish/v1/Managers/iDRAC.Embedded.1")
-    p.virtual_media_base = kwargs.get(
-        "virtual_media_base", "/redfish/v1/Systems/System.Embedded.1/VirtualMedia"
-    )
+    p.virtual_media_base = kwargs.get("virtual_media_base", "/redfish/v1/Systems/System.Embedded.1/VirtualMedia")
     p.virtual_media_slots = kwargs.get(
         "virtual_media_slots",
         [
@@ -36,9 +34,7 @@ def _make_profile(**kwargs):
         "oem_boot_path",
         "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1",
     )
-    p.bios_settings_path = kwargs.get(
-        "bios_settings_path", "/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
-    )
+    p.bios_settings_path = kwargs.get("bios_settings_path", "/redfish/v1/Systems/System.Embedded.1/Bios/Settings")
     p.has_rfs = kwargs.get("has_rfs", True)
     p.boot_override_writable = kwargs.get("boot_override_writable", False)
     return p
@@ -72,9 +68,7 @@ def _mock_run_cmd_failure(*args, **kwargs):
 
 
 class TestBootConfigurerExecute:
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_success_default_strategy(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_success()
@@ -90,9 +84,7 @@ class TestBootConfigurerExecute:
         assert "set_dell_oem_boot" in result.steps_completed
         assert "power_cycle" in result.steps_completed
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_with_pre_steps(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_success()
@@ -112,9 +104,7 @@ class TestBootConfigurerExecute:
         assert result.steps_completed[1] == "mount_virtual_media"
         assert "power_cycle" in result.steps_completed
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_mount_failure(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_failure()
@@ -128,9 +118,7 @@ class TestBootConfigurerExecute:
         assert result.failure_step == "mount_virtual_media"
         assert result.failure_type == "VIRTUAL_MEDIA_MOUNT_FAILED"
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_rfs_strategy(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_success()
@@ -143,9 +131,7 @@ class TestBootConfigurerExecute:
         assert result.success is True
         assert "configure_rfs" in result.steps_completed
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_rfs_failure_reports_correct_step(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_failure()
@@ -159,9 +145,7 @@ class TestBootConfigurerExecute:
         assert result.failure_step == "configure_rfs"
         assert result.failure_type == "RFS_CONFIGURE_FAILED"
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_execute_standard_redfish_boot(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_success()
@@ -176,9 +160,7 @@ class TestBootConfigurerExecute:
 
 
 class TestBootConfigurerCleanup:
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_cleanup_runs_post_steps(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_success()
@@ -195,9 +177,7 @@ class TestBootConfigurerCleanup:
 
         assert mock_run_cmd.call_count == 2
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": "test123"})
     def test_cleanup_continues_on_failure(self, mock_run_cmd):
         mock_run_cmd.return_value = _mock_run_cmd_failure()
@@ -258,9 +238,7 @@ class TestFindCdSlot:
 
 
 class TestDispatchAction:
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.boot_configurer.run_cmd")
     @patch.dict("os.environ", {"BMC_USERNAME": "root", "BMC_PASSWORD": ""})
     def test_unknown_action_raises(self, mock_run_cmd):
         profile = _make_profile()

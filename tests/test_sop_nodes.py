@@ -50,20 +50,10 @@ class TestClassifyFailure:
         )
 
     def test_budget_exceeded_is_agent_fault(self):
-        assert (
-            _classify_failure(
-                "SteeringEffectivenessEvaluator", "Tool budget exceeded: 96/95", None
-            )
-            == "AGENT_FAULT"
-        )
+        assert _classify_failure("SteeringEffectivenessEvaluator", "Tool budget exceeded: 96/95", None) == "AGENT_FAULT"
 
     def test_empty_output_is_agent_fault(self):
-        assert (
-            _classify_failure(
-                "SOPCompletionEvaluator", "Empty agent output — likely crashed", None
-            )
-            == "AGENT_FAULT"
-        )
+        assert _classify_failure("SOPCompletionEvaluator", "Empty agent output — likely crashed", None) == "AGENT_FAULT"
 
     def test_critical_failure_is_agent_fault(self):
         assert (
@@ -97,12 +87,7 @@ class TestClassifyFailure:
 
     def test_sop_fault_takes_priority(self):
         """Once SOP_FAULT is set, it should not be downgraded to AGENT_FAULT."""
-        assert (
-            _classify_failure(
-                "SteeringEffectivenessEvaluator", "Repeated failures", "SOP_FAULT"
-            )
-            == "SOP_FAULT"
-        )
+        assert _classify_failure("SteeringEffectivenessEvaluator", "Repeated failures", "SOP_FAULT") == "SOP_FAULT"
 
     def test_agent_fault_can_upgrade_to_sop_fault(self):
         result = _classify_failure(
@@ -114,9 +99,7 @@ class TestClassifyFailure:
 
     def test_returns_fault_type_enum(self):
         # StrEnum member, so it both is a FaultType and compares equal to the string.
-        result = _classify_failure(
-            "SOPCompletionEvaluator", "Missing required tools: ['x']", None
-        )
+        result = _classify_failure("SOPCompletionEvaluator", "Missing required tools: ['x']", None)
         assert isinstance(result, FaultType)
         assert result == FaultType.SOP_FAULT
 
@@ -162,9 +145,7 @@ class TestEvalNodeStreaming:
         data_events = [e for e in events if "data" in e]
         result_events = [e for e in events if "result" in e]
         eval_events = [e for e in events if "eval_score" in e]
-        assert len(data_events) >= 2, (
-            f"Should yield evaluator name + score, got {[e['data'] for e in data_events]}"
-        )
+        assert len(data_events) >= 2, f"Should yield evaluator name + score, got {[e['data'] for e in data_events]}"
         assert len(result_events) == 1
         assert data_events[0]["data"] == "TestEvaluator"
         assert "0.85" in data_events[1]["data"]
@@ -254,9 +235,7 @@ class TestCorrectorNode:
     async def test_corrector_parses_failures_from_content_blocks(self, tmp_path):
         """Corrector must find FAIL: lines when task is a list of ContentBlocks (graph format)."""
         sop = tmp_path / "test.md"
-        sop.write_text(
-            "# Test SOP\n\n## Procedure\n\n### Step 1\n```bash\necho hello\n```\n"
-        )
+        sop.write_text("# Test SOP\n\n## Procedure\n\n### Step 1\n```bash\necho hello\n```\n")
         node = CorrectorNode(str(sop), None, "us-east-1", name="correct-01")
 
         # Simulate what the graph framework passes: list of dicts with 'text' keys
@@ -264,9 +243,7 @@ class TestCorrectorNode:
             {"text": "Original Task: execute SOPs"},
             {"text": "\nInputs from previous nodes:"},
             {"text": "\nFrom eval-01:"},
-            {
-                "text": "  - eval-01: ExecutionTimeEvaluator\n  Score: 0.00\n  FAIL: Timeout-level: 525s vs 193s budget (2.7x)\nNEEDS_CORRECTION:AGENT_FAULT"
-            },
+            {"text": "  - eval-01: ExecutionTimeEvaluator\n  Score: 0.00\n  FAIL: Timeout-level: 525s vs 193s budget (2.7x)\nNEEDS_CORRECTION:AGENT_FAULT"},
         ]
 
         events = []
@@ -275,9 +252,7 @@ class TestCorrectorNode:
 
         data_lines = [e["data"] for e in events if "data" in e]
         # Should NOT say "No actionable failures" — it should find the FAIL line
-        assert not any("No actionable failures" in line for line in data_lines), (
-            f"Corrector failed to parse FAIL lines from ContentBlocks: {data_lines}"
-        )
+        assert not any("No actionable failures" in line for line in data_lines), f"Corrector failed to parse FAIL lines from ContentBlocks: {data_lines}"
 
     @_skip_no_asyncio
     @pytest.mark.asyncio

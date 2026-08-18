@@ -75,10 +75,12 @@ def test_main_starts_uvicorn_with_parsed_env(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("PORT", "9000")
     monkeypatch.setenv("LOG_LEVEL", "debug")
 
-    with patch("uvicorn.run") as mock_run, \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint._validate_config") as mock_validate, \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint.threading.Thread") as mock_thread, \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.api.create_app") as mock_create_app:
+    with (
+        patch("uvicorn.run") as mock_run,
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint._validate_config") as mock_validate,
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint.threading.Thread") as mock_thread,
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.api.create_app") as mock_create_app,
+    ):
         mock_create_app.return_value = "FAKE_APP"
         main()
 
@@ -101,10 +103,12 @@ def test_main_uses_defaults_when_env_unset(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv("PORT", raising=False)
     monkeypatch.delenv("LOG_LEVEL", raising=False)
 
-    with patch("uvicorn.run") as mock_run, \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint._validate_config"), \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint.threading.Thread"), \
-         patch("amzn_cse_telco_autonomous_network_agents_app.agent.api.create_app") as mock_create_app:
+    with (
+        patch("uvicorn.run") as mock_run,
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint._validate_config"),
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint.threading.Thread"),
+        patch("amzn_cse_telco_autonomous_network_agents_app.agent.api.create_app") as mock_create_app,
+    ):
         mock_create_app.return_value = "FAKE_APP"
         main()
 
@@ -149,10 +153,13 @@ def test_run_background_anpa_invokes_reconciler() -> None:
 
 def test_run_background_crashes_call_os_exit() -> None:
     """Crash trap must force pod restart so /health doesn't lie about liveness."""
-    with patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.monitor.run_loop",
-        side_effect=RuntimeError("simulated crash"),
-    ), patch("os._exit") as mock_exit:
+    with (
+        patch(
+            "amzn_cse_telco_autonomous_network_agents_app.agent.monitor.run_loop",
+            side_effect=RuntimeError("simulated crash"),
+        ),
+        patch("os._exit") as mock_exit,
+    ):
         run_background("anra")
     mock_exit.assert_called_once_with(1)
 
@@ -165,6 +172,7 @@ class TestCheckDependencies:
 
     def _make_cfg(self, **kwargs):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import SiteConfig
+
         return SiteConfig(
             cluster_name="test",
             cluster_region="us-west-1",
@@ -188,9 +196,9 @@ class TestCheckDependencies:
     def test_anpa_checks_tinkerbell_namespace(self, caplog):
         """ANPA role checks Tinkerbell namespace + kubectl."""
         import logging
+
         cfg = self._make_cfg(tinkerbell_namespace="tink-system")
-        with caplog.at_level(logging.INFO, logger="entrypoint"), \
-             patch("subprocess.run") as mock_run:
+        with caplog.at_level(logging.INFO, logger="entrypoint"), patch("subprocess.run") as mock_run:
             mock_run.return_value = type("R", (), {"returncode": 0})()
             _check_dependencies("anpa", cfg)
         assert "Tinkerbell" in caplog.text
@@ -207,17 +215,16 @@ class TestCheckDependencies:
     def test_never_crashes_on_exception(self, caplog):
         """Even if all checks throw, the function completes without raising."""
         cfg = self._make_cfg(influxdb_url="http://fake:8086")
-        with patch("subprocess.run", side_effect=Exception("timeout")), \
-             patch("urllib.request.urlopen", side_effect=Exception("refused")):
+        with patch("subprocess.run", side_effect=Exception("timeout")), patch("urllib.request.urlopen", side_effect=Exception("refused")):
             _check_dependencies("anra", cfg)
         assert "unreachable" in caplog.text
 
     def test_successful_check_logs_reachable(self, caplog):
         """Reachable endpoint logs ✓."""
         import logging
+
         cfg = self._make_cfg()
-        with caplog.at_level(logging.INFO, logger="entrypoint"), \
-             patch("subprocess.run") as mock_run:
+        with caplog.at_level(logging.INFO, logger="entrypoint"), patch("subprocess.run") as mock_run:
             mock_run.return_value = type("R", (), {"returncode": 0})()
             _check_dependencies("anra", cfg)
         assert "reachable" in caplog.text

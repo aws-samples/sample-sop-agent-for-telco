@@ -47,9 +47,7 @@ class TestAnraCrossAgentTools:
             ask_anpa_provisioning_status,
         )
 
-        mock_run.return_value = FakeCmdResult(
-            success=False, output="", stderr="Connection refused"
-        )
+        mock_run.return_value = FakeCmdResult(success=False, output="", stderr="Connection refused")
         result = ask_anpa_provisioning_status(server_name="worker-003")
         assert "unreachable" in result.lower() or "Connection refused" in result
 
@@ -178,7 +176,7 @@ class TestAndaCrossAgentTools:
             ask_anra_cluster_health,
         )
 
-        mock_run.return_value = FakeCmdResult(success=True, output='{}')
+        mock_run.return_value = FakeCmdResult(success=True, output="{}")
         ask_anra_cluster_health(namespace="core")
         assert "namespace=core" in mock_run.call_args[0][0]
 
@@ -201,8 +199,6 @@ class TestAndaCrossAgentTools:
             ask_anpa_node_readiness,
         )
 
-        mock_run.return_value = FakeCmdResult(
-            success=False, output="", stderr="timeout"
-        )
+        mock_run.return_value = FakeCmdResult(success=False, output="", stderr="timeout")
         result = ask_anpa_node_readiness(node_name="worker-003")
         assert "unreachable" in result.lower() or "timeout" in result

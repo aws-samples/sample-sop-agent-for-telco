@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for adaptive_steering.py — failure pattern learning and steering decisions."""
+
 import json
 
 import pytest
@@ -58,11 +59,7 @@ class TestLoadFailurePatterns:
     def test_loads_repeated_failures(self, tmp_path):
         for i in range(3):
             log_file = tmp_path / f"execution_{i}.json"
-            log_file.write_text(json.dumps({
-                "nodes": {"test_sop": {"tool_calls": [
-                    {"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": "connection refused"}
-                ]}}
-            }))
+            log_file.write_text(json.dumps({"nodes": {"test_sop": {"tool_calls": [{"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": "connection refused"}]}}}))
         patterns = _load_failure_patterns("test_sop", str(tmp_path))
         assert len(patterns) == 1
         assert patterns[0]["target"] == "10.0.0.1"
@@ -70,22 +67,14 @@ class TestLoadFailurePatterns:
 
     def test_single_failure_not_pattern(self, tmp_path):
         log_file = tmp_path / "execution_0.json"
-        log_file.write_text(json.dumps({
-            "nodes": {"test_sop": {"tool_calls": [
-                {"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": "timeout"}
-            ]}}
-        }))
+        log_file.write_text(json.dumps({"nodes": {"test_sop": {"tool_calls": [{"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": "timeout"}]}}}))
         patterns = _load_failure_patterns("test_sop", str(tmp_path))
         assert patterns == []
 
     def test_no_error_not_counted(self, tmp_path):
         for i in range(3):
             log_file = tmp_path / f"execution_{i}.json"
-            log_file.write_text(json.dumps({
-                "nodes": {"test_sop": {"tool_calls": [
-                    {"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": ""}
-                ]}}
-            }))
+            log_file.write_text(json.dumps({"nodes": {"test_sop": {"tool_calls": [{"tool": "ssh_command", "input": "ssh root@10.0.0.1 uptime", "error": ""}]}}}))
         patterns = _load_failure_patterns("test_sop", str(tmp_path))
         assert patterns == []
 
@@ -113,11 +102,9 @@ class TestAdaptiveSteeringHandler:
     async def test_blocks_known_failure(self, tmp_path):
         # Create failure history
         for i in range(3):
-            (tmp_path / f"execution_{i}.json").write_text(json.dumps({
-                "nodes": {"my_sop": {"tool_calls": [
-                    {"tool": "ssh_command", "input": "ssh root@10.0.0.5 check", "error": "connection refused"}
-                ]}}
-            }))
+            (tmp_path / f"execution_{i}.json").write_text(
+                json.dumps({"nodes": {"my_sop": {"tool_calls": [{"tool": "ssh_command", "input": "ssh root@10.0.0.5 check", "error": "connection refused"}]}}})
+            )
         handler = AdaptiveSteeringHandler("my_sop", fix_mode=True, log_dir=str(tmp_path))
         tool_use = {"name": "ssh_command", "input": {"command": "ssh root@10.0.0.5 uptime"}}
         result = await handler.steer_before_tool(agent=None, tool_use=tool_use)

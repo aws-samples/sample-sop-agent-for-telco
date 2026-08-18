@@ -36,10 +36,8 @@ class TestSiteConfigLookups:
     def cfg(self):
         c = SiteConfig()
         c.nodes = [
-            NodeConfig(name="w1", oam_ip="10.0.0.1", ssm_id="mi-aaa",
-                       bmc=BMCConfig(ip="10.0.1.1"), roles=["du", "cu"], namespaces=["srsran"]),
-            NodeConfig(name="w2", oam_ip="10.0.0.2", ssm_id="mi-bbb",
-                       bmc=BMCConfig(ip="10.0.1.2"), roles=["upf"], namespaces=["open5gs"]),
+            NodeConfig(name="w1", oam_ip="10.0.0.1", ssm_id="mi-aaa", bmc=BMCConfig(ip="10.0.1.1"), roles=["du", "cu"], namespaces=["srsran"]),
+            NodeConfig(name="w2", oam_ip="10.0.0.2", ssm_id="mi-bbb", bmc=BMCConfig(ip="10.0.1.2"), roles=["upf"], namespaces=["open5gs"]),
         ]
         return c
 
@@ -96,9 +94,7 @@ class TestParse:
         assert cfg.nodes[0].bmc.type == "ilo"
 
     def test_alarms_parsed(self):
-        cfg = _parse({"alarms": [
-            {"name": "test", "layer": 2, "source": "core", "field": "metric_x", "condition": "> 5", "severity": "critical"}
-        ]})
+        cfg = _parse({"alarms": [{"name": "test", "layer": 2, "source": "core", "field": "metric_x", "condition": "> 5", "severity": "critical"}]})
         assert len(cfg.alarms) == 1
         assert cfg.alarms[0].name == "test"
         assert cfg.alarms[0].metric_field == "metric_x"
@@ -165,81 +161,94 @@ class TestConfigValidation:
 
     def test_valid_anra_config_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(influxdb_url="http://influx:8086")
         assert validate(cfg, role="anra") == []
 
     def test_valid_anra_alertmanager_only_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(alertmanager_url="http://am:9093")
         assert validate(cfg, role="anra") == []
 
     def test_valid_anda_config_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(helm_repo="oci://my-repo")
         assert validate(cfg, role="anda") == []
 
     def test_valid_anda_gitops_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(gitops_repo="https://git.example.com/repo")
         assert validate(cfg, role="anda") == []
 
     def test_valid_anpa_config_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(tinkerbell_namespace="tink-system")
         assert validate(cfg, role="anpa") == []
 
     def test_missing_cluster_name_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(cluster_name="")
         errors = validate(cfg, role="anra")
         assert any("cluster.name" in e for e in errors)
 
     def test_missing_cluster_region_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(cluster_region="")
         errors = validate(cfg, role="anra")
         assert any("cluster.region" in e for e in errors)
 
     def test_missing_bedrock_region_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(bedrock_region="")
         errors = validate(cfg, role="anra")
         assert any("bedrock.region" in e for e in errors)
 
     def test_anra_missing_monitoring_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(influxdb_url="", alertmanager_url="")
         errors = validate(cfg, role="anra")
         assert any("monitoring" in e.lower() for e in errors)
 
     def test_anpa_missing_tinkerbell_namespace_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(tinkerbell_namespace="")
         errors = validate(cfg, role="anpa")
         assert any("tinkerbell_namespace" in e for e in errors)
 
     def test_anda_missing_deploy_target_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(helm_repo="", gitops_repo="")
         errors = validate(cfg, role="anda")
         assert any("helm_repo" in e or "gitops_repo" in e for e in errors)
 
     def test_unsupported_schema_version_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(schema_version="99")
         errors = validate(cfg, role="anra")
         assert any("Unsupported config version" in e for e in errors)
 
     def test_missing_version_defaults_to_1(self):
         """No version in YAML → parsed as '1' → passes validation."""
-        cfg = _parse({"cluster": {"name": "x", "region": "us-west-1"}, "bedrock": {"region": "us-west-2"},
-                      "monitoring": {"influxdb_url": "http://x"}})
+        cfg = _parse({"cluster": {"name": "x", "region": "us-west-1"}, "bedrock": {"region": "us-west-2"}, "monitoring": {"influxdb_url": "http://x"}})
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         assert cfg.schema_version == "1"
         assert validate(cfg, role="anra") == []
 
     def test_multiple_errors_reported(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = SiteConfig(cluster_name="", cluster_region="", bedrock_region="")
         errors = validate(cfg, role="anra")
         assert len(errors) >= 3
@@ -263,10 +272,12 @@ class TestEnumFieldValidation:
         # The dataclass defaults (auto/direct/yaml/smart) must validate clean —
         # the no-config-change guarantee.
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         assert validate(self._minimal_config(), role="anra") == []
 
     def test_all_valid_enum_values_pass(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         cfg = self._minimal_config(
             approval_mode="gitlab",
             remediation_mode="gitops",
@@ -277,26 +288,31 @@ class TestEnumFieldValidation:
 
     def test_bad_topology_provider_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(topology_provider="neptun"), role="anra")
         assert any("topology.provider" in e and "neptun" in e for e in errors)
 
     def test_bad_approval_mode_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(approval_mode="automatic"), role="anra")
         assert any("approval.mode" in e for e in errors)
 
     def test_bad_remediation_mode_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(remediation_mode="gitpush"), role="anra")
         assert any("remediation.mode" in e for e in errors)
 
     def test_bad_model_tier_fails(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(bedrock_model_tier="turbo"), role="anra")
         assert any("bedrock.model_tier" in e for e in errors)
 
     def test_error_message_names_valid_set_and_offending_value(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(topology_provider="neptun"), role="anra")
         msg = next(e for e in errors if "topology.provider" in e)
         assert "yaml" in msg and "neptune" in msg  # the valid set
@@ -306,11 +322,13 @@ class TestEnumFieldValidation:
         # Match is exact/case-sensitive by design (values flow to exact-match
         # lookups downstream); "Auto" is not "auto" and must fail loud.
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         errors = validate(self._minimal_config(approval_mode="Auto"), role="anra")
         assert any("approval.mode" in e for e in errors)
 
     def test_manual_approval_mode_passes(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.config import validate
+
         assert validate(self._minimal_config(approval_mode="manual"), role="anra") == []
 
 
@@ -321,6 +339,7 @@ class TestConfigBackwardCompat:
         import warnings as w
 
         import yaml
+
         cfg_file = tmp_path / "old-config.yaml"
         cfg_file.write_text(yaml.dump({"cluster": {"name": "from-anra-env", "region": "us-west-1"}}))
         monkeypatch.setenv("ANRA_CONFIG", str(cfg_file))
@@ -334,6 +353,7 @@ class TestConfigBackwardCompat:
 
     def test_agent_config_env_takes_priority(self, tmp_path, monkeypatch):
         import yaml
+
         old_file = tmp_path / "old.yaml"
         old_file.write_text(yaml.dump({"cluster": {"name": "old"}}))
         new_file = tmp_path / "new.yaml"

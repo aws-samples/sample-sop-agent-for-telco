@@ -75,9 +75,7 @@ def parse_sop_metadata(sop_path: str) -> dict:
     dep_files = set()
 
     # Find prerequisites section
-    prereq_match = re.search(
-        r"## Prerequisites?\s*\n(.*?)(?=\n##|\Z)", content, re.DOTALL
-    )
+    prereq_match = re.search(r"## Prerequisites?\s*\n(.*?)(?=\n##|\Z)", content, re.DOTALL)
     prereq_text = prereq_match.group(1) if prereq_match else ""
 
     # "Stages 1-4 complete" → depends on stages 1,2,3,4
@@ -100,9 +98,7 @@ def parse_sop_metadata(sop_path: str) -> dict:
         "dep_files": sorted(dep_files),
         "bash_blocks": bash_blocks,
         "lines": len(lines),
-        "sleep_seconds": sum(
-            int(m.group(1)) for m in re.finditer(r"sleep\s+(\d+)", content)
-        ),
+        "sleep_seconds": sum(int(m.group(1)) for m in re.finditer(r"sleep\s+(\d+)", content)),
     }
 
 

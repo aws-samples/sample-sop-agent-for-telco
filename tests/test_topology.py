@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT-0
 """Tests for topology.py — YamlTopology provider."""
 
-
 import amzn_cse_telco_autonomous_network_agents_app.agent.topology as topology
 
 

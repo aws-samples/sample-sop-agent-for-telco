@@ -25,12 +25,8 @@ def _mock_cmd_result(returncode=0, stdout="created", stderr=""):
 class TestUpdateServiceTopology:
     """Tests for update_service_topology."""
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd"
-    )
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config")
     def test_creates_cr_with_deployed_nfs(self, mock_get_config, mock_run_cmd):
         """Verify CR structure contains expected NF entries and metadata."""
         mock_get_config.return_value = None  # No config = no gate
@@ -73,12 +69,8 @@ class TestUpdateServiceTopology:
         assert amf_entry["dependsOn"] == ["nrf"]
         assert amf_entry["status"] == "healthy"
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd"
-    )
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config")
     def test_config_gate_false_skips(self, mock_get_config, mock_run_cmd):
         """When topology_emit_service_topology is False, run_cmd is not called."""
         cfg = MagicMock()
@@ -90,12 +82,8 @@ class TestUpdateServiceTopology:
         assert result is True
         mock_run_cmd.assert_not_called()
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd"
-    )
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config")
     def test_config_gate_true_emits(self, mock_get_config, mock_run_cmd):
         """When topology_emit_service_topology is True, run_cmd is called."""
         cfg = MagicMock()
@@ -108,12 +96,8 @@ class TestUpdateServiceTopology:
         assert result is True
         mock_run_cmd.assert_called_once()
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd"
-    )
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config")
     def test_handles_missing_catalog_entry(self, mock_get_config, mock_run_cmd):
         """Unknown NF type gets empty interfaces and dependsOn, no crash."""
         mock_get_config.return_value = None
@@ -135,12 +119,8 @@ class TestUpdateServiceTopology:
         assert nf_entry["interfaces"] == []
         assert nf_entry["dependsOn"] == []
 
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd"
-    )
-    @patch(
-        "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config"
-    )
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.topology_emitter.run_cmd")
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config")
     def test_kubectl_failure_returns_false(self, mock_get_config, mock_run_cmd):
         """When kubectl apply fails, function returns False."""
         mock_get_config.return_value = None

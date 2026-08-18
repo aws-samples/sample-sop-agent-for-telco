@@ -92,7 +92,7 @@ def _window_now(duration_hours: int = 2) -> dict:
 def _window_other_day() -> dict:
     """Return a maintenance window on a day that is NOT today."""
     today = datetime.now(timezone.utc).isoweekday()
-    other = (today % 7) + 1   # cycles 1-7, always != today
+    other = (today % 7) + 1  # cycles 1-7, always != today
     return {"day_of_week": other, "start_hour": 0, "duration_hours": 1}
 
 
@@ -332,11 +332,11 @@ class TestAnpaPolicy:
     def test_is_in_maintenance_window_skips_malformed(self):
         """Malformed window dicts are logged and skipped without raising."""
         windows = [
-            {"bad_key": "value"},          # missing all required keys
-            {"day_of_week": 1},            # missing start_hour, duration_hours
+            {"bad_key": "value"},  # missing all required keys
+            {"day_of_week": 1},  # missing start_hour, duration_hours
         ]
         result = is_in_maintenance_window(windows)
-        assert isinstance(result, bool)   # no exception; result is False
+        assert isinstance(result, bool)  # no exception; result is False
 
     def test_is_in_maintenance_window_zero_duration_skipped(self):
         """A window with duration_hours=0 is skipped (non-positive duration)."""

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for agents/anra/monitoring/anomaly_detection.py."""
+
 from unittest.mock import patch
 
 import pytest
@@ -66,6 +67,7 @@ class TestBaselineAccumulation:
         mock_query.return_value = {"cpu": 500.0}
         # Reset cooldown
         import amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.anomaly_detection as mod
+
         mod._bedrock_last_classify = 0
         result = evaluate_dynamic_anomalies()
         assert len(result) == 1

@@ -55,9 +55,7 @@ class TestCliIntegrationSeam:
             captured["cmd"] = cmd
             return CmdResult("ok", "", 0)
 
-        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(
-            executor, "run_cmd", side_effect=fake_run_cmd
-        ):
+        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(executor, "run_cmd", side_effect=fake_run_cmd):
             result = registry.get_one(ExtensionKind.CLI, "telcocli").run("list-outposts")
 
         assert result.success is True
@@ -80,9 +78,7 @@ class TestCliIntegrationSeam:
             captured["cmd"] = cmd
             return CmdResult("ok", "", 0)
 
-        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(
-            executor, "run_cmd", side_effect=fake_run_cmd
-        ):
+        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(executor, "run_cmd", side_effect=fake_run_cmd):
             registry.get_one(ExtensionKind.CLI, "telcocli").run("health")
 
         assert "--profile nec --region us-east-1" in captured["cmd"]
@@ -96,9 +92,7 @@ class TestCliIntegrationSeam:
         )
 
         cfg = SiteConfig()
-        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(
-            executor, "run_cmd", return_value=CmdResult("", "boom", 1)
-        ):
+        with patch.object(executor, "_get_site_config", return_value=cfg), patch.object(executor, "run_cmd", return_value=CmdResult("", "boom", 1)):
             result = registry.get_one(ExtensionKind.CLI, "telcocli").run("bad-cmd")
 
         assert result.success is False

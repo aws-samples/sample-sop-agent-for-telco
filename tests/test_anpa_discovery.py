@@ -69,9 +69,7 @@ def test_uses_correct_api_group(mock_run):
     create_hardware_inventory_cr(SAMPLE_HW)
     yaml_body = captured["yaml"]
     assert "apiVersion: provisioning.anpa.aws.io/v1alpha1" in yaml_body
-    assert "anpa.eks-hybrid.amazonaws.com" not in yaml_body, (
-        "old API group must not appear"
-    )
+    assert "anpa.eks-hybrid.amazonaws.com" not in yaml_body, "old API group must not appear"
 
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.discovery.run_cmd")
@@ -89,9 +87,7 @@ def test_no_namespace_in_metadata(mock_run):
     create_hardware_inventory_cr(SAMPLE_HW, namespace="ignored-ns")
     yaml_body = captured["yaml"]
     metadata_block = yaml_body.split("spec:", 1)[0]
-    assert "namespace:" not in metadata_block, (
-        "cluster-scoped CR must not carry metadata.namespace"
-    )
+    assert "namespace:" not in metadata_block, "cluster-scoped CR must not carry metadata.namespace"
 
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.discovery.run_cmd")
@@ -137,9 +133,7 @@ def test_uses_tempfile_not_stdin(mock_run):
     # All calls must be `kubectl apply -f <path>`, no stdin_input kwarg
     for call in mock_run.call_args_list:
         args, kwargs = call
-        assert args[0].startswith("kubectl apply -f "), (
-            f"unexpected cmd: {args[0]!r}"
-        )
+        assert args[0].startswith("kubectl apply -f "), f"unexpected cmd: {args[0]!r}"
         assert "stdin_input" not in kwargs
 
 
@@ -178,9 +172,7 @@ def test_scan_uses_env_creds_by_default(mock_curl, monkeypatch):
     monkeypatch.setenv("BMC_USERNAME", "admin-from-env")
     monkeypatch.setenv("BMC_PASSWORD", "secret-from-env")
     # Make the scan immediately decide nothing's there (returncode != 0)
-    mock_curl.return_value = type(
-        "R", (), {"stdout": "", "stderr": "", "returncode": 7, "success": False}
-    )()
+    mock_curl.return_value = type("R", (), {"stdout": "", "stderr": "", "returncode": 7, "success": False})()
     # Tiny CIDR keeps the loop bounded
     scan_redfish_endpoints(subnet_cidr="192.0.2.0/30")
     # Env creds are passed to the hardened helper as args, not baked into a command.
@@ -193,9 +185,7 @@ def test_scan_explicit_creds_override_env(mock_curl, monkeypatch):
     """Explicit username/password args win over env vars."""
     monkeypatch.setenv("BMC_USERNAME", "env-user")
     monkeypatch.setenv("BMC_PASSWORD", "env-pass")
-    mock_curl.return_value = type(
-        "R", (), {"stdout": "", "stderr": "", "returncode": 7, "success": False}
-    )()
+    mock_curl.return_value = type("R", (), {"stdout": "", "stderr": "", "returncode": 7, "success": False})()
     scan_redfish_endpoints(
         subnet_cidr="192.0.2.0/30",
         username="explicit-user",
@@ -233,9 +223,7 @@ def test_cr_includes_system_uuid(mock_run):
     mock_run.side_effect = side_effect
     create_hardware_inventory_cr(SAMPLE_HW_WITH_UUID)
     body = captured["yaml"]
-    assert "systemUUID: 4c4c4544-0057-5a10-8035-b7c04f364734" in body, (
-        "systemUUID must appear in spec for handoff to K8s node systemUUID"
-    )
+    assert "systemUUID: 4c4c4544-0057-5a10-8035-b7c04f364734" in body, "systemUUID must appear in spec for handoff to K8s node systemUUID"
 
 
 @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anpa.discovery.run_cmd")
@@ -272,6 +260,7 @@ def test_cr_omits_uuid_gracefully_when_missing(mock_run):
     assert "systemUUID:" in body  # field present
     # Just ensure the doc still parses
     import yaml as _yaml
+
     parsed = _yaml.safe_load(body)
     assert parsed["spec"]["hostname"] == "test-host"
 
@@ -295,6 +284,4 @@ def test_no_run_cmd_with_invalid_kwargs():
     src = Path(__file__).resolve().parent.parent / "src" / "amzn_cse_telco_autonomous_network_agents_app" / "agent" / "agents" / "anpa" / "discovery.py"
     content = src.read_text()
     bad = re.findall(r"run_cmd\([^)]*\b(check|stdin_input)\s*=", content)
-    assert not bad, (
-        "discovery.py passes invalid kwargs to run_cmd: " + ", ".join(set(bad))
-    )
+    assert not bad, "discovery.py passes invalid kwargs to run_cmd: " + ", ".join(set(bad))

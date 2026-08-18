@@ -82,9 +82,7 @@ class TestServerEntry:
             generate_server_entry({"hostname": "x"}, CANONICAL_INTENT)
 
     def test_overrides_apply_last(self):
-        intent = ProvisioningIntent(
-            **{**CANONICAL_INTENT.__dict__, "overrides": {"customLabel": "demo"}}
-        )
+        intent = ProvisioningIntent(**{**CANONICAL_INTENT.__dict__, "overrides": {"customLabel": "demo"}})
         entry = generate_server_entry(SAMPLE_HWI_30_10, intent)
         assert entry["customLabel"] == "demo"
 
@@ -106,9 +104,7 @@ class TestGroupDocument:
         ref_path = repo / "day0" / "server-groups" / "example.yaml"
         ref = yaml.safe_load(ref_path.read_text())
         doc = generate_group_document([SAMPLE_HWI_30_10], CANONICAL_INTENT)
-        assert set(ref.keys()) == set(doc.keys()), (
-            f"top-level keys diverge: ref={ref.keys()} vs gen={doc.keys()}"
-        )
+        assert set(ref.keys()) == set(doc.keys()), f"top-level keys diverge: ref={ref.keys()} vs gen={doc.keys()}"
         ref_server_keys = set(ref["servers"][0].keys())
         gen_server_keys = set(doc["servers"][0].keys())
         # Generator must produce at least every key the reference has.

@@ -19,9 +19,7 @@ class TestMaybeInvestigateTrend:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._submit_sop")
     def test_triggers_investigation_for_escalating_alarm(self, mock_submit):
-        escalating = [
-            {"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}
-        ]
+        escalating = [{"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}]
         triggered = maybe_investigate_trend(escalating)
 
         assert triggered == ["ptp_drift"]
@@ -33,9 +31,7 @@ class TestMaybeInvestigateTrend:
 
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._submit_sop")
     def test_cooldown_prevents_repeated_investigation(self, mock_submit):
-        escalating = [
-            {"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}
-        ]
+        escalating = [{"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}]
 
         # First call triggers
         maybe_investigate_trend(escalating)
@@ -59,9 +55,7 @@ class TestMaybeInvestigateTrend:
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.monitor._submit_sop")
     def test_submit_failure_does_not_crash(self, mock_submit):
         mock_submit.side_effect = RuntimeError("monitor not loaded")
-        escalating = [
-            {"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}
-        ]
+        escalating = [{"alarm": "ptp_drift", "last_24h": 15, "prev_24h": 5, "ratio": 3.0, "total_7d": 40}]
         # Should not raise
         triggered = maybe_investigate_trend(escalating)
         assert triggered == ["ptp_drift"]

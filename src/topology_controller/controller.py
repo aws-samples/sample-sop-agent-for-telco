@@ -32,9 +32,7 @@ def _build_graph(api, namespace: str) -> tuple[nx.DiGraph, dict, dict, str]:
     site_name = ""
 
     # Physical topology — nodes and physical connections
-    phys_list = api.list_namespaced_custom_object(
-        GROUP, VERSION, namespace, "physicaltopologies"
-    )
+    phys_list = api.list_namespaced_custom_object(GROUP, VERSION, namespace, "physicaltopologies")
     for pt in phys_list.get("items", []):
         if not site_name:
             site_name = pt.get("spec", {}).get("site", {}).get("name", "")
@@ -51,9 +49,7 @@ def _build_graph(api, namespace: str) -> tuple[nx.DiGraph, dict, dict, str]:
     # Supports both schemas:
     #   - Sivani's original: per-NF connections[].peer
     #   - Our mainline: top-level links[] with from/to/interface + per-NF dependsOn[]
-    svc_list = api.list_namespaced_custom_object(
-        GROUP, VERSION, namespace, "servicetopologies"
-    )
+    svc_list = api.list_namespaced_custom_object(GROUP, VERSION, namespace, "servicetopologies")
     for st in svc_list.get("items", []):
         for nf in st.get("spec", {}).get("networkFunctions", []):
             nf_name = nf["name"]
@@ -79,9 +75,7 @@ def _build_graph(api, namespace: str) -> tuple[nx.DiGraph, dict, dict, str]:
         for link in st.get("spec", {}).get("links", []):
             src, dst = link.get("from", ""), link.get("to", "")
             if src and dst:
-                G.add_edge(
-                    src, dst, layer="logical", protocol=link.get("interface", "")
-                )
+                G.add_edge(src, dst, layer="logical", protocol=link.get("interface", ""))
 
     return G, node_to_nfs, nf_replicas, site_name
 
@@ -116,9 +110,7 @@ def _compute_impact(api, namespace: str) -> dict:
     nf_nodes = [n for n, d in G.nodes(data=True) if d.get("kind") == "nf"]
 
     # Connectivity SPOFs via articulation points on physical-layer only
-    phys_edges = [
-        (u, v) for u, v, d in G.edges(data=True) if d.get("layer") == "physical"
-    ]
+    phys_edges = [(u, v) for u, v, d in G.edges(data=True) if d.get("layer") == "physical"]
     phys_graph = nx.Graph(phys_edges)
     art_points = set(nx.articulation_points(phys_graph)) & set(servers)
 
@@ -136,12 +128,8 @@ def _compute_impact(api, namespace: str) -> dict:
         affected = []
         for nf in nf_nodes:
             if nf in hosted_set:
-                affected.append(
-                    {"name": nf, "impact": "down", "reason": f"hosted on {srv}"}
-                )
-            elif nf in G_copy and not any(
-                nx.has_path(G_copy, s, nf) for s in servers if s != srv and s in G_copy
-            ):
+                affected.append({"name": nf, "impact": "down", "reason": f"hosted on {srv}"})
+            elif nf in G_copy and not any(nx.has_path(G_copy, s, nf) for s in servers if s != srv and s in G_copy):
                 affected.append(
                     {
                         "name": nf,
@@ -149,14 +137,8 @@ def _compute_impact(api, namespace: str) -> dict:
                         "reason": f"no path after {srv} removal",
                     }
                 )
-        has_failover = srv not in art_points and all(
-            nf_replicas.get(nf, 1) > 1 for nf in hosted
-        )
-        reason = (
-            "not an articulation point and replicas > 1"
-            if has_failover
-            else "single point or single replica"
-        )
+        has_failover = srv not in art_points and all(nf_replicas.get(nf, 1) > 1 for nf in hosted)
+        reason = "not an articulation point and replicas > 1" if has_failover else "single point or single replica"
         nodes_status.append(
             {
                 "name": srv,
@@ -193,9 +175,7 @@ def _compute_impact(api, namespace: str) -> dict:
     ]
 
     # Cascade chains
-    cascades = [
-        {"trigger": srv, "chain": _cascade_chain(G, srv)} for srv in sorted(servers)
-    ]
+    cascades = [{"trigger": srv, "chain": _cascade_chain(G, srv)} for srv in sorted(servers)]
 
     completeness = "full" if nf_nodes else "physical-only"
 
@@ -215,9 +195,7 @@ def _compute_impact(api, namespace: str) -> dict:
         "cascadeChains": cascades,
     }
     hash_payload = {k: v for k, v in status.items() if k != "lastReconciled"}
-    status["graphHash"] = hashlib.sha256(
-        json.dumps(hash_payload, sort_keys=True, default=str).encode()
-    ).hexdigest()[:16]
+    status["graphHash"] = hashlib.sha256(json.dumps(hash_payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
     return status
 
 
@@ -226,9 +204,7 @@ def _reconcile(namespace: str, **_):
     status = _compute_impact(api, namespace)
     # Ensure ImpactMap exists
     try:
-        existing = api.get_namespaced_custom_object(
-            GROUP, VERSION, namespace, IMPACT_MAP_PLURAL, "site-impact"
-        )
+        existing = api.get_namespaced_custom_object(GROUP, VERSION, namespace, IMPACT_MAP_PLURAL, "site-impact")
         old_hash = existing.get("status", {}).get("graphHash", "")
         if old_hash == status["graphHash"]:
             return
@@ -251,9 +227,7 @@ def _reconcile(namespace: str, **_):
             )
         else:
             raise
-    api.patch_namespaced_custom_object_status(
-        GROUP, VERSION, namespace, IMPACT_MAP_PLURAL, "site-impact", {"status": status}
-    )
+    api.patch_namespaced_custom_object_status(GROUP, VERSION, namespace, IMPACT_MAP_PLURAL, "site-impact", {"status": status})
 
 
 @kopf.on.create(GROUP, VERSION, "physicaltopologies")

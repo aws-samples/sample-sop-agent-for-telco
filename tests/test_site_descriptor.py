@@ -9,9 +9,7 @@ import pytest
 import yaml
 
 # Add scripts directory to path so we can import the generation module
-sys.path.insert(
-    0, str(Path(__file__).parent.parent / "scripts")
-)
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 # Import directly from the script module (without .py extension via importlib)
 import importlib.util
@@ -136,10 +134,7 @@ class TestGeneratedValuesHasImageRepo:
 
     def test_sjc38_image_repository(self, sjc38_descriptor):
         values = generate_helm_values(sjc38_descriptor)
-        assert (
-            values["image"]["repository"]
-            == "833185305196.dkr.ecr.us-east-1.amazonaws.com/outposts25-upf-ecr-repositry/interop"
-        )
+        assert values["image"]["repository"] == "833185305196.dkr.ecr.us-east-1.amazonaws.com/outposts25-upf-ecr-repositry/interop"
 
     def test_docomo_image_tag(self, docomo_descriptor):
         values = generate_helm_values(docomo_descriptor)

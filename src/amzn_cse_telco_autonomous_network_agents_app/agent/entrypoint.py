@@ -10,9 +10,7 @@ import threading
 from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import AgentRole
 
 # Mirrors uvicorn.config.LOGGING_CONFIG keys.
-_VALID_LOG_LEVELS = frozenset(
-    {"critical", "error", "warning", "info", "debug", "trace"}
-)
+_VALID_LOG_LEVELS = frozenset({"critical", "error", "warning", "info", "debug", "trace"})
 _DEFAULT_LOG_LEVEL = "info"
 # Valid roles come from the AgentRole enum (single source of truth).
 _VALID_ROLES = AgentRole.values()
@@ -26,9 +24,7 @@ def _parse_port(raw: str) -> int:
     try:
         port = int(raw.strip())
     except ValueError as exc:
-        msg = (
-            f"PORT must be an integer between {_MIN_PORT} and {_MAX_PORT}, got {raw!r}"
-        )
+        msg = f"PORT must be an integer between {_MIN_PORT} and {_MAX_PORT}, got {raw!r}"
         raise SystemExit(msg) from exc
     if not _MIN_PORT <= port <= _MAX_PORT:
         msg = f"PORT must be between {_MIN_PORT} and {_MAX_PORT}, got {port}"
@@ -43,9 +39,7 @@ def _parse_log_level(raw: str) -> str:
         # configures logging, so logging.warning would fall through to the
         # lastResort handler with no formatting and bypass the user's LOG_LEVEL.
         print(  # noqa: T201 - intentional pre-logging stderr write
-            f"LOG_LEVEL={raw!r} not recognized "
-            f"(valid: {sorted(_VALID_LOG_LEVELS)}); "
-            f"falling back to {_DEFAULT_LOG_LEVEL}",
+            f"LOG_LEVEL={raw!r} not recognized (valid: {sorted(_VALID_LOG_LEVELS)}); falling back to {_DEFAULT_LOG_LEVEL}",
             file=sys.stderr,
         )
         return _DEFAULT_LOG_LEVEL
@@ -69,9 +63,7 @@ def _check_dependencies(role: str, cfg) -> None:
 
     if role == "anra":
         if cfg.influxdb_url:
-            checks.append(
-                ("InfluxDB", f"{cfg.influxdb_url}/health", "metric monitoring disabled")
-            )
+            checks.append(("InfluxDB", f"{cfg.influxdb_url}/health", "metric monitoring disabled"))
         if cfg.alertmanager_url:
             checks.append(
                 (
@@ -90,22 +82,16 @@ def _check_dependencies(role: str, cfg) -> None:
         )
     elif role == "anda":
         if cfg.argocd_url:
-            checks.append(
-                ("ArgoCD", f"{cfg.argocd_url}/healthz", "GitOps deployments disabled")
-            )
+            checks.append(("ArgoCD", f"{cfg.argocd_url}/healthz", "GitOps deployments disabled"))
 
     # kubectl API check (all agents)
-    checks.append(
-        ("Kubernetes API", "kubectl cluster-info", "all agent operations will fail")
-    )
+    checks.append(("Kubernetes API", "kubectl cluster-info", "all agent operations will fail"))
 
     log.info("Dependency check:")
     for name, endpoint, impact in checks:
         try:
             if endpoint.startswith("kubectl"):
-                result = subprocess.run(
-                    endpoint.split(), capture_output=True, timeout=5
-                )
+                result = subprocess.run(endpoint.split(), capture_output=True, timeout=5)
                 ok = result.returncode == 0
             else:
                 resp = urllib.request.urlopen(endpoint, timeout=5)  # nosec B310 — endpoints are http:// from validated config
@@ -141,8 +127,7 @@ def _check_aws_credentials(cfg) -> None:
         log.debug("boto3 not available — skipping credential check")
     except Exception as e:
         log.warning(
-            "AWS credential check failed: %s — Bedrock features will be unavailable. "
-            "Ensure IRSA is configured for this service account.",
+            "AWS credential check failed: %s — Bedrock features will be unavailable. Ensure IRSA is configured for this service account.",
             e,
         )
 
@@ -264,9 +249,7 @@ def run_background(role: str) -> None:
 
             run_reconciler()
     except Exception:
-        log.exception(
-            "Background loop crashed for role=%s; exiting to trigger pod restart", role
-        )
+        log.exception("Background loop crashed for role=%s; exiting to trigger pod restart", role)
         os._exit(1)
 
 

@@ -1,6 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Tests for redfish_events.py — event receiver and enrichment."""
+
 import json
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.config import load_config
@@ -30,15 +31,17 @@ class TestRedfishEventHandler:
         handler.headers = {"Content-Length": str(len(body))}
 
         # Call the handler method directly
-        RedfishEventHandler.do_POST.__wrapped__ if hasattr(RedfishEventHandler.do_POST, '__wrapped__') else None
+        RedfishEventHandler.do_POST.__wrapped__ if hasattr(RedfishEventHandler.do_POST, "__wrapped__") else None
         # Instead, test the queue directly
-        event_queue.put({
-            "message_id": "TMP0118",
-            "message": "CPU1 temp 87C",
-            "severity": "warning",
-            "bmc_ip": "192.168.30.10",
-            "source": "redfish",
-        })
+        event_queue.put(
+            {
+                "message_id": "TMP0118",
+                "message": "CPU1 temp 87C",
+                "severity": "warning",
+                "bmc_ip": "192.168.30.10",
+                "source": "redfish",
+            }
+        )
         assert not event_queue.empty()
         evt = event_queue.get()
         assert evt["message_id"] == "TMP0118"
@@ -54,6 +57,7 @@ class TestEventEnrichment:
         from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import (
             enrich_event,
         )
+
         cfg = load_config()
 
         event = {
@@ -71,6 +75,7 @@ class TestEventEnrichment:
         from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import (
             enrich_event,
         )
+
         cfg = load_config()
         event = {"message_id": "X", "bmc_ip": "1.2.3.4", "source": "redfish"}
         result = enrich_event(event, cfg)

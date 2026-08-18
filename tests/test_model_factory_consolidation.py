@@ -46,12 +46,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.core import model_resolv
 # nothing overrides and it is available.
 _PREVIOUSLY_HARDCODED_FAST = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
-_AGENT_ROOT = (
-    Path(__file__).resolve().parent.parent
-    / "src"
-    / "amzn_cse_telco_autonomous_network_agents_app"
-    / "agent"
-)
+_AGENT_ROOT = Path(__file__).resolve().parent.parent / "src" / "amzn_cse_telco_autonomous_network_agents_app" / "agent"
 
 _CONVERTED_SITES = [
     _AGENT_ROOT / "monitor.py",
@@ -86,12 +81,15 @@ class TestNoConfigChangeGuarantee:
         # the resolver returns exactly what used to be hardcoded.
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={_PREVIOUSLY_HARDCODED_FAST},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={_PREVIOUSLY_HARDCODED_FAST},
+            ),
         ):
             assert model_resolver.get_model("fast") == _PREVIOUSLY_HARDCODED_FAST
 
@@ -101,12 +99,15 @@ class TestNoConfigChangeGuarantee:
         # This is the real behavior-preservation path, not the happy match above.
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value=set(),
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value=set(),
+            ),
         ):
             assert model_resolver.get_model("fast") == _PREVIOUSLY_HARDCODED_FAST
 
@@ -118,10 +119,13 @@ class TestNoConfigChangeGuarantee:
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
         failing_client = MagicMock()
         failing_client.list_inference_profiles.side_effect = Exception("AccessDenied")
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch.object(model_resolver.boto3, "client", return_value=failing_client):
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch.object(model_resolver.boto3, "client", return_value=failing_client),
+        ):
             assert model_resolver.get_model("fast") == _PREVIOUSLY_HARDCODED_FAST
 
     def test_fast_is_first_preference(self):
@@ -134,18 +138,14 @@ class TestNoConfigChangeGuarantee:
 class TestCallSitesConsultResolver:
     def test_no_inline_fast_model_literal_remains(self):
         # None of the converted sites should still carry the inline literal.
-        offenders = [
-            str(p) for p in _CONVERTED_SITES if _PREVIOUSLY_HARDCODED_FAST in p.read_text()
-        ]
+        offenders = [str(p) for p in _CONVERTED_SITES if _PREVIOUSLY_HARDCODED_FAST in p.read_text()]
         assert not offenders, f"inline model literal still present in: {offenders}"
 
     def test_converted_sites_call_build_model_fast(self):
         # Each converted module must call build_model(ModelTier.FAST) exactly as many
         # times as it had inline literals, so a partial revert fails here directly.
         wrong = {
-            str(p): (p.read_text().count("build_model(ModelTier.FAST)"), expected)
-            for p, expected in _EXPECTED_FAST_CALLS.items()
-            if p.read_text().count("build_model(ModelTier.FAST)") != expected
+            str(p): (p.read_text().count("build_model(ModelTier.FAST)"), expected) for p, expected in _EXPECTED_FAST_CALLS.items() if p.read_text().count("build_model(ModelTier.FAST)") != expected
         }
         assert not wrong, f"build_model(ModelTier.FAST) count (actual, expected) mismatched: {wrong}"
 
@@ -170,10 +170,13 @@ class TestBuildModel:
         monkeypatch.setitem(sys.modules, "strands.models", MagicMock())
         monkeypatch.setitem(sys.modules, "strands.models.bedrock", strands_bedrock)
 
-        with patch.object(model_resolver, "get_model", return_value="resolved-id") as gm, patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.aws_session",
-            return_value=fake_session,
-        ) as sess:
+        with (
+            patch.object(model_resolver, "get_model", return_value="resolved-id") as gm,
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.aws_session",
+                return_value=fake_session,
+            ) as sess,
+        ):
             result = model_resolver.build_model("fast", profile="p", region="r")
 
         gm.assert_called_once_with("fast")
@@ -194,10 +197,13 @@ class TestBuildModel:
         monkeypatch.setitem(sys.modules, "strands.models", MagicMock())
         monkeypatch.setitem(sys.modules, "strands.models.bedrock", strands_bedrock)
 
-        with patch.object(model_resolver, "get_model", return_value="x"), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.aws_session",
-            return_value=object(),
-        ) as sess:
+        with (
+            patch.object(model_resolver, "get_model", return_value="x"),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.aws_session",
+                return_value=object(),
+            ) as sess,
+        ):
             model_resolver.build_model("fast")
 
         sess.assert_called_once_with("envprof", "us-east-1")
@@ -226,9 +232,7 @@ class TestBuildModel:
         monkeypatch.setitem(sys.modules, "strands.models.bedrock", strands_bedrock)
 
         # Patch boto3 inside util.aws so the real aws_session collapse logic runs.
-        with patch.object(model_resolver, "get_model", return_value="x"), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.boto3", fake_boto3
-        ):
+        with patch.object(model_resolver, "get_model", return_value="x"), patch("amzn_cse_telco_autonomous_network_agents_app.agent.util.aws.boto3", fake_boto3):
             model_resolver.build_model("fast")
 
         assert captured["profile_name"] is None
@@ -264,12 +268,15 @@ class TestModelTierInterop:
 
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=None,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={_PREVIOUSLY_HARDCODED_FAST},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=None,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={_PREVIOUSLY_HARDCODED_FAST},
+            ),
         ):
             via_enum = model_resolver.get_model(ModelTier.FAST)
             model_resolver.invalidate_cache()
@@ -291,12 +298,15 @@ class TestModelTierInterop:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="smart")
-        with patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
-            return_value=cfg,
-        ), patch(
-            "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
-            return_value={smart_id},
+        with (
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
+                return_value=cfg,
+            ),
+            patch(
+                "amzn_cse_telco_autonomous_network_agents_app.agent.core.model_resolver._list_active_profiles",
+                return_value={smart_id},
+            ),
         ):
             # caller passes FAST, but config "smart" string must win and select smart
             assert model_resolver.get_model(ModelTier.FAST) == smart_id
@@ -329,9 +339,7 @@ class TestBuildProbedModel:
         # build_probed_model does `from strands.models.bedrock import BedrockModel`.
         captured = {}
         mod = MagicMock()
-        mod.BedrockModel = lambda *, model_id, boto_session: captured.setdefault(
-            "model_id", model_id
-        )
+        mod.BedrockModel = lambda *, model_id, boto_session: captured.setdefault("model_id", model_id)
         monkeypatch.setitem(sys.modules, "strands", MagicMock())
         monkeypatch.setitem(sys.modules, "strands.models", MagicMock())
         monkeypatch.setitem(sys.modules, "strands.models.bedrock", mod)
@@ -349,9 +357,7 @@ class TestBuildProbedModel:
         start = "us.anthropic.claude-sonnet-4-20250514-v1:0"
         expected_next = model_resolver._MODEL_FALLBACKS[start]
         # First probe raises a "Legacy" error, second succeeds.
-        session, client = self._session(
-            converse_side_effect=[Exception("This model is Legacy"), {"ok": True}]
-        )
+        session, client = self._session(converse_side_effect=[Exception("This model is Legacy"), {"ok": True}])
         model_resolver.build_probed_model(start, session)
         assert captured["model_id"] == expected_next
         assert client.converse.call_count == 2
@@ -364,17 +370,13 @@ class TestBuildProbedModel:
         class ResourceNotFoundException(Exception):
             pass
 
-        session, _ = self._session(
-            converse_side_effect=[ResourceNotFoundException("gone"), {"ok": True}]
-        )
+        session, _ = self._session(converse_side_effect=[ResourceNotFoundException("gone"), {"ok": True}])
         model_resolver.build_probed_model(start, session)
         assert captured["model_id"] == expected_next
 
     def test_non_fallback_error_raises(self, monkeypatch):
         self._stub_bedrockmodel(monkeypatch)
-        session, _ = self._session(
-            converse_side_effect=[Exception("AccessDeniedException")]
-        )
+        session, _ = self._session(converse_side_effect=[Exception("AccessDeniedException")])
         with pytest.raises(Exception, match="AccessDenied"):
             model_resolver.build_probed_model("model-a", session)
 
@@ -405,9 +407,7 @@ class TestBuildProbedModel:
         captured = self._stub_bedrockmodel(monkeypatch)
         start = "us.anthropic.claude-sonnet-4-20250514-v1:0"
         resolved = model_resolver._MODEL_FALLBACKS[start]
-        session, client = self._session(
-            converse_side_effect=[Exception("Legacy"), {"ok": True}]
-        )
+        session, client = self._session(converse_side_effect=[Exception("Legacy"), {"ok": True}])
         model_resolver.build_probed_model(start, session)
         assert captured["model_id"] == resolved
         assert client.converse.call_count == 2

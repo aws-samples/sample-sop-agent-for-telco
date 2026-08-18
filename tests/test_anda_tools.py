@@ -4,6 +4,7 @@
 
 Tests pure functions only — no strands dependency, no subprocess calls.
 """
+
 from __future__ import annotations
 
 import yaml
@@ -27,10 +28,16 @@ class TestNFCatalog:
 
     def test_load_catalog_from_yaml(self, tmp_path):
         catalog_file = tmp_path / "catalog.yaml"
-        catalog_file.write_text(yaml.dump({"nfs": [
-            {"name": "srsran", "chart": "oci://registry/srsran", "version": "24.10", "namespace": "ran"},
-            {"name": "open5gs", "chart": "oci://registry/open5gs", "version": "2.7", "namespace": "core"},
-        ]}))
+        catalog_file.write_text(
+            yaml.dump(
+                {
+                    "nfs": [
+                        {"name": "srsran", "chart": "oci://registry/srsran", "version": "24.10", "namespace": "ran"},
+                        {"name": "open5gs", "chart": "oci://registry/open5gs", "version": "2.7", "namespace": "core"},
+                    ]
+                }
+            )
+        )
         entries = load_nf_catalog(str(catalog_file))
         assert len(entries) == 2
         assert entries[0].name == "srsran"
@@ -77,15 +84,29 @@ class TestUpgradeStrategy:
 
     def test_load_strategies_from_yaml(self, tmp_path):
         strat_file = tmp_path / "upgrade-strategy.yaml"
-        strat_file.write_text(yaml.dump({"strategies": [
-            {"name": "core-stateful", "appliesTo": ["open5gs-amf", "open5gs-smf"], "steps": [
-                {"name": "drain", "action": "signal-amf-deregistration"},
-                {"name": "deploy", "action": "patch-argocd-application"},
-            ]},
-            {"name": "stateless", "appliesTo": ["open5gs-nrf"], "steps": [
-                {"name": "deploy", "action": "patch-argocd-application"},
-            ]},
-        ]}))
+        strat_file.write_text(
+            yaml.dump(
+                {
+                    "strategies": [
+                        {
+                            "name": "core-stateful",
+                            "appliesTo": ["open5gs-amf", "open5gs-smf"],
+                            "steps": [
+                                {"name": "drain", "action": "signal-amf-deregistration"},
+                                {"name": "deploy", "action": "patch-argocd-application"},
+                            ],
+                        },
+                        {
+                            "name": "stateless",
+                            "appliesTo": ["open5gs-nrf"],
+                            "steps": [
+                                {"name": "deploy", "action": "patch-argocd-application"},
+                            ],
+                        },
+                    ]
+                }
+            )
+        )
         strategies = load_upgrade_strategy(str(strat_file))
         assert len(strategies) == 2
         assert strategies[0].name == "core-stateful"
@@ -164,11 +185,13 @@ class TestNFOrdering:
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
             _resolve_nf_order,
         )
+
         assert _resolve_nf_order([]) == []
 
     def test_single_nf(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator import (
             _resolve_nf_order,
         )
+
         nfs = [{"name": "amf", "type": "open5gs-amf"}]
         assert _resolve_nf_order(nfs) == nfs
