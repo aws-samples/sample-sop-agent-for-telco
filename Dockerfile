@@ -96,11 +96,9 @@ COPY configs/ueransim /app/configs/ueransim
 COPY sops /app/sops
 COPY alarm-references /app/alarm-references
 COPY evals /app/evals
-COPY agentcore_adapter.py /app/agentcore_adapter.py
 COPY examples /app/examples
 COPY gitops /app/gitops
 COPY infra /app/infra
-COPY manifests /app/manifests
 
 # ─── Frontend static files (from Stage 1) ────────────────────────────────────
 COPY --from=frontend /app/webui/frontend/dist /app/static
@@ -118,4 +116,4 @@ USER app
 ENV AGENT_ROLE=anra
 
 EXPOSE 8080
-CMD ["python", "/app/agentcore_adapter.py"]
+CMD ["python", "-m", "amzn_cse_telco_autonomous_network_agents_app.agent.entrypoint"]
