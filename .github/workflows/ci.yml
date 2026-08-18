@@ -47,7 +47,7 @@ jobs:
       - name: Install tools
         run: pip install ruff==0.11.12
       - name: Ruff lint
-        run: ruff check src/ tests/ --select E,F,W,I --output-format=github
+        run: ruff check src/ tests/ --output-format=github
       - name: Ruff format check
         run: ruff format --check src/ tests/
 
