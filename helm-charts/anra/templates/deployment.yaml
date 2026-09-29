@@ -82,6 +82,8 @@ spec:
               value: {{ .Values.defaults.nfNamespace | default "open5gs" | quote }}
             - name: DEFAULT_NF_VENDOR
               value: {{ .Values.defaults.nfVendor | default "open5gs" | quote }}
+            - name: DEFAULT_RAN_NAMESPACE
+              value: {{ .Values.defaults.ranNamespace | default (.Values.defaults.nfNamespace | default "open5gs") | quote }}
             - name: CORS_ALLOW_ORIGINS
               value: {{ .Values.cors.allowOrigins | default "" | quote }}
             - name: CORS_DEV

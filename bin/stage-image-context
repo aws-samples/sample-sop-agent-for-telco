@@ -47,7 +47,7 @@ EOF
 cp "${SRC_ROOT}/pyproject.toml" "${SRC_ROOT}/README.md" "${BUILD}/"
 
 # Directories the Dockerfile COPYs wholesale.
-for d in src webui sops alarm-references evals examples gitops infra manifests; do
+for d in src webui sops alarm-references scripts helm-charts evals examples gitops infra; do
   rm -rf "${BUILD:?}/${d}"
   cp -r "${SRC_ROOT}/${d}" "${BUILD}/${d}"
 done
@@ -55,7 +55,7 @@ done
 # configs/: only the subdirs the Dockerfile COPYs (influxdb + telegraf are
 # intentionally excluded — they hold lab credentials and belong in Helm values).
 mkdir -p "${BUILD}/configs"
-for d in alertmanager nf-profiles open5gs site-descriptors srsran ueransim; do
+for d in alertmanager nf-profiles open5gs site-descriptors srsran ueransim free5gc-monitoring; do
   rm -rf "${BUILD}/configs/${d}"
   cp -r "${SRC_ROOT}/configs/${d}" "${BUILD}/configs/${d}"
 done

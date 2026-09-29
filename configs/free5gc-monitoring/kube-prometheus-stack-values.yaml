@@ -1,0 +1,73 @@
+# Workshop-v3 observability for Free5GC. The chart version is pinned by the
+# deployment script; credentials are supplied through a pre-created Secret.
+fullnameOverride: kube-prometheus-stack
+
+prometheus:
+  prometheusSpec:
+    retention: 6h
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    podMonitorNamespaceSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    retention: 6h
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+  config:
+    global:
+      resolve_timeout: 2m
+    route:
+      receiver: anra-webhook
+      group_by: [alertname, namespace, pod]
+      group_wait: 15s
+      group_interval: 30s
+      repeat_interval: 1h
+    receivers:
+      - name: anra-webhook
+        webhook_configs:
+          - url: http://anra.anra-system.svc.cluster.local:8080/api/alertmanager
+            send_resolved: true
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  admin:
+    existingSecret: free5gc-grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  service:
+    type: ClusterIP
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: true
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false

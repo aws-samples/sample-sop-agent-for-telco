@@ -75,7 +75,7 @@ class AnomalyConfig:
 
 @dataclass
 class GuardrailsConfig:
-    protected_namespaces: list = field(default_factory=lambda: ["srsran", "open5gs", "anra", "kube-system"])
+    protected_namespaces: list = field(default_factory=lambda: ["free5gc", "srsran", "open5gs", "anra", "anra-system", "kube-system"])
     blocked_commands: list = field(
         default_factory=lambda: [
             r"scale.*--replicas.*0",
@@ -206,10 +206,7 @@ def validate(config: SiteConfig, role: str = "") -> list[str]:
 
     # Schema version check
     if config.schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
-        errors.append(
-            f"Unsupported config version '{config.schema_version}', "
-            f"expected one of {sorted(_SUPPORTED_SCHEMA_VERSIONS)}"
-        )
+        errors.append(f"Unsupported config version '{config.schema_version}', expected one of {sorted(_SUPPORTED_SCHEMA_VERSIONS)}")
         return errors  # can't validate further if version is wrong
 
     # Universal required fields
@@ -239,19 +236,13 @@ def validate(config: SiteConfig, role: str = "") -> list[str]:
     # Role-specific validation
     if resolved_role == "anra":
         if not config.influxdb_url and not config.alertmanager_url:
-            errors.append(
-                "ANRA requires at least one of monitoring.influxdb_url "
-                "or monitoring.alertmanager_url"
-            )
+            errors.append("ANRA requires at least one of monitoring.influxdb_url or monitoring.alertmanager_url")
     elif resolved_role == "anpa":
         if not config.tinkerbell_namespace:
             errors.append("ANPA requires provisioning.tinkerbell_namespace")
     elif resolved_role == "anda":
         if not config.helm_repo and not config.gitops_repo:
-            errors.append(
-                "ANDA requires at least one of deployment.helm_repo "
-                "or deployment.gitops_repo"
-            )
+            errors.append("ANDA requires at least one of deployment.helm_repo or deployment.gitops_repo")
 
     return errors
 
@@ -365,10 +356,7 @@ def _parse(raw: dict) -> SiteConfig:
     # iterated character-by-character by load_plugins; fail loud and clear.
     plugins = raw.get("plugins", [])
     if not isinstance(plugins, list):
-        msg = (
-            f"config 'plugins' must be a list of dotted module paths, got "
-            f"{type(plugins).__name__}: {plugins!r}"
-        )
+        msg = f"config 'plugins' must be a list of dotted module paths, got {type(plugins).__name__}: {plugins!r}"
         raise ValueError(msg)
     c.plugins = plugins
 

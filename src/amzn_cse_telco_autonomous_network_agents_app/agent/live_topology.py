@@ -3,7 +3,9 @@
 """Live cluster topology discovery (kubectl + config nodes)."""
 
 from __future__ import annotations
+
 import logging
+import os
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.cluster import kubectl_run
 
@@ -36,7 +38,17 @@ def build_live_topology() -> dict:
                 name, role, ip = parts[0], parts[1], parts[2]
                 k8s_nodes.append({"name": name, "type": "node", "role": role or "worker", "ip": ip})
 
-        for ns in ["open5gs", "srsran", "anra"]:
+        namespaces = list(
+            dict.fromkeys(
+                [
+                    os.getenv("DEFAULT_NF_NAMESPACE", "open5gs"),
+                    os.getenv("DEFAULT_RAN_NAMESPACE", os.getenv("DEFAULT_NF_NAMESPACE", "srsran")),
+                    os.getenv("ANRA_NAMESPACE", "anra-system"),
+                    os.getenv("ANDA_NAMESPACE", "anda-system"),
+                ]
+            )
+        )
+        for ns in namespaces:
             r = kubectl_run(
                 [
                     "get",
@@ -53,13 +65,13 @@ def build_live_topology() -> dict:
                 if len(parts) >= 3 and parts[2] == "Running":
                     pod, node = parts[0], parts[1]
                     name_parts = pod.split("-")
-                    if pod.startswith("open5gs-"):
+                    if pod.startswith(("open5gs-", "free5gc-")):
                         nf = name_parts[1]
                     elif pod.startswith("ueransim-"):
                         nf = name_parts[1]
                     elif pod.startswith("telegraf-"):
                         nf = "-".join(name_parts[:2])
-                    elif ns == "cloudran-agents":
+                    elif ns in ("cloudran-agents", "anra", "anra-system", "anda-system"):
                         nf = "-".join(name_parts[:2])
                     else:
                         nf = name_parts[0]

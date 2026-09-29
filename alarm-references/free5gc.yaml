@@ -1,0 +1,83 @@
+# Free5GC v4.2.3 alarm reference used by workshop-v3 ANRA.
+vendor: free5gc
+version: "4.2.3"
+nf_types: [AMF, SMF, UPF, NRF, AUSF, UDM, UDR, PCF, NSSF]
+
+alarm_lookup:
+  type: log
+  pattern: "WARN|ERROR|FATAL|reject|failed|timeout"
+
+diagnostics:
+  - name: nf_pods
+    command: "kubectl get pods -n {namespace} -o wide"
+  - name: nf_events
+    command: "kubectl get events -n {namespace} --sort-by=.lastTimestamp --field-selector type=Warning"
+  - name: nf_logs
+    command: "kubectl logs -n {namespace} {pod_name} --tail=100"
+
+alarms:
+  free5gc_registration_unavailable:
+    log_pattern: "Registration reject|NG Setup failure|PLMN.*not allowed"
+    nf: AMF
+    severity: critical
+    description: UE registration is unavailable through the Free5GC AMF
+    probable_cause: PLMN or subscriber mismatch, AMF unavailability, or an N2 connectivity failure
+    reaction: Inspect the live AMF and PacketRusher configuration before proposing a change
+    diagnostics:
+      - "kubectl logs -n {namespace} deployment/free5gc-amf-deployment --tail=100"
+      - "kubectl logs -n {namespace} -l app=packetrusher --tail=100"
+
+  pfcp_association_failure:
+    log_pattern: "PFCP.*failed|association.*timeout|heartbeat.*timeout"
+    nf: SMF
+    severity: critical
+    description: The SMF and UPF cannot maintain their N4 PFCP association
+    probable_cause: UPF failure, N4 Multus addressing mismatch, or gtp5g startup failure
+    reaction: Verify the UPF pod, gtp5g module, N4 interface, and SMF logs
+    diagnostics:
+      - "kubectl logs -n {namespace} deployment/free5gc-smf-deployment --tail=100"
+      - "kubectl logs -n {namespace} deployment/free5gc-upf-deployment --tail=100"
+
+  free5gc_nf_unavailable:
+    log_pattern: "panic|fatal|connection refused|CrashLoopBackOff"
+    nf: CORE
+    severity: critical
+    description: A Free5GC network function is unavailable
+    probable_cause: Invalid configuration, dependency failure, image failure, or resource pressure
+    reaction: Identify the first failing dependency and use the least disruptive recovery
+    diagnostics:
+      - "kubectl get deployments,pods -n {namespace}"
+      - "kubectl get events -n {namespace} --sort-by=.lastTimestamp | tail -30"
+
+  free5gc_pod_restarting:
+    log_pattern: "CrashLoopBackOff|Back-off restarting failed container"
+    nf: CORE
+    severity: warning
+    description: A Free5GC or PacketRusher pod is repeatedly restarting
+    probable_cause: Invalid configuration, dependency failure, or resource pressure
+    reaction: Inspect the first failing container and its Kubernetes events
+    diagnostics:
+      - "kubectl get pods -n {namespace}"
+      - "kubectl get events -n {namespace} --sort-by=.lastTimestamp | tail -30"
+
+  free5gc_node_not_ready:
+    log_pattern: "NodeNotReady|node.*not ready"
+    nf: INFRASTRUCTURE
+    severity: critical
+    description: An EKS worker hosting Free5GC is not Ready
+    probable_cause: Node failure, kubelet failure, or loss of VPC connectivity
+    reaction: Inspect node conditions and infrastructure events before changing network functions
+    diagnostics:
+      - "kubectl get nodes -o wide"
+      - "kubectl describe node {node_name}"
+
+  free5gc_metrics_missing:
+    log_pattern: "metrics.*unavailable|scrape.*failed"
+    nf: AMF
+    severity: warning
+    description: Prometheus cannot scrape the Free5GC metrics endpoint
+    probable_cause: PodMonitor selector mismatch, missing metrics port, or an unavailable NF
+    reaction: Check PodMonitor targets and the NF metrics endpoint before restarting workloads
+    diagnostics:
+      - "kubectl get podmonitor -A"
+      - "kubectl get pods -n {namespace} -l epc-prom=enabled"

@@ -1,6 +1,6 @@
 apiVersion: v2
 name: ano-platform
-description: Full ANRA autonomous network operations platform — Day 0/1/2 for 5G on EKS Hybrid
+description: Workshop-v3 Free5GC operations platform — CloudFormation Day 0 with ANDA/ANRA on EKS
 version: 0.2.0
 appVersion: "0.2.0"
 type: application

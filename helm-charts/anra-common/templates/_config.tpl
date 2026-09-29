@@ -21,6 +21,11 @@ bedrock:
 approval:
   mode: {{ (.Values.approval).mode | default "auto" | quote }}
 
+{{- if (.Values.config).alarmReferences }}
+alarm_references:
+  {{- toYaml .Values.config.alarmReferences | nindent 2 }}
+{{- end }}
+
 {{- if (.Values.config).guardrails }}
 guardrails:
   {{- toYaml .Values.config.guardrails | nindent 2 }}

@@ -18,7 +18,7 @@ data:
     receivers:
       - name: 'anra-webhook'
         webhook_configs:
-          - url: 'http://anra.anra-system.svc:8080/api/webhooks/alertmanager'
+          - url: 'http://anra.anra-system.svc:8080/api/alertmanager'
             send_resolved: true
 ---
 apiVersion: v1

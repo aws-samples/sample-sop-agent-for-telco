@@ -5,8 +5,9 @@
 # This umbrella is ideal for PoC, demo, or single-cluster dev environments.
 
 # --- Agent toggles ---
+# Workshop-v3 uses CloudFormation for Day-0 infrastructure, so ANPA is off.
 anpa:
-  enabled: true
+  enabled: false
 anda:
   enabled: true
 anra:

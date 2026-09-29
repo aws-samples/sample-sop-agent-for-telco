@@ -14,10 +14,13 @@ Loads vendor-specific alarm references for domain context in SOP generation.
 import json
 import logging
 import os
+import shlex
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+import yaml
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import ModelTier
 
@@ -37,10 +40,34 @@ INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "srsran")
 SOP_REPO = os.getenv("SOP_REPO", str(Path(__file__).parent.parent))
 BEDROCK_PROFILE = os.getenv("BEDROCK_PROFILE", "")
 BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-west-2")
-ALARM_REFERENCE_PATH = os.getenv(
-    "ALARM_REFERENCE_PATH", str(Path(__file__).parent.parent / "alarm-references" / "generic-5g.json")
-)
+ALARM_REFERENCE_PATH = os.getenv("ALARM_REFERENCE_PATH", str(Path(__file__).parent.parent / "alarm-references" / "generic-5g.json"))
 APPROVAL_MODE = os.getenv("APPROVAL_MODE", "auto")  # auto | manual | gitlab
+
+
+def _merge_alarm_catalogs(alarm_ref: dict, catalog_paths: list[str]) -> dict:
+    """Enrich configured alarm rules with vendor catalog diagnostics."""
+    merged = {name: dict(details) for name, details in alarm_ref.items()}
+    for configured_path in catalog_paths:
+        path = Path(configured_path)
+        if not path.is_absolute():
+            path = Path(SOP_REPO) / path
+        try:
+            catalog = yaml.safe_load(path.read_text()) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            log.warning("Unable to load alarm catalog %s: %s", path, exc)
+            continue
+        for name, details in (catalog.get("alarms") or {}).items():
+            if name not in merged or not isinstance(details, dict):
+                continue
+            target = merged[name]
+            for key in ("description", "probable_cause", "reaction", "log_pattern", "nf"):
+                if not target.get(key) and details.get(key):
+                    target[key] = details[key]
+            if details.get("diagnostics"):
+                target["diagnostics"] = list(details["diagnostics"])
+        log.info("Loaded vendor alarm context from %s", path)
+    return merged
+
 
 # Load alarm reference — from config alarms, fallback to JSON file
 _alarm_ref = {}
@@ -61,6 +88,7 @@ try:
             }
             for a in _cfg.alarms
         }
+        _alarm_ref = _merge_alarm_catalogs(_alarm_ref, _cfg.alarm_references)
         log.info(f"Loaded {len(_alarm_ref)} alarm definitions from config")
 except Exception:
     _cfg = None
@@ -77,6 +105,7 @@ if not _alarm_ref:
 def _run(cmd, timeout=10):
     try:
         import shlex
+
         r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=timeout)
         return (r.stdout + r.stderr).strip()
     except Exception as e:
@@ -84,7 +113,7 @@ def _run(cmd, timeout=10):
 
 
 # ── InfluxDB Alert Source (delegated to agents/kpi_monitor/) ──
-from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.influx_source import query_influx as _query_influx_impl
+from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.influx_source import query_influx as _query_influx_impl  # noqa: E402
 
 _last_influx_results: dict = {}
 
@@ -106,7 +135,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.a
     evaluate_dynamic_anomalies,
 )
 
-
 _SOURCE_MEASUREMENT = {"ran": "srsran", "core": "core_network", "kubernetes": "core_network", "os": "os_metrics"}
 
 
@@ -114,13 +142,7 @@ def _eval_condition(val, condition):
     """Parse '> 500' or '< 1' and evaluate."""
     op, threshold = condition.strip().split(None, 1)
     threshold = float(threshold)
-    return (
-        (op == ">" and val > threshold)
-        or (op == "<" and val < threshold)
-        or (op == ">=" and val >= threshold)
-        or (op == "<=" and val <= threshold)
-        or (op == "==" and val == threshold)
-    )
+    return (op == ">" and val > threshold) or (op == "<" and val < threshold) or (op == ">=" and val >= threshold) or (op == "<=" and val <= threshold) or (op == "==" and val == threshold)
 
 
 def evaluate_thresholds():
@@ -255,9 +277,7 @@ def evaluate_ran_thresholds_legacy():
         val = vals.get(field)
         if val is None:
             continue
-        triggered = (
-            (op == "gt" and val > threshold) or (op == "lt" and val < threshold) or (op == "eq" and val == threshold)
-        )
+        triggered = (op == "gt" and val > threshold) or (op == "lt" and val < threshold) or (op == "eq" and val == threshold)
         if triggered:
             ref = _alarm_ref.get(alarm_name, {})
             alerts.append(
@@ -350,14 +370,12 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.c
     poll_k8s_pod_health,
 )
 
-
 # Hardware event-log polling (BMC/iDRAC System Event Log over Redfish) lives
 # in agents/anra/monitoring/hardware_event_log.py. Imported here so run_loop
 # calls it unchanged.
 from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anra.monitoring.hardware_event_log import (  # noqa: E402
     poll_redfish_sel,
 )
-
 
 # ── Alertmanager Source ──
 
@@ -379,8 +397,7 @@ def fetch_alertmanager_alerts():
                 "source": "alertmanager",
             }
             for a in data
-            if a.get("status", {}).get("state") == "active"
-            and a["labels"].get("alertname") not in {"Watchdog", "InfoInhibitor"}
+            if a.get("status", {}).get("state") == "active" and a["labels"].get("alertname") not in {"Watchdog", "InfoInhibitor"}
         ]
     except (json.JSONDecodeError, TypeError):
         return []
@@ -490,6 +507,7 @@ def execute_sop(sop_path, alert):
         log.info(f"SOP execution complete for {alert['name']}")
         try:
             from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
             push_activity("execute", "%s SOP completed" % alert["name"], status="success")
         except Exception:
             pass
@@ -513,9 +531,7 @@ _active_sops: set = set()
 _suppressed: dict = {}
 _dynamic_sop_count: int = 0
 _dynamic_sop_reset: float = 0
-MAX_DYNAMIC_SOPS_PER_HOUR = int(
-    os.getenv("MAX_DYNAMIC_SOPS_PER_HOUR", str(_cfg.anomaly_detection.max_sops_per_hour if _cfg else 3))
-)
+MAX_DYNAMIC_SOPS_PER_HOUR = int(os.getenv("MAX_DYNAMIC_SOPS_PER_HOUR", str(_cfg.anomaly_detection.max_sops_per_hour if _cfg else 3)))
 
 
 # ── SOP Enrichment Pipeline ──
@@ -524,6 +540,10 @@ MAX_DYNAMIC_SOPS_PER_HOUR = int(
 def _scan_environment(alert):
     """Scan live environment for SOP enrichment. Layer-aware."""
     layer = _alarm_ref.get(alert.get("name", ""), {}).get("layer", -1)
+    core_namespace = os.getenv("DEFAULT_NF_NAMESPACE", "open5gs")
+    ran_namespace = os.getenv("DEFAULT_RAN_NAMESPACE", core_namespace)
+    core_ns_arg = shlex.quote(core_namespace)
+    ran_ns_arg = shlex.quote(ran_namespace)
     scan = {"tools": "kubectl, ssm_command(instance_id, cmd), redfish_query(bmc_ip, endpoint)"}
 
     if layer == 0:
@@ -542,22 +562,18 @@ def _scan_environment(alert):
             scan[f"node_{n.name}"] = f"SSM_ID={n.ssm_id} IP={n.oam_ip} roles={n.roles}"
         scan["nodes"] = _run("kubectl get nodes -o wide --no-headers")[:500]
     elif layer == 2:
-        scan["pods"] = _run("kubectl get pods -n open5gs -o wide --no-headers")[:800]
-        scan["events"] = _run(
-            "kubectl get events -n open5gs --sort-by=.lastTimestamp --field-selector type=Warning --no-headers"
-        )[:500]
-        scan["nf_deps"] = "Auth: AMF→AUSF→UDM→UDR→MongoDB. Session: SMF→UPF(PFCP:8805). UPF on edge hostNetwork."
-        scan["cross_cni"] = "Region pods CANNOT reach edge Cilium pod IPs. UPF reachable via host IP only."
+        scan["pods"] = _run(f"kubectl get pods -n {core_ns_arg} -o wide --no-headers")[:800]
+        scan["events"] = _run(f"kubectl get events -n {core_ns_arg} --sort-by=.lastTimestamp --field-selector type=Warning --no-headers")[:500]
+        scan["nf_deps"] = "Auth: AMF→AUSF→UDM→UDR→MongoDB. Session: SMF→UPF over N4/PFCP."
+        scan["multus"] = "Free5GC uses dedicated N2/N3/N4/N6 Multus interfaces; verify the static address plan before remediation."
     elif layer == 3:
-        scan["pods"] = _run("kubectl get pods -n srsran -o wide --no-headers")[:500]
-        scan["gnb_logs"] = _run("kubectl logs deploy/srsran-gnb -n srsran --tail=20")[:1000]
-        scan["ran_info"] = (
-            "srsRAN: NO vendor CLI (no ductl). WebSocket :55555 for metrics. testmode=ru_dummy. FAPI warnings are normal."
-        )
+        scan["pods"] = _run(f"kubectl get pods -n {ran_ns_arg} -o wide --no-headers")[:500]
+        scan["ran_logs"] = _run(f"kubectl logs -n {ran_ns_arg} -l app=packetrusher --tail=20")[:1000]
+        scan["ran_info"] = "PacketRusher/Free5GC: NO vendor CLI (no ductl). Validate N2 registration and the N3 user plane with kubectl logs."
     elif layer == 4:
-        scan["ue_logs"] = _run("kubectl logs deploy/ueransim-ue -n srsran -c ue --tail=20")[:500]
+        scan["ue_logs"] = _run(f"kubectl logs -n {ran_ns_arg} -l app=packetrusher --tail=20")[:500]
     else:
-        scan["pods"] = _run("kubectl get pods -n open5gs -o wide --no-headers")[:500]
+        scan["pods"] = _run(f"kubectl get pods -n {core_ns_arg} -o wide --no-headers")[:500]
     return scan
 
 
@@ -613,6 +629,7 @@ def _submit_sop(alert, correlation_result=None):
     sop_path = resolve_sop(alert)
     try:
         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
         push_activity("resolve", "SOP: %s" % (sop_path or "generating..."))
     except Exception:
         pass
@@ -627,6 +644,7 @@ def _submit_sop(alert, correlation_result=None):
         enriched = _enrich_sop(sop_content, alert)
         try:
             from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
             push_activity("enrich", "Bedrock enriching SOP for %s" % alert["name"])
         except Exception:
             pass
@@ -725,6 +743,7 @@ def run_loop():
             # Drain injected alarms (from demo trigger buttons)
             try:
                 from amzn_cse_telco_autonomous_network_agents_app.agent.routers.alarms import _injected_queue
+
                 while _injected_queue:
                     alerts.append(_injected_queue.pop(0))
             except Exception:
@@ -736,6 +755,7 @@ def run_loop():
             clear_alarms({a["name"] for a in alerts})
             try:
                 from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
                 if alerts:
                     push_activity("collect", "Cycle %d: %d alerts from 6 sources" % (cycle, len(alerts)))
             except Exception:
@@ -825,13 +845,11 @@ def run_loop():
                 log.debug(f"Storm batching failed: {e}")
 
             for alert in new_alerts:
-                log.info(
-                    f"NEW ALARM: {alert['severity'].upper()} {alert['name']} "
-                    f"(value={alert.get('value')}, source={alert['source']})"
-                )
+                log.info(f"NEW ALARM: {alert['severity'].upper()} {alert['name']} (value={alert.get('value')}, source={alert['source']})")
 
                 try:
                     from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
                     push_activity("detect", "%s — %s %s" % (alert["name"], alert.get("value", ""), alert.get("threshold", "")), status="warning")
                 except Exception:
                     pass
@@ -887,12 +905,10 @@ def run_loop():
                         _suppressed[alert["name"]] = result["root_cause"]
                         continue
 
-                    log.info(
-                        f"CORRELATE: {alert['name']} action={result['action']} "
-                        f"confidence={result['confidence']} root={result['root_cause']}"
-                    )
+                    log.info(f"CORRELATE: {alert['name']} action={result['action']} confidence={result['confidence']} root={result['root_cause']}")
                     try:
                         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
                         push_activity("correlate", "%s -> %s (root: %s)" % (alert["name"], result["action"], result["root_cause"]), status="success")
                     except Exception:
                         pass
@@ -908,6 +924,7 @@ def run_loop():
                     log.info(f"RE-EVAL: {sym} still active after {root} fixed")
                     try:
                         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
                         push_activity("reeval", "%s still active after %s fixed" % (sym, root), status="warning")
                     except Exception:
                         pass
@@ -923,10 +940,14 @@ def run_loop():
                     escalating = detect_escalating_alarms()
                     if escalating:
                         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
                         for esc in escalating:
                             log.warning(
                                 "TREND: %s escalating (%dx in 24h vs %dx prev, ratio=%.1f)",
-                                esc["alarm"], esc["last_24h"], esc["prev_24h"], esc["ratio"],
+                                esc["alarm"],
+                                esc["last_24h"],
+                                esc["prev_24h"],
+                                esc["ratio"],
                             )
                             push_activity(
                                 "detect",
@@ -936,6 +957,7 @@ def run_loop():
                         # Auto-investigate escalating trends
                         try:
                             from amzn_cse_telco_autonomous_network_agents_app.agent.agents.kpi_monitor.auto_investigate import maybe_investigate_trend
+
                             maybe_investigate_trend(escalating)
                         except Exception as e:
                             log.debug(f"Auto-investigation failed: {e}")

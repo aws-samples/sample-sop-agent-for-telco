@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANO Platform — Top-Level Makefile
 #
-# Single image (ano-platform), three agents (ANRA, ANDA, ANPA).
+# Workshop-v3 deploys one image as ANDA and ANRA; CloudFormation replaces ANPA.
 # This Makefile handles platform lifecycle; platform/Makefile handles 5G NF workloads.
 #
 # Usage:
@@ -41,12 +41,13 @@ CHART_ANPA     ?= helm-charts/anpa
 CHART_COMMON   ?= helm-charts/anra-common
 
 .PHONY: demo deploy-mgmt deploy-workload deploy-anra deploy-anda deploy-anpa \
-        platform deploy-common monitoring build ecr-login status clean verify help
+        platform deploy-common monitoring build ecr-login status clean verify help \
+        workshop-v3 workshop-v3-validate
 
-demo: build platform deploy-common deploy-anda deploy-anpa workload deploy-anra verify
+demo: build platform deploy-common deploy-anda workload deploy-anra verify
 deploy-mgmt: HELM = helm --kube-context $(MGMT_CLUSTER)
 deploy-mgmt: K = kubectl --context $(MGMT_CLUSTER)
-deploy-mgmt: platform deploy-common deploy-anda deploy-anpa
+deploy-mgmt: platform deploy-common deploy-anda
 
 deploy-workload: HELM = helm --kube-context $(WORK_CLUSTER)
 deploy-workload: K = kubectl --context $(WORK_CLUSTER)
@@ -104,12 +105,12 @@ ecr-login:
 		docker login --username AWS --password-stdin $(ECR)
 
 status:
-	@for ns in $(NS_ANRA) $(NS_ANDA) $(NS_ANPA); do \
+	@for ns in $(NS_ANRA) $(NS_ANDA); do \
 		echo "--- $$ns ---"; \
 		$(K) get pods -n $$ns -o wide --no-headers 2>/dev/null || echo "  (namespace not found)"; \
 	done
 
-verify: verify-anra verify-anda verify-anpa
+verify: verify-anra verify-anda
 
 verify-anra:
 	$(K) rollout status deployment/anra -n $(NS_ANRA) --timeout=60s
@@ -130,10 +131,20 @@ clean:
 	@$(K) delete namespace $(NS_ANRA) $(NS_ANDA) $(NS_ANPA) --ignore-not-found --wait=false
 	@echo "  ✅ Cleaned"
 
+workshop-v3:
+	@test "$(TAG)" != "latest" || (echo "TAG must be immutable, not latest" >&2; exit 1)
+	AGENT_IMAGE_REPOSITORY=$(IMAGE) AGENT_IMAGE_TAG=$(TAG) \
+		bash scripts/free5gc/00-run-all.sh
+
+workshop-v3-validate:
+	bash -n scripts/free5gc/*.sh tests/free5gc/run-tests.sh
+	python -m json.tool configs/free5gc-monitoring/dashboards/free5gc-core-overview.json >/dev/null
+	PYTHONPATH=src python -m pytest tests/test_workshop_v3.py tests/test_sops.py -q
+
 help:
-	@echo "ANO Platform — Deployment Targets"
-	@echo "  make demo             Full deploy on one cluster (PoC)"
-	@echo "  make deploy-mgmt      ANPA + ANDA on management cluster"
+	@echo "Workshop-v3 — Free5GC Deployment Targets"
+	@echo "  make workshop-v3      CloudFormation + Free5GC + monitoring + ANDA/ANRA"
+	@echo "  make workshop-v3-validate  Validate v3 assets without creating AWS resources"
 	@echo "  make deploy-workload  ANRA + monitoring + NFs on workload cluster"
 	@echo "  make build            Build + push container image"
 	@echo "  make status           Show agent pod status"

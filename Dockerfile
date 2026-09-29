@@ -93,8 +93,11 @@ COPY configs/open5gs /app/configs/open5gs
 COPY configs/site-descriptors /app/configs/site-descriptors
 COPY configs/srsran /app/configs/srsran
 COPY configs/ueransim /app/configs/ueransim
+COPY configs/free5gc-monitoring /app/configs/free5gc-monitoring
 COPY sops /app/sops
 COPY alarm-references /app/alarm-references
+COPY scripts /app/scripts
+COPY helm-charts/free5gc-bundle /app/helm-charts/free5gc-bundle
 COPY evals /app/evals
 COPY examples /app/examples
 COPY gitops /app/gitops

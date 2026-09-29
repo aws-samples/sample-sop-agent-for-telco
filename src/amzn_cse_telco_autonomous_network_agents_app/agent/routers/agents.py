@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import shlex
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
@@ -38,14 +41,16 @@ def get_agent_reasoning(limit: int = 20):
         elif "escalat" in message.lower() or "failed" in message.lower():
             entry_type = "escalation"
 
-        entries.append({
-            "agent": _infer_agent(stage),
-            "timestamp": activity.get("timestamp", datetime.now(timezone.utc).isoformat()),
-            "type": entry_type,
-            "message": message,
-            "detail": activity.get("detail", ""),
-            "status": activity.get("status", ""),
-        })
+        entries.append(
+            {
+                "agent": _infer_agent(stage),
+                "timestamp": activity.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                "type": entry_type,
+                "message": message,
+                "detail": activity.get("detail", ""),
+                "status": activity.get("status", ""),
+            }
+        )
 
     return {"entries": entries}
 
@@ -53,7 +58,6 @@ def get_agent_reasoning(limit: int = 20):
 @router.get("/api/agents/status")
 def get_agent_status():
     """Return cognitive state for each agent (idle/active/thinking/waiting)."""
-    import json
     from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
 
     active_alarms = [a for a in snapshot_alarms() if a.get("status") != "resolved"]
@@ -74,8 +78,7 @@ def get_agent_status():
     anda_detail = "No active deployments"
     try:
         result = run_cmd(
-            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system "
-            "-o json --field-selector status.phase!=Completed,status.phase!=Failed",
+            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system -o json --field-selector status.phase!=Completed,status.phase!=Failed",
             timeout=3,
         )
         if result.success:
@@ -98,8 +101,7 @@ def get_agent_status():
     anpa_detail = "Monitoring infrastructure"
     try:
         result = run_cmd(
-            "kubectl get provisioningrequests.provisioning.anpa.aws.io --all-namespaces "
-            "-o json --field-selector status.phase!=Ready,status.phase!=Failed",
+            "kubectl get provisioningrequests.provisioning.anpa.aws.io --all-namespaces -o json --field-selector status.phase!=Ready,status.phase!=Failed",
             timeout=3,
         )
         if result.success:
@@ -170,10 +172,7 @@ def get_current_incident():
         "root_cause": {
             "description": exec_data.get("trigger", "Multiple correlated alarms"),
             "confidence": 0.94,
-            "causal_chain": [
-                {"event": a.get("name", "unknown"), "time": a.get("fired_at", ""), "type": "alarm"}
-                for a in active_alarms[:5]
-            ],
+            "causal_chain": [{"event": a.get("name", "unknown"), "time": a.get("fired_at", ""), "type": "alarm"} for a in active_alarms[:5]],
         },
         "sop": {
             "name": exec_data.get("sop", "unknown"),
@@ -196,9 +195,7 @@ def get_track_record(days: int = 7):
     escalated = sum(1 for e in all_execs if e.get("resolution") == "escalated")
     successes = sum(1 for e in all_execs if e.get("status") == "success")
 
-    avg_mttr_auto = 192 if total == 0 else sum(
-        e.get("mttr_seconds", 180) for e in all_execs if e.get("resolution") == "auto"
-    ) / max(auto_resolved, 1)
+    avg_mttr_auto = 192 if total == 0 else sum(e.get("mttr_seconds", 180) for e in all_execs if e.get("resolution") == "auto") / max(auto_resolved, 1)
 
     return {
         "incidents_handled": total,
@@ -238,14 +235,12 @@ def get_incident(incident_id: str):
 @router.get("/api/anda/active-deployment")
 def get_active_deployment():
     """Return the currently active deployment (if any) with stage reasoning."""
-    import json
     from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
 
     # Check live CRDs first (source of truth)
     try:
         result = run_cmd(
-            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system "
-            "-o json --field-selector status.phase!=Completed,status.phase!=Failed",
+            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system -o json --field-selector status.phase!=Completed,status.phase!=Failed",
             timeout=5,
         )
         if result.success:
@@ -287,6 +282,7 @@ def get_active_deployment():
     # Fallback: check in-memory deployment plans (legacy API path)
     try:
         from amzn_cse_telco_autonomous_network_agents_app.agent.routers.deployments import _deployment_plans
+
         active = [p for p in _deployment_plans.values() if p.get("status") in ("pending", "deploying")]
         if active:
             plan = active[0]
@@ -316,12 +312,12 @@ def get_active_deployment():
 @router.get("/api/anda/fleet-opinions")
 def get_fleet_opinions():
     """Return NF fleet status with agent opinions on each NF."""
-    import json
     from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
 
     # Try 1: Load from ANDA's NF catalog (works on ANDA pod)
     try:
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import load_nf_catalog
+
         catalog = load_nf_catalog()
         if catalog:
             nfs = [
@@ -338,47 +334,44 @@ def get_fleet_opinions():
     except Exception:
         pass
 
-    # Try 2: Discover live NF pods from the cluster (works on any pod with kubectl)
+    # Try 2: Discover live NF pods from configured workshop namespaces.
     try:
-        result = run_cmd(
-            "kubectl get pods -n open5gs -o jsonpath='{range .items[*]}{.metadata.labels.app\\.kubernetes\\.io/name}{\"\\n\"}{end}' 2>/dev/null",
-            timeout=5,
+        namespaces = list(
+            dict.fromkeys(
+                [
+                    os.getenv("DEFAULT_NF_NAMESPACE", "open5gs"),
+                    os.getenv("DEFAULT_RAN_NAMESPACE", os.getenv("DEFAULT_NF_NAMESPACE", "srsran")),
+                ]
+            )
         )
         nfs = []
         seen = set()
-        if result.success:
-            for line in result.stdout.strip().strip("'").split("\n"):
-                name = line.strip()
-                if name and name not in seen and name != "mongodb":
-                    seen.add(name)
-                    nfs.append({
+        for namespace in namespaces:
+            result = run_cmd(
+                f"kubectl get pods -n {shlex.quote(namespace)} -o json 2>/dev/null",
+                timeout=5,
+            )
+            if not result.success:
+                continue
+            for pod in json.loads(result.stdout or "{}").get("items", []):
+                metadata = pod.get("metadata", {})
+                labels = metadata.get("labels", {})
+                name = labels.get("app.kubernetes.io/name") or labels.get("app") or metadata.get("name", "").split("-")[0]
+                key = (namespace, name)
+                if not name or key in seen or name == "mongodb":
+                    continue
+                seen.add(key)
+                phase = pod.get("status", {}).get("phase", "Unknown")
+                nfs.append(
+                    {
                         "name": name,
-                        "current": "Running",
-                        "latest": "Running",
-                        "status": "stable",
-                        "opinion": "Healthy — pod running",
-                        "namespace": "open5gs",
-                    })
-
-        # Also check srsran namespace
-        result2 = run_cmd(
-            "kubectl get pods -n srsran -o jsonpath='{range .items[*]}{.metadata.labels.app\\.kubernetes\\.io/name}{\"\\n\"}{end}' 2>/dev/null",
-            timeout=5,
-        )
-        if result2.success:
-            for line in result2.stdout.strip().strip("'").split("\n"):
-                name = line.strip()
-                if name and name not in seen:
-                    seen.add(name)
-                    nfs.append({
-                        "name": name,
-                        "current": "Running",
-                        "latest": "Running",
-                        "status": "stable",
-                        "opinion": "Healthy — pod running",
-                        "namespace": "srsran",
-                    })
-
+                        "current": phase,
+                        "latest": phase,
+                        "status": "stable" if phase == "Running" else "degraded",
+                        "opinion": f"Pod phase: {phase}",
+                        "namespace": namespace,
+                    }
+                )
         if nfs:
             return {"nfs": nfs}
     except Exception:

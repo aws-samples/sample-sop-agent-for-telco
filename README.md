@@ -1,47 +1,48 @@
-# ANO Platform — Autonomous Network Operations
+# Workshop v3 — Free5GC Autonomous Network Operations
 
-**One container image. Three AI agents. Full 5G network lifecycle automation.**
+**CloudFormation infrastructure. Free5GC data plane. ANDA and ANRA operations. No ANPA deployment.**
 
-ANO is a Kubernetes-native platform that autonomously provisions, deploys, and operates 5G networks on AWS EKS Hybrid Nodes — from bare metal to running traffic.
+Workshop-v3 is based on `origin/workshop-v2` commit `e938040` and replaces its attendee infrastructure path with the validated IND321 CloudFormation, Multus, gtp5g, Free5GC, PacketRusher, and Prometheus assets. CloudFormation owns Day 0; ANDA and ANRA provide deployment and operations. The ANPA implementation remains in the source tree for compatibility but is disabled by default and is not installed by the workshop-v3 scripts.
 
+```text
+CloudFormation → EKS/Multus/gtp5g → Free5GC/PacketRusher
+                                      │
+                                      ▼
+                     Prometheus/Alertmanager/Grafana
+                                      │
+                                      ▼
+                                  ANDA + ANRA
 ```
-  Day 0                Day 1                Day 2
-┌─────────┐        ┌─────────┐        ┌─────────┐
-│  ANPA   │──────► │  ANDA   │──────► │  ANRA   │
-│Provision│        │ Deploy  │        │ Operate │
-└─────────┘        └─────────┘        └─────────┘
-     │                  │                   │
- Bare metal →      NFs running →      KPIs monitored →
- EKS nodes         in 3GPP order      auto-remediated
-```
+
+See [`docs/workshop-v3.md`](docs/workshop-v3.md) for the pinned version/IP contracts, security boundaries, and known limitations.
 
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
+# Development validation (no AWS resources created)
 hatch env create
-
-# 2. Run tests (710 tests, 60%+ coverage enforced)
 hatch test
+make workshop-v3-validate
 
-# 3. Run locally (defaults to ANRA role)
-AGENT_ROLE=anra AGENT_CONFIG=configs/site-descriptors/sjc38.yaml hatch run dev
-
-# 4. Deploy to cluster
-helm install ano-platform helm-charts/ano-platform/ \
-  --set image.repository=<ECR_URI> \
-  --set image.tag=latest
+# Full disposable-account bring-up
+export STACK_NAME=telco-dryrun-01
+export AWS_DEFAULT_REGION=us-west-2
+export BASTION_KEY=<existing-key-pair>
+export AGENT_IMAGE_TAG=<immutable-workshop-v3-image-tag>
+bash scripts/free5gc/00-run-all.sh
 ```
+
+The full command creates chargeable AWS resources. Use `scripts/free5gc/99-cleanup.sh` when the dry run is complete.
 
 ## Architecture
 
-### Single Image, Three Roles
+### Shared Image, Two Workshop Roles
 
-The same container image runs as any of the three agents — selected by `AGENT_ROLE` env var:
+The source image supports three roles through `AGENT_ROLE`, but workshop-v3 deploys only ANDA and ANRA:
 
 | Agent | Role | What It Does | Runs On |
 |-------|------|--------------|---------|
-| **ANPA** | Day 0 Provisioning | Discovers BMC, installs OS via Tinkerbell, registers EKS nodes | Management cluster |
+| **ANPA** | Retained, disabled | Compatibility only; CloudFormation replaces this role in workshop-v3 | Not deployed |
 | **ANDA** | Day 1 Deployment | Deploys 5G NFs in 3GPP order, drains traffic for upgrades | Management cluster |
 | **ANRA** | Day 2 Operations | Monitors KPIs, correlates alarms, auto-remediates via SOPs | Workload cluster |
 
@@ -55,9 +56,8 @@ Pod Startup:
    ├── Validate config (schema + startup probes)
    ├── Start ConfigWatcher (hot-reload, no restart needed)
    ├── Background thread → agent's autonomous loop
-   │     ├── ANRA: monitor alarms → correlate → SOP → remediate
-   │     ├── ANDA: watch DeploymentPlan CRDs → deploy NFs
-   │     └── ANPA: watch ProvisioningRequest CRDs → provision nodes
+   │     ├── ANRA: monitor Free5GC alarms → correlate → approval/SOP
+   │     └── ANDA: watch DeploymentPlan CRDs → execute approved work
    └── Foreground: FastAPI on :8080 (health, REST API, WebUI)
 ```
 
@@ -174,31 +174,19 @@ Config changes are picked up automatically — no pod restart needed:
 
 ### Install Order
 
+SOP 3 installs shared CRDs, ANDA, and ANRA after the Free5GC E2E gate. Use the complete, validated installer rather than installing individual charts manually:
+
 ```bash
-# 1. CRDs first (always)
-helm install anra-common helm-charts/anra-common/
-
-# 2. Individual agents (or use ano-platform umbrella)
-helm install anpa helm-charts/anpa/ --set image.repository=<ECR>
-helm install anda helm-charts/anda/ --set image.repository=<ECR>
-helm install anra helm-charts/anra/ --set image.repository=<ECR>
-
-# OR: all-in-one
-helm install ano helm-charts/ano-platform/ --set image.repository=<ECR>
+export AGENT_IMAGE_REPOSITORY=<ECR_OR_PUBLIC_ECR_REPOSITORY>
+export AGENT_IMAGE_TAG=<IMMUTABLE_SHA_TAG>
+bash scripts/free5gc/04-deploy-monitoring-anra.sh
 ```
+
+The umbrella chart also defaults `anpa.enabled=false` on this branch.
 
 ### Credential Pattern
 
-All agents use `existingSecret` — one Kubernetes Secret per site:
-```yaml
-existingSecret:
-  name: site-credentials
-  keys:
-    bmcPassword: bmc-password
-    sshKey: ssh-private-key
-```
-
-IRSA provides AWS credentials (Bedrock, SSM, ECR) — no static AWS keys.
+The installer generates secret-backed Grafana and ANRA dashboard passwords when they do not exist and stores the generated values in owner-readable files on the bastion. The disposable workshop currently uses node-role credentials for Bedrock; replace this with EKS Pod Identity for non-workshop deployments.
 
 ## Development
 
@@ -219,10 +207,10 @@ hatch test -- tests/helm/     # Helm chart unit tests
 
 ### Pipeline
 
-- **Build system**: Hatch (via PeruHatch/Brazil)
-- **CI**: Brazil Pipelines → CodeBuild (mirrors via CodeCommit)
-- **Pre-push hook**: Auto-syncs to CodeCommit mirror (install with `pre-commit install --hook-type pre-push`)
-- **Coverage**: 60% minimum enforced
+- **Build system**: Hatch
+- **CI**: GitHub Actions on `workshop-v3`
+- **Images**: immutable commit-SHA and `workshop-v3-<SHA>` tags; no `latest` publication
+- **Coverage**: project threshold defined in `pyproject.toml`
 
 ## Technology Stack
 
@@ -231,20 +219,18 @@ hatch test -- tests/helm/     # Helm chart unit tests
 | **Agent Framework** | [Strands Agents SDK](https://github.com/strands-agents/sdk-python) + Amazon Bedrock (Claude) |
 | **API** | FastAPI + Uvicorn |
 | **Frontend** | React 18 + Ant Design + ReactFlow + Recharts |
-| **Infrastructure** | Amazon EKS Hybrid Nodes (VPC + bare-metal) |
-| **Provisioning** | Tinkerbell (DHCP/TFTP/iPXE) + Dell iDRAC VirtualMedia |
-| **5G Core** | Open5GS (AMF, SMF, UPF, NRF) |
-| **5G RAN** | srsRAN Project (gNB) + UERANSIM (testing) |
-| **Monitoring** | InfluxDB + Telegraf + Alertmanager |
-| **Packaging** | Helm 3 + ArgoCD |
-| **CI/CD** | Brazil Pipelines + CodeBuild |
+| **Infrastructure** | AWS CloudFormation, Amazon VPC, EKS, Multus, gtp5g |
+| **Provisioning** | CloudFormation plus SSM-driven cluster configuration |
+| **5G Core** | Free5GC v4.2.3 |
+| **5G traffic** | PacketRusher |
+| **Monitoring** | Prometheus, Alertmanager, and Grafana |
+| **Packaging** | Helm 3 |
+| **CI/CD** | GitHub Actions |
 
 ## Further Reading
 
-- [`docs/ANO-Design-Reference-Guide.md`](docs/ANO-Design-Reference-Guide.md) — Architecture deep-dive, CRD schemas, team assignments
-- [`docs/runtime-architecture.md`](docs/runtime-architecture.md) — Startup flow, config system, model resolution
-- [`docs/provisioning-flow.md`](docs/provisioning-flow.md) — ANPA bare-metal provisioning end-to-end
-- [`docs/deployment-orchestration.md`](docs/deployment-orchestration.md) — ANDA NF lifecycle + drain procedures
-- [`DEVELOPING.md`](DEVELOPING.md) — Build system, git hooks, CodeCommit mirror
-- [`CODE_QUALITY.md`](CODE_QUALITY.md) — Tech debt tracker + improvement roadmap
-- [`SPRINT-PLAN.md`](SPRINT-PLAN.md) — Current sprint (July 28 Docomo demo)
+- [`docs/workshop-v3.md`](docs/workshop-v3.md) — Workshop-v3 contracts, security posture, and limitations
+- [`docs/free5gc/LLD-Free5GC-on-AWS-EKS.md`](docs/free5gc/LLD-Free5GC-on-AWS-EKS.md) — Imported Free5GC infrastructure design
+- [`docs/free5gc/Free5GC-Testing-Guide.md`](docs/free5gc/Free5GC-Testing-Guide.md) — Free5GC functional testing reference
+- [`docs/runtime-architecture.md`](docs/runtime-architecture.md) — Agent startup and configuration architecture
+- [`docs/deployment-orchestration.md`](docs/deployment-orchestration.md) — ANDA lifecycle and drain procedures

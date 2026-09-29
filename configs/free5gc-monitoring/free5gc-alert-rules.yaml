@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: free5gc-workshop
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: free5gc-workshop
+      interval: 30s
+      rules:
+        - alert: free5gc_nf_unavailable
+          expr: kube_deployment_status_replicas_unavailable{namespace="free5gc",deployment=~"free5gc-.*"} > 0
+          for: 2m
+          labels:
+            severity: critical
+            layer: core
+            alarm_key: free5gc_nf_unavailable
+          annotations:
+            summary: Free5GC network function unavailable
+            description: Deployment {{ $labels.deployment }} has unavailable replicas.
+
+        - alert: free5gc_pod_restarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="free5gc"}[5m]) > 2
+          for: 1m
+          labels:
+            severity: warning
+            layer: core
+            alarm_key: free5gc_pod_restarting
+          annotations:
+            summary: Free5GC pod is repeatedly restarting
+            description: Pod {{ $labels.pod }} restarted more than twice in five minutes.
+
+
+        - alert: free5gc_node_not_ready
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            layer: infrastructure
+            alarm_key: free5gc_node_not_ready
+          annotations:
+            summary: EKS worker node is not Ready
+            description: Node {{ $labels.node }} has not been Ready for two minutes.
+
+        - alert: free5gc_metrics_missing
+          expr: absent(free5gc_amf_business_ue_connectivity)
+          for: 5m
+          labels:
+            severity: warning
+            layer: monitoring
+            alarm_key: free5gc_metrics_missing
+          annotations:
+            summary: Free5GC AMF metrics are missing
+            description: Prometheus has not received the AMF connectivity metric for five minutes.
+
+        - alert: free5gc_registration_unavailable
+          expr: sum(free5gc_amf_business_ue_connectivity) < 1
+          for: 2m
+          labels:
+            severity: critical
+            layer: core
+            alarm_key: free5gc_registration_unavailable
+          annotations:
+            summary: No UE is connected to the Free5GC AMF
+            description: The workshop baseline expects at least one connected PacketRusher UE.

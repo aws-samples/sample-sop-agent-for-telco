@@ -1,9 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 """Thin kubectl subprocess wrapper — centralize timeouts and argv-style calls."""
+
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 from subprocess import CompletedProcess
 
@@ -23,14 +25,25 @@ def kubectl_run(argv: list[str], *, timeout: int = 10) -> CompletedProcess[str]:
 def check_source_status() -> dict[str, bool]:
     """Check workload pod status for each dashboard monitoring source."""
     sources: dict[str, bool] = {}
-    checks = [
-        ("ran", "srsran", "srsran-gnb"),
-        ("core", "open5gs", "open5gs-amf"),
-        ("hardware", "anra", "telegraf-hw"),
-        ("os", "", ""),
-    ]
+    vendor = os.getenv("DEFAULT_NF_VENDOR", "open5gs").lower()
+    core_namespace = os.getenv("DEFAULT_NF_NAMESPACE", "open5gs")
+    ran_namespace = os.getenv("DEFAULT_RAN_NAMESPACE", os.getenv("DEFAULT_NF_NAMESPACE", "srsran"))
+    if vendor == "free5gc":
+        checks = [
+            ("ran", ran_namespace, "packetrusher"),
+            ("core", core_namespace, "free5gc-amf"),
+            ("hardware", "", ""),
+            ("os", "", ""),
+        ]
+    else:
+        checks = [
+            ("ran", ran_namespace, "srsran-gnb"),
+            ("core", core_namespace, "open5gs-amf"),
+            ("hardware", "anra", "telegraf-hw"),
+            ("os", "", ""),
+        ]
     for name, ns, prefix in checks:
-        if name == "os":
+        if name in ("os", "hardware") and not ns:
             try:
                 r = kubectl_run(
                     ["get", "nodes", "-o", "jsonpath={.items[*].status.conditions[-1:].type}"],

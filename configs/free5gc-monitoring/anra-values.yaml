@@ -1,0 +1,103 @@
+# Values applied by scripts/free5gc/04-deploy-monitoring-anra.sh.
+agentRole: anra
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: Always
+
+bedrock:
+  region: us-west-2
+  modelTier: smart
+
+approval:
+  mode: manual
+  andaEnabled: "true"
+
+anda:
+  namespace: anda-system
+  serviceUrl: http://anda.anda-system.svc.cluster.local:8080
+
+defaults:
+  nfNamespace: free5gc
+  nfVendor: free5gc
+  ranNamespace: free5gc
+
+monitoring:
+  influxdbUrl: ""
+  influxdbOrg: free5gc
+  influxdbBucket: free5gc
+  alertmanagerUrl: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+
+config:
+  cluster:
+    name: ""
+    context: ""
+    region: us-west-2
+  alarmReferences:
+    - alarm-references/free5gc.yaml
+  nodes:
+    - name: free5gc-workload
+      roles: [core, ran, ue]
+      namespaces: [free5gc]
+  guardrails:
+    protected_namespaces: [free5gc, anra-system, anda-system, monitoring, kube-system]
+  alarms:
+    - name: free5gc_nf_unavailable
+      layer: 2
+      source: kubernetes
+      field: free5gc_nf_unavailable
+      condition: "> 0"
+      severity: critical
+      depends_on: [free5gc_node_not_ready]
+      nf_scope: per-instance
+      alarm_id: free5gc-nf-unavailable-001
+      alarm_type: processing-error-alarm
+    - name: free5gc_registration_unavailable
+      layer: 2
+      source: core
+      field: free5gc_amf_business_ue_connectivity
+      condition: "< 1"
+      severity: critical
+      depends_on: [free5gc_nf_unavailable]
+      nf_scope: site-wide
+      alarm_id: free5gc-registration-unavailable-001
+      alarm_type: communications-alarm
+    - name: free5gc_pod_restarting
+      layer: 2
+      source: kubernetes
+      field: free5gc_pod_restarting
+      condition: "> 0"
+      severity: warning
+      depends_on: [free5gc_node_not_ready]
+      nf_scope: per-instance
+      alarm_id: free5gc-pod-restarting-001
+      alarm_type: processing-error-alarm
+    - name: free5gc_metrics_missing
+      layer: 1
+      source: monitoring
+      field: free5gc_metrics_missing
+      condition: "> 0"
+      severity: warning
+      depends_on: []
+      nf_scope: site-wide
+      alarm_id: free5gc-metrics-missing-001
+      alarm_type: communications-alarm
+    - name: free5gc_node_not_ready
+      layer: 1
+      source: kubernetes
+      field: node_not_ready
+      condition: "> 0"
+      severity: critical
+      depends_on: []
+      nf_scope: per-node
+      alarm_id: free5gc-node-not-ready-001
+      alarm_type: communications-alarm
+
+webui:
+  enabled: true
+  service:
+    type: ClusterIP
+
+selfUpdate:
+  enabled: false
