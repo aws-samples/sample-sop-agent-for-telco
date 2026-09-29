@@ -132,6 +132,9 @@ def test_scripts_do_not_keep_ind321_layout_defaults():
         assert "cfn-templates/vpc-eks-multus.yaml" not in text
         assert 'NAMESPACE="${NAMESPACE:-default}"' not in text
         assert "eks-ind321-lcm" not in text
+    sop3 = (ROOT / "scripts" / "free5gc" / "04-deploy-monitoring-anra.sh").read_text()
+    assert 'BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"' in sop3
+    assert '--set-string bedrock.region="${BEDROCK_REGION}"' in sop3
 
 
 def test_dashboard_health_uses_free5gc_environment(monkeypatch):

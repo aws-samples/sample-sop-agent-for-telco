@@ -6,6 +6,7 @@ set -euo pipefail
 STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
 CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
+BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 FREE5GC_NAMESPACE="${FREE5GC_NAMESPACE:-free5gc}"
 MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
 ANRA_NAMESPACE="${ANRA_NAMESPACE:-anra-system}"
@@ -77,7 +78,7 @@ helm upgrade --install anda "${REPO_ROOT}/helm-charts/anda" \
   --set-string image.repository="${AGENT_IMAGE_REPOSITORY}" \
   --set-string image.tag="${AGENT_IMAGE_TAG}" \
   --set-string aws.region="${AWS_DEFAULT_REGION}" \
-  --set-string bedrock.region="${AWS_DEFAULT_REGION}" \
+  --set-string bedrock.region="${BEDROCK_REGION}" \
   --set argocd.enabled=false \
   --set nfCatalog.srsran.enabled=false \
   --set nfCatalog.open5gs.enabled=false \
@@ -105,7 +106,7 @@ helm upgrade --install anra "${REPO_ROOT}/helm-charts/anra" \
   --values "${ANRA_VALUES}" \
   --set-string image.repository="${AGENT_IMAGE_REPOSITORY}" \
   --set-string image.tag="${AGENT_IMAGE_TAG}" \
-  --set-string bedrock.region="${AWS_DEFAULT_REGION}" \
+  --set-string bedrock.region="${BEDROCK_REGION}" \
   --set-string ssm.region="${AWS_DEFAULT_REGION}" \
   --set-string config.cluster.name="${CLUSTER_NAME}" \
   --set-string credentials.existingSecret=anra-workshop-credentials \

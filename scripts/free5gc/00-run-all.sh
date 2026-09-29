@@ -6,6 +6,7 @@ set -euo pipefail
 
 export STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
+export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 export CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
 AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9/anra-workshop}"
 AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:?Set AGENT_IMAGE_TAG to an immutable workshop-v3 image tag}"
@@ -75,6 +76,6 @@ run_on_bastion 'deploy Free5GC and PacketRusher' \
 run_on_bastion 'validate the Free5GC data path' \
   "${COMMON_ENV}; cd ${REMOTE_ROOT}; bash tests/free5gc/run-tests.sh"
 run_on_bastion 'deploy monitoring, ANDA, and ANRA (ANPA skipped)' \
-  "${COMMON_ENV}; export AGENT_IMAGE_REPOSITORY=${AGENT_IMAGE_REPOSITORY} AGENT_IMAGE_TAG=${AGENT_IMAGE_TAG}; cd ${REMOTE_ROOT}; bash scripts/free5gc/04-deploy-monitoring-anra.sh"
+  "${COMMON_ENV}; export BEDROCK_REGION=${BEDROCK_REGION} AGENT_IMAGE_REPOSITORY=${AGENT_IMAGE_REPOSITORY} AGENT_IMAGE_TAG=${AGENT_IMAGE_TAG}; cd ${REMOTE_ROOT}; bash scripts/free5gc/04-deploy-monitoring-anra.sh"
 
 printf 'Workshop-v3 bring-up complete. Bastion instance: %s\n' "${BASTION_ID}"

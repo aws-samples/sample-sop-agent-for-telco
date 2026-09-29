@@ -6,7 +6,8 @@ Deploy pinned Prometheus, Alertmanager, and Grafana configuration around a valid
 ## Parameters
 
 - **stack_name** (required): CloudFormation stack name used to derive the EKS cluster.
-- **aws_region** (required): AWS Region containing the EKS cluster and Bedrock access.
+- **aws_region** (required): AWS Region containing the EKS cluster.
+- **bedrock_region** (optional, default: `us-west-2`): AWS Region used for Amazon Bedrock inference.
 - **agent_image_repository** (required): Registry/repository containing the tested workshop-v3 image.
 - **agent_image_tag** (required): Immutable image tag associated with the workshop-v3 source revision.
 - **anra_password** (optional): Dashboard password; when omitted, the deployment script generates one and stores it in `${HOME}/anra-admin-password` with owner-only permissions.
@@ -51,6 +52,7 @@ Run the deterministic installer with the immutable image reference.
 export STACK_NAME="${STACK_NAME:?Set STACK_NAME from stack_name}"
 export CLUSTER_NAME="${CLUSTER_NAME:-eks-$STACK_NAME}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:?Set AWS_DEFAULT_REGION from aws_region}"
+export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 export AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:?Set AGENT_IMAGE_REPOSITORY from agent_image_repository}"
 export AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:?Set AGENT_IMAGE_TAG from agent_image_tag}"
 test "$AGENT_IMAGE_TAG" != latest
