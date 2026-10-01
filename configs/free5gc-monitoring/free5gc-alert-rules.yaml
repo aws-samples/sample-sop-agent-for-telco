@@ -45,7 +45,7 @@ spec:
             description: Node {{ $labels.node }} has not been Ready for two minutes.
 
         - alert: free5gc_metrics_missing
-          expr: absent(free5gc_amf_business_ue_connectivity)
+          expr: absent(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"})
           for: 5m
           labels:
             severity: warning
@@ -53,10 +53,10 @@ spec:
             alarm_key: free5gc_metrics_missing
           annotations:
             summary: Free5GC AMF metrics are missing
-            description: Prometheus has not received the AMF connectivity metric for five minutes.
+            description: Prometheus has not received the AMF registered-UE metric for five minutes.
 
         - alert: free5gc_registration_unavailable
-          expr: sum(free5gc_amf_business_ue_connectivity) < 1
+          expr: sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) < 1
           for: 2m
           labels:
             severity: critical

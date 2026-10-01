@@ -29,6 +29,23 @@ def test_cloudformation_uses_restricted_ingress_and_pinned_gtp5g():
     assert "bedrock:InvokeModel" in text
     assert "EndpointPublicAccess: false" in text
     assert "AWSCloudFormationFullAccess" not in text
+    assert "BastionAmiIdOverride:" in text
+    assert "UseBastionAmiIdOverride:" in text
+    assert "ImageId: !If [UseBastionAmiIdOverride, !Ref BastionAmiIdOverride, !Ref LatestAmiId]" in text
+
+
+def test_ebs_csi_uses_least_privilege_pod_identity():
+    text = CFN.read_text()
+    assert "AddonName: eks-pod-identity-agent" in text
+    assert "AddonVersion: v1.3.10-eksbuild.3" in text
+    assert "Service: pods.eks.amazonaws.com" in text
+    assert "aws:RequestTag/kubernetes-namespace: kube-system" in text
+    assert "aws:RequestTag/kubernetes-service-account: ebs-csi-controller-sa" in text
+    assert "PodIdentityAssociations:" in text
+    assert "ServiceAccount: ebs-csi-controller-sa" in text
+    assert "AmazonEBSCSIDriverPolicy" in text
+    worker_role = text.split("  EksNodeRole:", 1)[1].split("  EksEbsCsiPodIdentityRole:", 1)[0]
+    assert "AmazonEBSCSIDriverPolicy" not in worker_role
 
 
 def test_ind321_chart_bundle_is_pinned_and_readable():
@@ -70,16 +87,28 @@ def test_free5gc_anra_contract():
 def test_alert_rules_and_dashboard_are_parseable():
     rules = yaml.safe_load((MONITORING / "free5gc-alert-rules.yaml").read_text())
     assert rules["kind"] == "PrometheusRule"
-    names = {rule["alert"] for group in rules["spec"]["groups"] for rule in group["rules"]}
+    configured_rules = {rule["alert"]: rule for group in rules["spec"]["groups"] for rule in group["rules"]}
+    names = set(configured_rules)
     assert {
         "free5gc_nf_unavailable",
         "free5gc_metrics_missing",
         "free5gc_registration_unavailable",
         "free5gc_node_not_ready",
     } <= names
-    configured_names = {alarm["name"] for alarm in yaml.safe_load(ANRA_VALUES.read_text())["config"]["alarms"]}
-    assert names <= configured_names
-    json.loads((MONITORING / "dashboards" / "free5gc-core-overview.json").read_text())
+    registered_ue_metric = "free5gc_amf_business_ue_gmm_state_count"
+    registration_expr = configured_rules["free5gc_registration_unavailable"]["expr"]
+    assert registered_ue_metric in registration_expr
+    assert 'gmm_state="Registered"' in registration_expr
+    assert "free5gc_amf_business_ue_connectivity" not in registration_expr
+
+    anra_values = yaml.safe_load(ANRA_VALUES.read_text())
+    configured_alarms = {alarm["name"]: alarm for alarm in anra_values["config"]["alarms"]}
+    assert names <= set(configured_alarms)
+    assert configured_alarms["free5gc_registration_unavailable"]["field"] == registered_ue_metric
+
+    dashboard = json.loads((MONITORING / "dashboards" / "free5gc-core-overview.json").read_text())
+    connected_ues = next(panel for panel in dashboard["panels"] if panel["title"] == "Connected UEs")
+    assert registered_ue_metric in connected_ues["targets"][0]["expr"]
 
 
 def test_configured_alarm_catalog_enriches_runtime_context(tmp_path):
@@ -135,6 +164,7 @@ def test_scripts_do_not_keep_ind321_layout_defaults():
     sop3 = (ROOT / "scripts" / "free5gc" / "04-deploy-monitoring-anra.sh").read_text()
     assert 'BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"' in sop3
     assert '--set-string bedrock.region="${BEDROCK_REGION}"' in sop3
+    assert "--set infrastructureBootstrap.enabled=false" in sop3
 
 
 def test_dashboard_health_uses_free5gc_environment(monkeypatch):

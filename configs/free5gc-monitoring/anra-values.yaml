@@ -56,7 +56,7 @@ config:
     - name: free5gc_registration_unavailable
       layer: 2
       source: core
-      field: free5gc_amf_business_ue_connectivity
+      field: free5gc_amf_business_ue_gmm_state_count
       condition: "< 1"
       severity: critical
       depends_on: [free5gc_nf_unavailable]

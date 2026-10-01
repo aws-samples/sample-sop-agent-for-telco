@@ -20,9 +20,6 @@
 set -euo pipefail
 
 NAMESPACE="${NAMESPACE:-free5gc}"
-STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
-CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
-AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CHARTS_DIR="${CHARTS_DIR:-${REPO_ROOT}/helm-charts/free5gc-bundle}"
@@ -30,9 +27,15 @@ FREE5GC_CHART="${FREE5GC_CHART:-${CHARTS_DIR}/free5gc-0.0.2.tgz}"
 PACKETRUSHER_CHART="${PACKETRUSHER_CHART:-${CHARTS_DIR}/packetrusher-0.0.3.tgz}"
 STALE_SD="${STALE_SD:-010203}"
 UE_IMSI="${UE_IMSI:-imsi-208930000000003}"
+CURRENT_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
 
-export AWS_DEFAULT_REGION
-aws eks update-kubeconfig --region "${AWS_DEFAULT_REGION}" --name "${CLUSTER_NAME}" >/dev/null
+if [ -z "${CURRENT_CONTEXT}" ]; then
+  echo "ERROR: no current Kubernetes context is configured." >&2
+  exit 1
+fi
+
+echo "==> Using Kubernetes context: ${CURRENT_CONTEXT}"
+kubectl get --raw=/readyz >/dev/null
 
 krestart_recreate() {  # $1 = deployment name  (clean scale 0 -> 1 for singleton Multus pods)
   local dep="$1"
@@ -48,12 +51,12 @@ krestart_recreate() {  # $1 = deployment name  (clean scale 0 -> 1 for singleton
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
 # ---- 0. Verify gtp5g is loaded on all worker nodes --------------------------
-# The GTP5G module is built + loaded at boot by the node user-data (see the CFN
-# launch template) and can be (re)installed with scripts/install-gtp5g.sh.
+# The gtp5g module is built and loaded at boot by the CloudFormation launch
+# template. This participant script verifies that prerequisite but never repairs
+# worker hosts; a missing module is a Workshop Studio provisioning defect.
 #
-# We verify it node-side via a short-lived privileged pod that reads the host's
-# loaded modules. The bastion uses SSM for installation in step 02; this pod is
-# an independent Kubernetes-side verification. Set SKIP_GTP5G_CHECK=1 to skip.
+# Verification uses a short-lived privileged pod that reads the host's loaded
+# modules. Set SKIP_GTP5G_CHECK=1 only after out-of-band verification.
 if [ "${SKIP_GTP5G_CHECK:-0}" = "1" ]; then
   echo "==> Skipping gtp5g verification (SKIP_GTP5G_CHECK=1)"
 else
@@ -72,9 +75,9 @@ else
     [ "${RES}" != "LOADED" ] && MISSING=1
   done
   if [ "${MISSING}" -ne 0 ]; then
-    echo "ERROR: gtp5g is not confirmed loaded on all nodes. Run scripts/install-gtp5g.sh"
-    echo "       on each worker node, or re-run with SKIP_GTP5G_CHECK=1 if you have"
-    echo "       verified it out-of-band, then re-run this script."
+    echo "ERROR: gtp5g is not confirmed loaded on all nodes." >&2
+    echo "       Stop and report a Workshop Studio provisioning defect. Re-run with" >&2
+    echo "       SKIP_GTP5G_CHECK=1 only after the module is verified out-of-band." >&2
     exit 1
   fi
 fi

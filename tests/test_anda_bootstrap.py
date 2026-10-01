@@ -118,6 +118,34 @@ class TestGetMissingInfrastructure:
 class TestBootstrapOrchestration:
     """Tests for _check_and_bootstrap_infrastructure()."""
 
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator._check_and_bootstrap_infrastructure")
+    def test_bootstrap_is_enabled_by_default(self, mock_bootstrap):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda import (
+            orchestrator,
+        )
+
+        with patch.dict(
+            os.environ,
+            {"ANDA_INFRASTRUCTURE_BOOTSTRAP_ENABLED": "true"},
+        ):
+            orchestrator._bootstrap_infrastructure_if_enabled()
+
+        mock_bootstrap.assert_called_once_with()
+
+    @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator._check_and_bootstrap_infrastructure")
+    def test_bootstrap_can_be_disabled_by_environment(self, mock_bootstrap):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda import (
+            orchestrator,
+        )
+
+        with patch.dict(
+            os.environ,
+            {"ANDA_INFRASTRUCTURE_BOOTSTRAP_ENABLED": "false"},
+        ):
+            orchestrator._bootstrap_infrastructure_if_enabled()
+
+        mock_bootstrap.assert_not_called()
+
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.get_missing_infrastructure")
     @patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.orchestrator.run_cmd")
     def test_bootstrap_skipped_when_healthy(self, mock_run, mock_missing):

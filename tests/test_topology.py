@@ -3,11 +3,23 @@
 """Tests for topology.py — YamlTopology provider."""
 
 import amzn_cse_telco_autonomous_network_agents_app.agent.topology as topology
+from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import (
+    ExtensionKind,
+)
+from amzn_cse_telco_autonomous_network_agents_app.agent.framework.registry import (
+    registry,
+)
 
 
 class TestYamlTopology:
     def setup_method(self):
         topology._provider = None
+        registry.register(
+            ExtensionKind.TOPOLOGY,
+            "yaml",
+            topology.YamlTopology(),
+            override=True,
+        )
 
     def test_get_provider_returns_yaml(self):
         p = topology.get_provider()

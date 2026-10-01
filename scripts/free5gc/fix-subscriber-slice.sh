@@ -15,14 +15,16 @@
 set -uo pipefail
 
 NAMESPACE="${NAMESPACE:-free5gc}"
-STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
-CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
-AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
 STALE_SD="${STALE_SD:-010203}"            # factory-default slice to remove
 STALE_KEY="${STALE_KEY:-01${STALE_SD}}"   # smfSelection key form: sst(2 hex) + sd
+CURRENT_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
 
-export AWS_DEFAULT_REGION
-aws eks update-kubeconfig --region "${AWS_DEFAULT_REGION}" --name "${CLUSTER_NAME}" >/dev/null 2>&1 || true
+if [ -z "${CURRENT_CONTEXT}" ]; then
+  echo "ERROR: no current Kubernetes context is configured." >&2
+  exit 1
+fi
+
+kubectl get --raw=/readyz >/dev/null
 
 MONGO=$(kubectl get pods -n "${NAMESPACE}" | grep mongodb | awk '{print $1}' | head -1)
 if [ -z "${MONGO}" ]; then

@@ -92,7 +92,7 @@ class TestWatchAndaDeploymentCompletion:
     @patch("time.sleep", MagicMock())
     def test_timeout(self, mock_time, mock_run):
         mock_run.return_value = _CmdResult(success=True, stdout="InProgress")
-        mock_time.side_effect = [0, 0, 301]
+        mock_time.side_effect = lambda: 0 if mock_time.call_count <= 2 else 301
         result = watch_anda_deployment_completion(plan_name="anra-amf-123", timeout_seconds=300)
         assert "⏰" in result
         assert "Timed out" in result

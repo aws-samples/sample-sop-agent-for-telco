@@ -43,7 +43,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "builder",
-          "expr": "sum(clamp_min(free5gc_amf_business_ue_connectivity{instance=~\"$instance\"}, 0))",
+          "expr": "sum(free5gc_amf_business_ue_gmm_state_count{access_type=\"3GPP_ACCESS\",gmm_state=\"Registered\",instance=~\"$instance\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"

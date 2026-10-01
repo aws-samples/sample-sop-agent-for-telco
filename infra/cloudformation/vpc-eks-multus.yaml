@@ -30,6 +30,7 @@ Metadata:
           - BastionInstanceType
           - BastionKeyPairName
           - LatestAmiId
+          - BastionAmiIdOverride
       - Label:
           default: EKS Worker Node Configuration
         Parameters:
@@ -102,6 +103,11 @@ Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  BastionAmiIdOverride:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^ami-[0-9a-f]+$'
+    Description: Optional explicit AMI ID. Set this on existing stacks to prevent unrelated updates from replacing the bastion when LatestAmiId advances.
   EksVersion:
     Type: String
     Default: "1.33"
@@ -139,6 +145,9 @@ Parameters:
     Type: String
     Default: "ON_DEMAND"
     Description: EC2 capacity type.
+
+Conditions:
+  UseBastionAmiIdOverride: !Not [!Equals [!Ref BastionAmiIdOverride, '']]
 
 Resources:
   Vpc:
@@ -473,7 +482,7 @@ Resources:
           GroupSet:
             - !Ref BastionSecurityGroup
           SubnetId: !Ref PubMgmtSubnetAz1
-      ImageId: !Ref LatestAmiId
+      ImageId: !If [UseBastionAmiIdOverride, !Ref BastionAmiIdOverride, !Ref LatestAmiId]
       Tags:
         - Key: Name
           Value: !Sub "BastionHost-${AWS::StackName}"
@@ -624,6 +633,28 @@ Resources:
       CidrIp: !Ref VpcCidr
 
   #### EKS add-ons ####
+  EksEbsCsiPodIdentityRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: IAM role used only by the EBS CSI controller through EKS Pod Identity.
+      RoleName: !Sub "eksEbsCsiPodIdentityRole-${AWS::StackName}"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowEksAuthToAssumeRoleForPodIdentity
+            Effect: Allow
+            Principal:
+              Service: pods.eks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Condition:
+              StringEquals:
+                aws:RequestTag/kubernetes-namespace: kube-system
+                aws:RequestTag/kubernetes-service-account: ebs-csi-controller-sa
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+
   EksClusterVpcCniAddon:
     Type: AWS::EKS::Addon
     DependsOn: [EksCluster]
@@ -644,12 +675,24 @@ Resources:
     Properties:
       AddonName: coredns
       ClusterName: !Ref EksCluster
+  EksClusterPodIdentityAgentAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: [EksNodeGroup]
+    Properties:
+      AddonName: eks-pod-identity-agent
+      AddonVersion: v1.3.10-eksbuild.3
+      ResolveConflicts: OVERWRITE
+      ClusterName: !Ref EksCluster
   EksClusterEBSAddon:
     Type: AWS::EKS::Addon
-    DependsOn: [EksCluster]
+    DependsOn: [EksClusterPodIdentityAgentAddon]
     Properties:
       AddonName: aws-ebs-csi-driver
       ClusterName: !Ref EksCluster
+      ResolveConflicts: OVERWRITE
+      PodIdentityAssociations:
+        - ServiceAccount: ebs-csi-controller-sa
+          RoleArn: !GetAtt EksEbsCsiPodIdentityRole.Arn
 
   #### Node security group ####
   EksNodeSecurityGroup:

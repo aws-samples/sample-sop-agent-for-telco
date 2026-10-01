@@ -54,6 +54,8 @@ spec:
               value: {{ .Values.bedrock.region | quote }}
             - name: BEDROCK_MODEL_TIER
               value: {{ .Values.bedrock.modelTier | default "smart" | quote }}
+            - name: ANDA_INFRASTRUCTURE_BOOTSTRAP_ENABLED
+              value: {{ .Values.infrastructureBootstrap.enabled | quote }}
             - name: ARGOCD_ENABLED
               value: {{ .Values.argocd.enabled | quote }}
             - name: ARGOCD_NAMESPACE

@@ -90,6 +90,23 @@ def wake_orchestrator() -> None:
     """
     _urgent_wake.set()
 
+def _infrastructure_bootstrap_enabled() -> bool:
+    """Return whether ANDA should reconcile its built-in platform catalog."""
+    return os.getenv("ANDA_INFRASTRUCTURE_BOOTSTRAP_ENABLED", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+
+
+def _bootstrap_infrastructure_if_enabled() -> None:
+    """Bootstrap platform dependencies unless this deployment owns them elsewhere."""
+    if not _infrastructure_bootstrap_enabled():
+        log.info("Infrastructure bootstrap disabled by configuration")
+        return
+    _check_and_bootstrap_infrastructure()
+
+
 def run_orchestrator() -> None:
     """Start the ANDA orchestrator polling loop.
 
@@ -104,8 +121,9 @@ def run_orchestrator() -> None:
         "ANDA orchestrator starting (poll_interval=%ds)", POLL_INTERVAL_SECONDS
     )
 
-    # Phase 1: Check if infrastructure bootstrap is needed
-    _check_and_bootstrap_infrastructure()
+    # Phase 1: bootstrap shared platform components only when this deployment
+    # owns them. Workshop-v3 uses CloudFormation and disables this phase.
+    _bootstrap_infrastructure_if_enabled()
 
     # Load config once at startup; reload on each poll cycle so that
     # ConfigMap updates are picked up without restarting the agent.

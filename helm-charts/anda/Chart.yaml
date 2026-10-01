@@ -16,3 +16,4 @@ dependencies:
   - name: anra-common
     version: "0.2.0"
     repository: "file://../anra-common"
+    condition: anra-common.enabled

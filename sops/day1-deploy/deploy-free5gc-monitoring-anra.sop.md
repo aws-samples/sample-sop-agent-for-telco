@@ -1,15 +1,13 @@
 # Deploy Free5GC Monitoring and ANRA
 
 ## Overview
-Deploy pinned Prometheus, Alertmanager, and Grafana configuration around a validated Free5GC service, then install ANDA and ANRA in manual-approval mode. ANPA is intentionally excluded because CloudFormation owns Day-0 infrastructure.
+Use the Kubernetes context prepared by Workshop Studio to deploy pinned Prometheus, Alertmanager, and Grafana configuration around the validated Free5GC service, then install ANDA and ANRA in manual-approval mode. This SOP does not discover or select an EKS cluster because CloudFormation owns Day-0 infrastructure and ANPA is intentionally excluded.
 
 ## Parameters
 
-- **stack_name** (required): CloudFormation stack name used to derive the EKS cluster.
-- **aws_region** (required): AWS Region containing the EKS cluster.
 - **bedrock_region** (optional, default: `us-west-2`): AWS Region used for Amazon Bedrock inference.
-- **agent_image_repository** (required): Registry/repository containing the tested workshop-v3 image.
-- **agent_image_tag** (required): Immutable image tag associated with the workshop-v3 source revision.
+- **agent_image_repository** (optional, default: `public.ecr.aws/t2j9i5y9/anra-workshop`): Registry and repository containing the tested workshop-v3 image.
+- **agent_image_tag** (optional, default: current Git commit short SHA): Immutable image tag associated with the checked-out workshop-v3 source revision.
 - **anra_password** (optional): Dashboard password; when omitted, the deployment script generates one and stores it in `${HOME}/anra-admin-password` with owner-only permissions.
 
 **Constraints for parameter acquisition:**
@@ -21,15 +19,20 @@ Deploy pinned Prometheus, Alertmanager, and Grafana configuration around a valid
 
 ## Prerequisites
 - SOP 1 deployed Free5GC and SOP 2 passed end to end.
+- The current Kubernetes context targets the Workshop Studio EKS cluster.
 - The image contains `configs/free5gc-monitoring`, `alarm-references/free5gc.yaml`, the SOPs, scripts, and bundled charts.
 - The EKS worker role or pod identity can invoke the selected Amazon Bedrock model.
 
 ## Steps
 
-### 1. Verify the monitoring contract
-Check every pinned runtime asset before changing the cluster.
+### 1. Verify the current context and monitoring contract
+Confirm the preconfigured Kubernetes context and every pinned runtime asset before changing the cluster.
 
 ```bash
+CURRENT_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
+test -n "$CURRENT_CONTEXT"
+printf 'Using Kubernetes context: %s\n' "$CURRENT_CONTEXT"
+kubectl get --raw=/readyz >/dev/null
 test -f configs/free5gc-monitoring/kube-prometheus-stack-values.yaml
 test -f configs/free5gc-monitoring/free5gc-alert-rules.yaml
 test -f configs/free5gc-monitoring/anra-values.yaml
@@ -39,30 +42,31 @@ test -f scripts/send-free5gc-test-alert.py
 ! grep -R '/api/webhooks/alertmanager' configs/free5gc-monitoring configs/alertmanager
 ```
 
-**Expected**: All assets exist and no configuration references the obsolete webhook path.
+**Expected**: A non-empty context is displayed, the Kubernetes API is ready, all assets exist, and no configuration references the obsolete webhook path.
 
 **Constraints:**
+- You MUST use the context that is current when this SOP starts.
+- You MUST NOT run `aws eks update-kubeconfig` because Workshop Studio already selected the participant cluster and changing context could target a different environment.
+- You MUST stop if the context is empty or unreachable because the deployment must not continue against an unknown cluster.
 - You MUST stop if an asset is missing because ad hoc downloads would invalidate the recorded release candidate.
 - You MUST use `/api/alertmanager` because that is the implemented ANRA route.
 
 ### 2. Deploy monitoring, ANDA, and ANRA
-Run the deterministic installer with the immutable image reference.
+Run the deterministic installer. It derives cluster metadata from the current kubeconfig and retains any immutable image configuration exported by the workshop instructions.
 
 ```bash
-export STACK_NAME="${STACK_NAME:?Set STACK_NAME from stack_name}"
-export CLUSTER_NAME="${CLUSTER_NAME:-eks-$STACK_NAME}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:?Set AWS_DEFAULT_REGION from aws_region}"
 export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
-export AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:?Set AGENT_IMAGE_REPOSITORY from agent_image_repository}"
-export AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:?Set AGENT_IMAGE_TAG from agent_image_tag}"
+export AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9/anra-workshop}"
+export AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git rev-parse --short=7 HEAD)}"
 test "$AGENT_IMAGE_TAG" != latest
 if test -n "${ANRA_PASSWORD:-}"; then export ANRA_PASSWORD; fi
 bash scripts/free5gc/04-deploy-monitoring-anra.sh
 ```
 
-**Expected**: Prometheus, Alertmanager, Grafana, ANDA, and ANRA are Ready; the script reports `ANPA=skipped`.
+**Expected**: Prometheus, Alertmanager, Grafana, ANDA, and ANRA are Ready; the script reports the current context and derived cluster metadata, and reports `ANPA=skipped`.
 
 **Constraints:**
+- You MUST use an immutable image tag that corresponds to the checked-out workshop source.
 - You MUST deploy the monitoring stack separately from the ANRA chart because the ANRA chart is agent-only.
 - You MUST NOT install ANPA because workshop-v3 uses CloudFormation for infrastructure.
 - You MUST configure both the remediation target and watched namespace as `free5gc`; these are independent settings.
@@ -120,7 +124,7 @@ kubectl logs deployment/anra -n anra-system --since=2m | grep -i Free5GCWorkshop
 - You MUST retain the ANRA log excerpt as SOP 3 evidence.
 
 ## Examples
-Use an image tag derived from the workshop-v3 commit SHA, such as `e938040-plus-v3.1`; never substitute `latest` during a recorded dry run.
+Run this SOP after the Workshop Studio page exports the release image. If no image variables are exported, the installer uses `public.ecr.aws/t2j9i5y9/anra-workshop` and the current checkout's short commit SHA; it never uses `latest`.
 
 ## Troubleshooting
-If no alert arrives, inspect Alertmanager status and confirm its receiver is `http://anra.anra-system.svc.cluster.local:8080/api/alertmanager`. If Free5GC targets are absent, verify the PodMonitor release label and Prometheus namespace selectors.
+If the current context is incorrect, stop and report a Workshop Studio provisioning problem rather than selecting another cluster from this SOP. If no alert arrives, inspect Alertmanager status and confirm its receiver is `http://anra.anra-system.svc.cluster.local:8080/api/alertmanager`. If Free5GC targets are absent, verify the PodMonitor release label and Prometheus namespace selectors.

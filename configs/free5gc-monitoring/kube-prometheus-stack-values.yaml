@@ -22,6 +22,11 @@ alertmanager:
   enabled: true
   alertmanagerSpec:
     retention: 6h
+    # Mounted at /etc/alertmanager/secrets/<name>/ so the webhook can present
+    # ANRA's Basic-auth password without embedding it in this file. The
+    # installer mirrors anra-workshop-credentials into the monitoring namespace.
+    secrets:
+      - anra-workshop-credentials
     resources:
       requests:
         cpu: 50m
@@ -37,11 +42,22 @@ alertmanager:
       group_wait: 15s
       group_interval: 30s
       repeat_interval: 1h
+      # The chart's default child route sends the Watchdog heartbeat to a
+      # receiver named "null"; keep it explicit so ANRA never sees Watchdog.
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
     receivers:
       - name: anra-webhook
         webhook_configs:
           - url: http://anra.anra-system.svc.cluster.local:8080/api/alertmanager
             send_resolved: true
+            http_config:
+              basic_auth:
+                username: admin
+                password_file: /etc/alertmanager/secrets/anra-workshop-credentials/auth-password
+      - name: "null"
 
 grafana:
   enabled: true

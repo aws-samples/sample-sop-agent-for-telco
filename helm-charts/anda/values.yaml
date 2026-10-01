@@ -42,6 +42,12 @@ bedrock:
   modelTier: smart  # fast (haiku) | smart (sonnet)
   modelOverride: ""
 
+# Infrastructure bootstrap reconciles the built-in KRO/Tinkerbell/telemetry
+# catalog. Disable when those resources are owned externally (for example,
+# workshop-v3 uses CloudFormation and kube-prometheus-stack).
+infrastructureBootstrap:
+  enabled: true
+
 # ArgoCD integration
 argocd:
   enabled: true

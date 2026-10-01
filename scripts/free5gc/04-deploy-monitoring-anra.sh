@@ -3,9 +3,6 @@
 # not installed: CloudFormation provisions the workshop infrastructure.
 set -euo pipefail
 
-STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
-CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
-AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
 BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 FREE5GC_NAMESPACE="${FREE5GC_NAMESPACE:-free5gc}"
 MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
@@ -14,12 +11,40 @@ ANDA_NAMESPACE="${ANDA_NAMESPACE:-anda-system}"
 KPS_RELEASE="${KPS_RELEASE:-kube-prometheus-stack}"
 KPS_VERSION="${KPS_VERSION:-91.5.0}"
 AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9/anra-workshop}"
-AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:?Set AGENT_IMAGE_TAG to an immutable workshop-v3 image tag}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 MONITORING_DIR="${REPO_ROOT}/configs/free5gc-monitoring"
 FREE5GC_CHART="${REPO_ROOT}/helm-charts/free5gc-bundle/free5gc-0.0.2.tgz"
 ANRA_VALUES="${MONITORING_DIR}/anra-values.yaml"
+CURRENT_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
+
+if [ -z "${CURRENT_CONTEXT}" ]; then
+  echo "ERROR: no current Kubernetes context is configured." >&2
+  exit 1
+fi
+
+KUBE_CLUSTER_REFERENCE="$(kubectl config view --minify -o jsonpath='{.clusters[0].name}')"
+if [ -z "${KUBE_CLUSTER_REFERENCE}" ]; then
+  KUBE_CLUSTER_REFERENCE="${CURRENT_CONTEXT}"
+fi
+if [[ "${KUBE_CLUSTER_REFERENCE}" =~ ^arn:[^:]+:eks:([^:]+):[^:]+:cluster/(.+)$ ]]; then
+  AWS_DEFAULT_REGION="${BASH_REMATCH[1]}"
+  CLUSTER_NAME="${BASH_REMATCH[2]}"
+else
+  AWS_DEFAULT_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-west-2}}"
+  CLUSTER_NAME="${KUBE_CLUSTER_REFERENCE##*/}"
+fi
+export AWS_DEFAULT_REGION
+
+AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git -C "${REPO_ROOT}" rev-parse --short=7 HEAD)}"
+if [ -z "${AGENT_IMAGE_TAG}" ] || [ "${AGENT_IMAGE_TAG}" = "latest" ]; then
+  echo "ERROR: AGENT_IMAGE_TAG must be an immutable image tag, not latest." >&2
+  exit 1
+fi
+
+echo "==> Using Kubernetes context: ${CURRENT_CONTEXT}"
+echo "==> Cluster metadata: name=${CLUSTER_NAME}, region=${AWS_DEFAULT_REGION}"
+kubectl get --raw=/readyz >/dev/null
 
 for required in \
   "${MONITORING_DIR}/kube-prometheus-stack-values.yaml" \
@@ -31,7 +56,6 @@ for required in \
   test -f "${required}" || { echo "Missing required asset: ${required}" >&2; exit 1; }
 done
 
-aws eks update-kubeconfig --region "${AWS_DEFAULT_REGION}" --name "${CLUSTER_NAME}"
 kubectl create namespace "${MONITORING_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${ANRA_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${ANDA_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
@@ -45,6 +69,24 @@ if ! kubectl get secret free5gc-grafana-admin -n "${MONITORING_NAMESPACE}" >/dev
   printf '%s\n' "${GRAFANA_PASSWORD}" > "${HOME}/grafana-admin-password"
   echo "Generated Grafana password stored at ${HOME}/grafana-admin-password"
 fi
+
+# ANRA credentials must exist before the monitoring stack: Alertmanager mounts
+# them to authenticate its webhook to ANRA (see kube-prometheus-stack-values).
+if ! kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" >/dev/null 2>&1; then
+  ANRA_PASSWORD="${ANRA_PASSWORD:-$(openssl rand -hex 16)}"
+  kubectl create secret generic anra-workshop-credentials -n "${ANRA_NAMESPACE}" \
+    --from-literal=auth-username=admin \
+    --from-literal=auth-password="${ANRA_PASSWORD}" \
+    --from-literal=influxdb-token=''
+  umask 077
+  printf '%s\n' "${ANRA_PASSWORD}" > "${HOME}/anra-admin-password"
+  echo "Generated ANRA password stored at ${HOME}/anra-admin-password"
+fi
+# Mirror into the monitoring namespace (idempotent) for the Alertmanager mount.
+kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" -o json | \
+  jq --arg ns "${MONITORING_NAMESPACE}" \
+    '{apiVersion, kind, type, data, metadata: {name: .metadata.name, namespace: $ns}}' | \
+  kubectl apply -f -
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
 helm repo update prometheus-community >/dev/null
@@ -75,10 +117,15 @@ helm upgrade --install anra-common "${REPO_ROOT}/helm-charts/anra-common" \
   -n "${ANRA_NAMESPACE}" --wait --timeout 3m
 helm upgrade --install anda "${REPO_ROOT}/helm-charts/anda" \
   -n "${ANDA_NAMESPACE}" \
+  --set anra-common.enabled=false \
   --set-string image.repository="${AGENT_IMAGE_REPOSITORY}" \
   --set-string image.tag="${AGENT_IMAGE_TAG}" \
   --set-string aws.region="${AWS_DEFAULT_REGION}" \
   --set-string bedrock.region="${BEDROCK_REGION}" \
+  --set-string config.cluster.name="${CLUSTER_NAME}" \
+  --set-string config.cluster.region="${AWS_DEFAULT_REGION}" \
+  --set-string deployment.helmRepo=file:///app/helm-charts/free5gc-bundle \
+  --set infrastructureBootstrap.enabled=false \
   --set argocd.enabled=false \
   --set nfCatalog.srsran.enabled=false \
   --set nfCatalog.open5gs.enabled=false \
@@ -90,20 +137,10 @@ helm upgrade --install anda "${REPO_ROOT}/helm-charts/anda" \
   --set-string nfCatalog.free5gc.namespace="${FREE5GC_NAMESPACE}" \
   --wait --timeout 5m
 
-if ! kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" >/dev/null 2>&1; then
-  ANRA_PASSWORD="${ANRA_PASSWORD:-$(openssl rand -hex 16)}"
-  kubectl create secret generic anra-workshop-credentials -n "${ANRA_NAMESPACE}" \
-    --from-literal=auth-username=admin \
-    --from-literal=auth-password="${ANRA_PASSWORD}" \
-    --from-literal=influxdb-token=''
-  umask 077
-  printf '%s\n' "${ANRA_PASSWORD}" > "${HOME}/anra-admin-password"
-  echo "Generated ANRA password stored at ${HOME}/anra-admin-password"
-fi
-
 helm upgrade --install anra "${REPO_ROOT}/helm-charts/anra" \
   -n "${ANRA_NAMESPACE}" \
   --values "${ANRA_VALUES}" \
+  --set anra-common.enabled=false \
   --set-string image.repository="${AGENT_IMAGE_REPOSITORY}" \
   --set-string image.tag="${AGENT_IMAGE_TAG}" \
   --set-string bedrock.region="${BEDROCK_REGION}" \
