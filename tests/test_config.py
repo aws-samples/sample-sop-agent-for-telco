@@ -376,8 +376,8 @@ class TestNewSchemaFields:
         assert cfg.bedrock_model_tier == "smart"
 
     def test_bedrock_model_override_parsed(self):
-        cfg = _parse({"bedrock": {"region": "us-west-2", "model_override": "us.anthropic.claude-sonnet-4-6"}})
-        assert cfg.bedrock_model_override == "us.anthropic.claude-sonnet-4-6"
+        cfg = _parse({"bedrock": {"region": "us-west-2", "model_override": "global.anthropic.claude-sonnet-5"}})
+        assert cfg.bedrock_model_override == "global.anthropic.claude-sonnet-5"
 
     def test_topology_emit_flag_true_by_default(self):
         cfg = _parse({"topology": {"provider": "yaml"}})

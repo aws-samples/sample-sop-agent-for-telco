@@ -35,9 +35,9 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.graph_conditions import 
     SOP_PATCHED_MARKER,
 )
 from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import (
-    MODELS,
     SYSTEM_PROMPT_FIX,
     SYSTEM_PROMPT_REPORT,
+    _resolve_model_id,
     collect_eval_session,
     get_sop_eval_meta,
     get_tools_for_sop,
@@ -59,8 +59,9 @@ from sop_corrector import CORRECTOR_PROMPT
 
 logger = logging.getLogger(__name__)
 
-# Corrector always uses the best available model — no point retrying with a weaker one
-_CORRECTOR_MODEL = "opus4.6"
+# Corrector always uses the strongest available tier — no point retrying with a
+# weaker one. Resolved via sop_executor._resolve_model_id (-> SMART tier).
+_CORRECTOR_MODEL = "opus"
 
 
 class FaultType(StrEnum):
@@ -313,7 +314,7 @@ class CorrectorNode(MultiAgentBase):
                 prompt = build_correction_prompt(sop_content, failures)
 
                 session = aws_session(self.profile, self.region)
-                model = _create_model(MODELS[_CORRECTOR_MODEL], session)
+                model = _create_model(_resolve_model_id(_CORRECTOR_MODEL), session)
                 agent = Agent(model=model, system_prompt=CORRECTOR_PROMPT, callback_handler=None)
 
                 loop = asyncio.get_event_loop()
@@ -389,7 +390,7 @@ def create_sop_agent(
     eval_ctx: Optional[dict] = None,
 ) -> Agent:
     """Create a scoped agent for a single SOP."""
-    model_id = MODELS.get(model_name, model_name)
+    model_id = _resolve_model_id(model_name)
     session = aws_session(profile, region)
     model = _create_model(model_id, session)
 

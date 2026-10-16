@@ -103,15 +103,15 @@ class TestSelectModel:
 
     def test_complex_sop_gets_opus(self):
         meta = {"bash_blocks": 25, "lines": 400}
-        assert select_model(meta) == "opus4.6"
+        assert select_model(meta) == "opus"
 
     def test_high_lines_low_blocks_gets_opus(self):
         meta = {"bash_blocks": 5, "lines": 350}
-        assert select_model(meta) == "opus4.6"
+        assert select_model(meta) == "opus"
 
     def test_high_blocks_low_lines_gets_opus(self):
         meta = {"bash_blocks": 22, "lines": 100}
-        assert select_model(meta) == "opus4.6"
+        assert select_model(meta) == "opus"
 
     def test_default_override(self):
         meta = {"bash_blocks": 3, "lines": 30}

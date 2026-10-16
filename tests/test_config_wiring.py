@@ -29,7 +29,7 @@ class TestModelResolverConfig:
         """BEDROCK_MODEL_ID env var is returned regardless of config store values."""
         monkeypatch.setenv("BEDROCK_MODEL_ID", "us.anthropic.my-custom-model")
         cfg = SiteConfig(
-            bedrock_model_override="us.anthropic.claude-sonnet-4-20250514-v1:0",
+            bedrock_model_override="global.anthropic.claude-sonnet-5",
             bedrock_model_tier="smart",
         )
         with patch(
@@ -44,7 +44,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
         cfg = SiteConfig(
-            bedrock_model_override="us.anthropic.claude-sonnet-4-20250514-v1:0",
+            bedrock_model_override="global.anthropic.claude-sonnet-5",
             bedrock_model_tier="fast",
         )
         with patch(
@@ -52,7 +52,7 @@ class TestModelResolverConfig:
             return_value=cfg,
         ):
             result = model_resolver.get_model(tier="fast")
-        assert result == "us.anthropic.claude-sonnet-4-20250514-v1:0"
+        assert result == "global.anthropic.claude-sonnet-5"
 
     def test_config_tier_used_when_no_override(self, monkeypatch):
         """config.bedrock_model_tier selects the preference list (fast -> Haiku)."""
@@ -61,7 +61,7 @@ class TestModelResolverConfig:
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="fast")
 
         # Mock active profiles to contain the first haiku model
-        haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -81,7 +81,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="smart")
 
-        sonnet_model = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+        sonnet_model = "global.anthropic.claude-sonnet-5"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -100,7 +100,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.setenv("BEDROCK_MODEL_TIER", "smart")
 
-        sonnet_model = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+        sonnet_model = "global.anthropic.claude-sonnet-5"
         # Simulate config_store not being importable by removing it from sys.modules
         # and making the import fail
         config_store_key = "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store"
@@ -124,7 +124,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.setenv("BEDROCK_MODEL_TIER", "smart")
 
-        sonnet_model = "us.anthropic.claude-sonnet-4-6"
+        sonnet_model = "us.anthropic.claude-sonnet-5"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -144,7 +144,7 @@ class TestModelResolverConfig:
         monkeypatch.setenv("BEDROCK_MODEL_TIER", "smart")  # env says smart
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="fast")  # config says fast
 
-        haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -171,7 +171,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
 
-        haiku_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",

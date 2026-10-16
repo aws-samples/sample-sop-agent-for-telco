@@ -88,15 +88,15 @@ Resolves a logical tier name to a concrete Bedrock model ID:
 ```python
 from agent.core.model_resolver import get_model
 
-model_id = get_model("fast")   # → "us.anthropic.claude-haiku-4-5-20250601-v1:0"
-model_id = get_model("smart")  # → "us.anthropic.claude-sonnet-4-20250514-v1:0"
+model_id = get_model("fast")   # → "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+model_id = get_model("smart")  # → "global.anthropic.claude-sonnet-5"
 ```
 
 ### Resolution Priority
 
 | Priority | Source | Example |
 |----------|--------|---------|
-| 1 (highest) | `BEDROCK_MODEL_ID` env | `us.anthropic.claude-sonnet-4-20250514-v1:0` |
+| 1 (highest) | `BEDROCK_MODEL_ID` env | `global.anthropic.claude-sonnet-5` |
 | 2 | `config.bedrock_model_override` | Same format |
 | 3 | `config.bedrock_model_tier` | `"fast"` or `"smart"` |
 | 4 | `BEDROCK_MODEL_TIER` env | `"smart"` |
@@ -106,8 +106,8 @@ model_id = get_model("smart")  # → "us.anthropic.claude-sonnet-4-20250514-v1:0
 
 | Tier | Model Class | Preference Order |
 |------|-------------|-----------------|
-| `fast` | Haiku (tool use, fast responses) | claude-haiku-4-5 → claude-3-5-haiku → claude-3-haiku |
-| `smart` | Sonnet (complex reasoning) | claude-sonnet-4-6 → claude-sonnet-4-5 → claude-sonnet-4 |
+| `fast` | Haiku (tool use, fast responses) | global.claude-haiku-4-5 → us.claude-haiku-4-5 |
+| `smart` | Sonnet (complex reasoning) | global.claude-sonnet-5 → us.claude-sonnet-5 |
 
 **How it works:**
 1. Calls `bedrock.list_inference_profiles()` to discover which models are ACTIVE in the account/region

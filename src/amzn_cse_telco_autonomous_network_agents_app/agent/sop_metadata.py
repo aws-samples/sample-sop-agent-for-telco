@@ -18,7 +18,9 @@ from pathlib import Path
 # named here so callers and tests reference symbols, not scattered literals.
 MODEL_HAIKU = "haiku"
 MODEL_SONNET = "sonnet"
-MODEL_OPUS = "opus4.6"
+# Label kept for the "strongest tier" bump; resolves to the SMART tier (Sonnet 5)
+# in sop_executor._MODEL_TIER_MAP since the workshop uses only two models.
+MODEL_OPUS = "opus"
 
 # Complexity thresholds that gate the tier bump. A SOP with many bash blocks or
 # many lines is harder to execute reliably, so it earns a stronger model:

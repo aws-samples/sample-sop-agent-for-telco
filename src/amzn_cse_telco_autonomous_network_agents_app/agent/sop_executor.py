@@ -303,11 +303,13 @@ def run_post_eval(eval_ctx: dict, sop_path: str, agent_output: str) -> list:
 
 # ============== AGENT FACTORY ==============
 # Model resolution is dynamic — uses model_resolver which checks active Bedrock
-# profiles. Legacy hardcoded MODELS dict kept only as CLI shorthand fallback.
+# profiles. Friendly CLI names map onto ModelTier values. "opus" (the
+# strongest-SOP bump from sop_metadata.select_model) maps to SMART because the
+# workshop is limited to two third-party models (Haiku 4.5, Sonnet 5).
 _MODEL_TIER_MAP = {
     "haiku": "fast",
     "sonnet": "smart",
-    "opus": "powerful",
+    "opus": "smart",
 }
 
 

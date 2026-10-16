@@ -11,18 +11,22 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.framework.enums import M
 
 logger = logging.getLogger(__name__)
 
-# Preference order: fastest first for agents, smartest for complex tasks
+# Preference order: fastest first for agents, smartest for complex tasks.
+#
+# Only two third-party LLMs are used (Haiku 4.5, Sonnet 5) to stay within the
+# Workshop Studio limit of two third-party models per session. Global CRIS
+# profiles are preferred over Geo (us.) CRIS per the same guidance; the us.
+# entry is kept as a fallback for accounts without the global profile.
+# Do NOT add Haiku 3.5, Sonnet 4.x or Opus 4.x — they are EOL/deprecated for
+# re:Invent sessions.
 _PREFERRED_FAST = [
+    "global.anthropic.claude-haiku-4-5-20251001-v1:0",
     "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-    "us.anthropic.claude-3-haiku-20240307-v1:0",
 ]
 
 _PREFERRED_SMART = [
-    "us.anthropic.claude-sonnet-4-6",
-    "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "us.anthropic.claude-3-sonnet-20240229-v1:0",
+    "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-sonnet-5",
 ]
 
 # Cache resolved models
@@ -139,11 +143,20 @@ def build_model(tier: ModelTier = ModelTier.FAST, profile: str = "", region: str
 # available at resolve time) — this cascades on a live converse() failure so a
 # model that vanishes mid-operation degrades instead of crashing.
 _MODEL_FALLBACKS = {
-    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-    "us.anthropic.claude-sonnet-4-20250514-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": "us.anthropic.claude-opus-4-20250514-v1:0",
-    "us.anthropic.claude-opus-4-20250514-v1:0": "us.anthropic.claude-opus-4-6-v1",
+    # Legacy / deprecated IDs (still reachable via a stale BEDROCK_MODEL_ID or
+    # bedrock.modelOverride) redirect onto the approved set.
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-sonnet-4-20250514-v1:0": "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-sonnet-4-6": "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-opus-4-20250514-v1:0": "global.anthropic.claude-sonnet-5",
+    "us.anthropic.claude-opus-4-6-v1": "global.anthropic.claude-sonnet-5",
+    # Approved set: global CRIS -> us CRIS -> up one tier. Chain terminates at
+    # us.anthropic.claude-sonnet-5 (no entry).
+    "global.anthropic.claude-haiku-4-5-20251001-v1:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0": "global.anthropic.claude-sonnet-5",
+    "global.anthropic.claude-sonnet-5": "us.anthropic.claude-sonnet-5",
 }
 
 # (model_id, region) -> resolved model_id, so each model is probed at most once.

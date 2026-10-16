@@ -41,10 +41,10 @@ if "boto3" not in sys.modules:
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.core import model_resolver
 
-# The exact ID that was hardcoded at all six call sites before this change, and
-# the first entry of _PREFERRED_FAST — the resolver must still return it when
-# nothing overrides and it is available.
-_PREVIOUSLY_HARDCODED_FAST = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+# The first entry of _PREFERRED_FAST (Workshop Studio-approved Haiku 4.5 via
+# global CRIS) — the resolver must still return it when nothing overrides and it
+# is available, and must fall back to it when profile listing fails.
+_PREVIOUSLY_HARDCODED_FAST = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 _AGENT_ROOT = Path(__file__).resolve().parent.parent / "src" / "amzn_cse_telco_autonomous_network_agents_app" / "agent"
 
@@ -389,12 +389,13 @@ class TestBuildProbedModel:
             model_resolver.build_probed_model("no-fallback-model", session)
 
     def test_exhausted_walks_real_chain_to_terminal(self, monkeypatch):
-        # Start mid-chain and confirm it walks the real _MODEL_FALLBACKS to its
-        # terminal (claude-opus-4-6-v1, which has no entry) then raises. Pins the
-        # actual chain tail, so breaking the end of _MODEL_FALLBACKS fails here.
+        # Start at a legacy ID and confirm it walks the real _MODEL_FALLBACKS to
+        # its terminal (us.anthropic.claude-sonnet-5, which has no entry) then
+        # raises. Pins the actual chain tail, so breaking the end of
+        # _MODEL_FALLBACKS fails here.
         self._stub_bedrockmodel(monkeypatch)
         start = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-        # Every probe fails Legacy: walks start -> opus-4 -> opus-4-6 -> None.
+        # Every probe fails Legacy: walks start -> global sonnet-5 -> us sonnet-5 -> None.
         session, client = self._session(converse_side_effect=Exception("Legacy"))
         with pytest.raises(RuntimeError, match="fallbacks exhausted"):
             model_resolver.build_probed_model(start, session)
