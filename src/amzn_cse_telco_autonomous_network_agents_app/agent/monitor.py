@@ -60,13 +60,41 @@ def _merge_alarm_catalogs(alarm_ref: dict, catalog_paths: list[str]) -> dict:
             if name not in merged or not isinstance(details, dict):
                 continue
             target = merged[name]
-            for key in ("description", "probable_cause", "reaction", "log_pattern", "nf"):
+            # ``sop`` is included so a vendor catalog can bind an alarm to a
+            # remediation SOP without every site repeating it in config.alarms.
+            for key in ("description", "probable_cause", "reaction", "log_pattern", "nf", "sop"):
                 if not target.get(key) and details.get(key):
                     target[key] = details[key]
             if details.get("diagnostics"):
                 target["diagnostics"] = list(details["diagnostics"])
         log.info("Loaded vendor alarm context from %s", path)
     return merged
+
+
+# Alertmanager annotation that names the remediation SOP (path relative to sops/).
+SOP_ANNOTATION = "sop"
+
+
+def resolve_sop_reference(alarm_name: str, annotations: dict | None = None, alarm_ref: dict | None = None) -> str:
+    """Return the SOP path bound to an alarm, or "" if none.
+
+    Priority:
+      1. Alertmanager ``annotations.sop`` on the firing alert (rule authors can
+         bind a SOP next to the PromQL that raises it).
+      2. ``sop`` on the merged alarm reference (``config.alarms[].sop`` or a
+         vendor catalog under ``config.alarm_references``), keyed by alarm name.
+
+    Both Alertmanager ingestion paths (the monitor poll and the webhook) call
+    this, so an alert reaches ``resolve_sop()`` with the same ``sop`` field a
+    threshold-evaluated alarm would carry. ``resolve_sop()`` still verifies the
+    file exists and falls back to Bedrock generation otherwise.
+    """
+    annotation_sop = (annotations or {}).get(SOP_ANNOTATION, "")
+    if isinstance(annotation_sop, str) and annotation_sop.strip():
+        return annotation_sop.strip()
+    ref = (alarm_ref if alarm_ref is not None else _alarm_ref).get(alarm_name, {})
+    catalog_sop = ref.get("sop", "") if isinstance(ref, dict) else ""
+    return catalog_sop.strip() if isinstance(catalog_sop, str) else ""
 
 
 # Load alarm reference — from config alarms, fallback to JSON file
@@ -393,7 +421,7 @@ def fetch_alertmanager_alerts():
                 "severity": a["labels"].get("severity", "warning"),
                 "service_impact": a.get("annotations", {}).get("summary", ""),
                 "probable_cause": a.get("annotations", {}).get("description", ""),
-                "sop": "",
+                "sop": resolve_sop_reference(a["labels"].get("alertname", "unknown"), a.get("annotations", {})),
                 "source": "alertmanager",
             }
             for a in data

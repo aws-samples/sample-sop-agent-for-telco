@@ -10,6 +10,10 @@ router = APIRouter(tags=["webhooks"])
 @router.post("/api/alertmanager")
 async def receive_alertmanager(payload: dict):
     """Receive alerts from Alertmanager webhook."""
+    # Lazy import: monitor pulls in the full ANRA monitoring stack (same
+    # pattern as routers/approvals.py).
+    from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop_reference
+
     count = 0
     for alert in payload.get("alerts", []):
         labels = alert.get("labels", {})
@@ -25,6 +29,7 @@ async def receive_alertmanager(payload: dict):
                 "severity": labels.get("severity", "warning"),
                 "service_impact": annotations.get("summary", ""),
                 "probable_cause": annotations.get("description", ""),
+                "sop": resolve_sop_reference(name, annotations),
                 "source": "alertmanager-webhook",
             }
         )

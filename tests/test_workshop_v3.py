@@ -135,6 +135,102 @@ def test_configured_alarm_catalog_enriches_runtime_context(tmp_path):
     assert merged["free5gc_nf_unavailable"]["diagnostics"] == ["kubectl get pods -n {namespace}"]
 
 
+def test_vendor_catalog_can_bind_sop_to_alarm(tmp_path):
+    """A vendor catalog entry's ``sop`` reaches the merged alarm reference."""
+    from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import _merge_alarm_catalogs
+
+    catalog = tmp_path / "catalog.yaml"
+    catalog.write_text(
+        yaml.safe_dump({"alarms": {"free5gc_nf_unavailable": {"sop": "day2-remediate/core/free5gc-nf-unavailable.md"}}})
+    )
+    merged = _merge_alarm_catalogs({"free5gc_nf_unavailable": {"layer": 2, "sop": ""}}, [str(catalog)])
+    assert merged["free5gc_nf_unavailable"]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
+
+    # config.alarms[].sop still wins over the catalog when both are set.
+    merged = _merge_alarm_catalogs({"free5gc_nf_unavailable": {"layer": 2, "sop": "site/override.md"}}, [str(catalog)])
+    assert merged["free5gc_nf_unavailable"]["sop"] == "site/override.md"
+
+
+class TestResolveSopReference:
+    """Alertmanager alerts pick up a SOP from the rule annotation or the alarm catalog."""
+
+    REF = {"free5gc_nf_unavailable": {"layer": 2, "sop": "day2-remediate/core/free5gc-nf-unavailable.md"}}
+
+    def test_annotation_wins(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop_reference
+
+        sop = resolve_sop_reference(
+            "free5gc_nf_unavailable", {"sop": " day2-remediate/core/custom.md "}, alarm_ref=self.REF
+        )
+        assert sop == "day2-remediate/core/custom.md"
+
+    def test_falls_back_to_alarm_reference(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop_reference
+
+        sop = resolve_sop_reference("free5gc_nf_unavailable", {"summary": "x"}, alarm_ref=self.REF)
+        assert sop == "day2-remediate/core/free5gc-nf-unavailable.md"
+
+    def test_unknown_alarm_without_annotation_is_empty(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop_reference
+
+        assert resolve_sop_reference("something_else", {}, alarm_ref=self.REF) == ""
+        assert resolve_sop_reference("something_else", None, alarm_ref={}) == ""
+
+    def test_poll_path_carries_sop(self, monkeypatch):
+        from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+
+        payload = json.dumps(
+            [
+                {
+                    "status": {"state": "active"},
+                    "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical"},
+                    "annotations": {"summary": "NF down", "description": "amf unavailable"},
+                },
+                {
+                    "status": {"state": "active"},
+                    "labels": {"alertname": "free5gc_pod_restarting", "severity": "warning"},
+                    "annotations": {"summary": "restarts", "sop": "day2-remediate/core/free5gc-pod-crashloop.md"},
+                },
+                {"status": {"state": "active"}, "labels": {"alertname": "Watchdog"}, "annotations": {}},
+            ]
+        )
+        monkeypatch.setattr(monitor, "ALERTMANAGER_URL", "http://alertmanager:9093")
+        monkeypatch.setattr(monitor, "_run", lambda cmd, timeout=10: payload)
+        monkeypatch.setattr(monitor, "_alarm_ref", self.REF)
+
+        alerts = {a["name"]: a for a in monitor.fetch_alertmanager_alerts()}
+        assert set(alerts) == {"free5gc_nf_unavailable", "free5gc_pod_restarting"}
+        assert alerts["free5gc_nf_unavailable"]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
+        assert alerts["free5gc_pod_restarting"]["sop"] == "day2-remediate/core/free5gc-pod-crashloop.md"
+
+    def test_webhook_carries_sop(self, monkeypatch):
+        import asyncio
+
+        from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+        from amzn_cse_telco_autonomous_network_agents_app.agent.routers import webhooks
+
+        pushed = []
+        monkeypatch.setattr(webhooks, "push_alarm", pushed.append)
+        monkeypatch.setattr(monitor, "_alarm_ref", self.REF)
+
+        result = asyncio.run(
+            webhooks.receive_alertmanager(
+            {
+                "alerts": [
+                    {
+                        "status": "firing",
+                        "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical"},
+                        "annotations": {"summary": "NF down"},
+                    },
+                    {"status": "resolved", "labels": {"alertname": "free5gc_pod_restarting"}, "annotations": {}},
+                ]
+            }
+            )
+        )
+        assert result == {"received": 1}
+        assert pushed[0]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
+
+
 def test_anpa_is_disabled_and_not_deployed_by_sop3():
     platform = yaml.safe_load((ROOT / "helm-charts" / "ano-platform" / "values.yaml").read_text())
     assert platform["anpa"]["enabled"] is False
