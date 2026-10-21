@@ -53,6 +53,7 @@ config:
       nf_scope: per-instance
       alarm_id: free5gc-nf-unavailable-001
       alarm_type: processing-error-alarm
+      sop: day2-remediate/core/free5gc-nf-unavailable.md
     - name: free5gc_registration_unavailable
       layer: 2
       source: core
@@ -63,6 +64,7 @@ config:
       nf_scope: site-wide
       alarm_id: free5gc-registration-unavailable-001
       alarm_type: communications-alarm
+      sop: day2-remediate/core/free5gc-registration-unavailable.md
     - name: free5gc_pod_restarting
       layer: 2
       source: kubernetes
@@ -73,6 +75,7 @@ config:
       nf_scope: per-instance
       alarm_id: free5gc-pod-restarting-001
       alarm_type: processing-error-alarm
+      sop: day2-remediate/core/free5gc-pod-crashloop.md
     - name: free5gc_metrics_missing
       layer: 1
       source: monitoring
@@ -93,6 +96,7 @@ config:
       nf_scope: per-node
       alarm_id: free5gc-node-not-ready-001
       alarm_type: communications-alarm
+      sop: day2-remediate/infra/free5gc-node-not-ready.md
 
 webui:
   enabled: true

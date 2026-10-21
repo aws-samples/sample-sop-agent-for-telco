@@ -231,6 +231,35 @@ class TestResolveSopReference:
         assert pushed[0]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
 
 
+def test_workshop_alarm_sop_bindings_agree():
+    """Rule annotation, anra-values config.alarms and the vendor catalog must bind
+    the same SOP per alarm (docs/workshop-v3.md, Day-2 alarms)."""
+    rules = yaml.safe_load((ROOT / "configs" / "free5gc-monitoring" / "free5gc-alert-rules.yaml").read_text())
+    rule_sops = {
+        r["alert"]: r.get("annotations", {}).get("sop")
+        for g in rules["spec"]["groups"]
+        for r in g["rules"]
+    }
+    values = yaml.safe_load((ROOT / "configs" / "free5gc-monitoring" / "anra-values.yaml").read_text())
+    value_sops = {a["name"]: a.get("sop") for a in values["config"]["alarms"]}
+    catalog = yaml.safe_load((ROOT / "alarm-references" / "free5gc.yaml").read_text())
+    catalog_sops = {n: d.get("sop") for n, d in catalog["alarms"].items()}
+
+    bound = {
+        "free5gc_nf_unavailable",
+        "free5gc_pod_restarting",
+        "free5gc_registration_unavailable",
+        "free5gc_node_not_ready",
+    }
+    for name in bound:
+        assert rule_sops[name], f"{name}: rule has no sop annotation"
+        assert rule_sops[name] == value_sops[name] == catalog_sops[name], name
+        assert rule_sops[name].startswith("day2-remediate/")
+    # metrics_missing is intentionally unbound (hygiene rule, Bedrock-generated SOP)
+    assert not rule_sops["free5gc_metrics_missing"]
+    assert not value_sops["free5gc_metrics_missing"]
+
+
 def test_anpa_is_disabled_and_not_deployed_by_sop3():
     platform = yaml.safe_load((ROOT / "helm-charts" / "ano-platform" / "values.yaml").read_text())
     assert platform["anpa"]["enabled"] is False

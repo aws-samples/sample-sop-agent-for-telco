@@ -9,10 +9,15 @@ spec:
   groups:
     - name: free5gc-workshop
       interval: 30s
+      # WORKSHOP TUNING: `for:` windows are deliberately short (30s-2m) so a
+      # fault injected by a participant surfaces in ANRA within ~1-2 minutes.
+      # Production rules should debounce longer. The `sop` annotation binds the
+      # alert to a remediation SOP (path relative to sops/); ANRA reads it via
+      # monitor.resolve_sop_reference(). See docs/workshop-v3.md.
       rules:
         - alert: free5gc_nf_unavailable
           expr: kube_deployment_status_replicas_unavailable{namespace="free5gc",deployment=~"free5gc-.*"} > 0
-          for: 2m
+          for: 1m
           labels:
             severity: critical
             layer: core
@@ -20,10 +25,11 @@ spec:
           annotations:
             summary: Free5GC network function unavailable
             description: Deployment {{ $labels.deployment }} has unavailable replicas.
+            sop: day2-remediate/core/free5gc-nf-unavailable.md
 
         - alert: free5gc_pod_restarting
           expr: increase(kube_pod_container_status_restarts_total{namespace="free5gc"}[5m]) > 2
-          for: 1m
+          for: 30s
           labels:
             severity: warning
             layer: core
@@ -31,11 +37,12 @@ spec:
           annotations:
             summary: Free5GC pod is repeatedly restarting
             description: Pod {{ $labels.pod }} restarted more than twice in five minutes.
+            sop: day2-remediate/core/free5gc-pod-crashloop.md
 
 
         - alert: free5gc_node_not_ready
           expr: kube_node_status_condition{condition="Ready",status="true"} == 0
-          for: 2m
+          for: 1m
           labels:
             severity: critical
             layer: infrastructure
@@ -43,10 +50,11 @@ spec:
           annotations:
             summary: EKS worker node is not Ready
             description: Node {{ $labels.node }} has not been Ready for two minutes.
+            sop: day2-remediate/infra/free5gc-node-not-ready.md
 
         - alert: free5gc_metrics_missing
           expr: absent(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"})
-          for: 5m
+          for: 2m
           labels:
             severity: warning
             layer: monitoring
@@ -57,7 +65,7 @@ spec:
 
         - alert: free5gc_registration_unavailable
           expr: sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) < 1
-          for: 2m
+          for: 1m
           labels:
             severity: critical
             layer: core
@@ -65,3 +73,4 @@ spec:
           annotations:
             summary: No UE is connected to the Free5GC AMF
             description: The workshop baseline expects at least one connected PacketRusher UE.
+            sop: day2-remediate/core/free5gc-registration-unavailable.md

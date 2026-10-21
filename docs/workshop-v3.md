@@ -67,6 +67,28 @@ This is disposable workshop infrastructure, not a production baseline. Compared 
 
 The EKS node role currently receives Bedrock invocation permissions because the workshop does not create EKS Pod Identity associations. A production adaptation should replace this with least-privilege Pod Identity roles for ANDA and ANRA.
 
+## Day-2 alarms, SOP bindings, and fault injection
+
+ANRA receives the workshop alarms from Alertmanager (`configs/free5gc-monitoring/free5gc-alert-rules.yaml`). Each alert is bound to a remediation SOP in three places that must stay in sync; the first one found wins at runtime (`monitor.resolve_sop_reference()`):
+
+1. the rule's `annotations.sop` (path relative to `sops/`),
+2. `config.alarms[].sop` in `configs/free5gc-monitoring/anra-values.yaml`,
+3. `alarms.<name>.sop` in `alarm-references/free5gc.yaml` (vendor catalog).
+
+If the bound file does not exist, `resolve_sop()` falls back to generating a SOP with Bedrock, so a binding can be added before its SOP is written.
+
+| Alert | `for:` | Participant injection (own account, reversible) | SOP |
+|---|---|---|---|
+| `free5gc_nf_unavailable` | 1m | `kubectl scale deploy/free5gc-amf-deployment -n free5gc --replicas=0` | `day2-remediate/core/free5gc-nf-unavailable.md` |
+| `free5gc_pod_restarting` | 30s | kill PID 1 in the SMF container three times, 20s apart | `day2-remediate/core/free5gc-pod-crashloop.md` |
+| `free5gc_registration_unavailable` | 1m | `kubectl scale deploy/packetrusher-packetrusher -n free5gc --replicas=0` | `day2-remediate/core/free5gc-registration-unavailable.md` |
+| `free5gc_node_not_ready` | 1m | stage demo only (stop kubelet via SSM); not in the participant script | `day2-remediate/infra/free5gc-node-not-ready.md` |
+| `free5gc_metrics_missing` | 2m | none — hygiene rule, not part of the storyline | (Bedrock-generated) |
+
+**Workshop timing tuning.** The `for:` windows above are deliberately short so an injected fault reaches ANRA within about 1–2 minutes (rule group evaluates every 30s; Alertmanager uses `group_wait: 15s`, `group_interval: 30s`). Production rules should debounce for several minutes to avoid paging on transient blips. The tuning is marked with a `WORKSHOP TUNING` comment in the rules file.
+
+**Guardrails.** `free5gc` is a `protected_namespace` in `anra-values.yaml`; remediation SOPs must stay within what that guardrail permits. Do not use MongoDB as a fault target: `free5gc-mongodb` uses `emptyDir`, so deleting the pod loses the single provisioned subscriber and PacketRusher cannot re-register until `sub-prov-job` is re-run (follow-up: make Mongo resilient).
+
 ## Remaining limitations
 
 - The CloudFormation template attaches secondary ENIs and builds gtp5g in launch-template user data; these steps are imperative and depend on external repositories being reachable.

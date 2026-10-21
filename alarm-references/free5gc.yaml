@@ -20,6 +20,7 @@ alarms:
     log_pattern: "Registration reject|NG Setup failure|PLMN.*not allowed"
     nf: AMF
     severity: critical
+    sop: day2-remediate/core/free5gc-registration-unavailable.md
     description: UE registration is unavailable through the Free5GC AMF
     probable_cause: PLMN or subscriber mismatch, AMF unavailability, or an N2 connectivity failure
     reaction: Inspect the live AMF and PacketRusher configuration before proposing a change
@@ -42,6 +43,7 @@ alarms:
     log_pattern: "panic|fatal|connection refused|CrashLoopBackOff"
     nf: CORE
     severity: critical
+    sop: day2-remediate/core/free5gc-nf-unavailable.md
     description: A Free5GC network function is unavailable
     probable_cause: Invalid configuration, dependency failure, image failure, or resource pressure
     reaction: Identify the first failing dependency and use the least disruptive recovery
@@ -53,6 +55,7 @@ alarms:
     log_pattern: "CrashLoopBackOff|Back-off restarting failed container"
     nf: CORE
     severity: warning
+    sop: day2-remediate/core/free5gc-pod-crashloop.md
     description: A Free5GC or PacketRusher pod is repeatedly restarting
     probable_cause: Invalid configuration, dependency failure, or resource pressure
     reaction: Inspect the first failing container and its Kubernetes events
@@ -64,6 +67,7 @@ alarms:
     log_pattern: "NodeNotReady|node.*not ready"
     nf: INFRASTRUCTURE
     severity: critical
+    sop: day2-remediate/infra/free5gc-node-not-ready.md
     description: An EKS worker hosting Free5GC is not Ready
     probable_cause: Node failure, kubelet failure, or loss of VPC connectivity
     reaction: Inspect node conditions and infrastructure events before changing network functions
