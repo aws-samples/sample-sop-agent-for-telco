@@ -22,13 +22,25 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "create"]
-  # Pod/Service monitoring (validation)
+  # Pod/Service monitoring (validation) and SOP diagnostics
   - apiGroups: [""]
-    resources: ["pods", "services", "endpoints"]
+    resources: ["pods", "services", "endpoints", "configmaps", "events"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
   - apiGroups: ["apps"]
-    resources: ["deployments", "statefulsets", "daemonsets"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list"]
   # ArgoCD Application CRDs
   - apiGroups: ["argoproj.io"]
     resources: ["applications", "applicationsets"]
@@ -52,4 +64,79 @@ subjects:
   - kind: ServiceAccount
     name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Release.Namespace }}
+
+{{- /*
+Remediation rights are namespaced: one Role + RoleBinding per namespace that an
+enabled nfCatalog entry deploys into (workshop-v3: free5gc). This is what the
+SOPBridge SMART tier needs to run `helm upgrade --install <chart> -n <ns>` and
+the Day-2 SOPs' kubectl steps (rollout restart, scale back up, recreate pods,
+patch ConfigMaps, re-run Jobs) without granting cluster-wide write access.
+Deleting Deployments/StatefulSets/Namespaces and scale-to-zero stay blocked by
+the kubectl tool guardrail for protected namespaces.
+*/}}
+{{- $root := . }}
+{{- $namespaces := dict }}
+{{- range $name, $nf := .Values.nfCatalog }}
+{{- if and $nf.enabled $nf.namespace }}
+{{- $_ := set $namespaces $nf.namespace true }}
+{{- end }}
+{{- end }}
+{{- range $ns, $_ := $namespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "anda.fullname" $root }}-remediation
+  namespace: {{ $ns }}
+  labels:
+    {{- include "anda.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: remediation
+rules:
+  # Helm release storage + chart-managed objects (helm upgrade --install)
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps", "services", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["podmonitors", "servicemonitors"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  # SOP remediation steps: recreate a pod, read logs, exec into PacketRusher
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "anda.fullname" $root }}-remediation
+  namespace: {{ $ns }}
+  labels:
+    {{- include "anda.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: remediation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "anda.fullname" $root }}-remediation
+subjects:
+  - kind: ServiceAccount
+    name: {{ $root.Values.serviceAccount.name }}
+    namespace: {{ $root.Release.Namespace }}
+{{- end }}
 {{- end }}

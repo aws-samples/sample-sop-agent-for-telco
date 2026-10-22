@@ -1,25 +1,63 @@
 {{- if .Values.rbac.create }}
+# ANRA (Network Assurance Agent) cluster permissions.
+#
+# Two groups of rules:
+#  * Diagnose — what the Day-2 SOPs read in their Diagnose/Verify steps
+#    (pods, logs, events, deployments, jobs, PodMonitors) and the pods/exec they
+#    need to probe the simulated UE (ip/ping inside the PacketRusher pod).
+#  * Remediate — the bounded set of mutations the SOPs perform when ANRA
+#    executes a SOP itself (FIX mode / local fallback when ANDA is unavailable):
+#    restart or scale a Deployment back up, recreate a pod, re-run a Job.
+#    Deleting Deployments/StatefulSets/Namespaces and scaling to zero are NOT
+#    granted here and are additionally blocked by the kubectl tool guardrail
+#    for protected namespaces (config.guardrails).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Release.Name }}-reader
+  name: {{ .Release.Name }}-operator
   labels:
     app.kubernetes.io/name: anra
     app.kubernetes.io/instance: {{ .Release.Name }}
 rules:
+# --- Diagnose -------------------------------------------------------------
 - apiGroups: [""]
-  resources: [pods, nodes, events, services, endpoints]
+  resources: [pods, nodes, events, services, endpoints, configmaps, namespaces]
   verbs: [get, list, watch]
-- apiGroups: ["apps"]
-  resources: [deployments, statefulsets, replicasets]
+- apiGroups: [""]
+  resources: [pods/log]
   verbs: [get, list]
+- apiGroups: [""]
+  resources: [pods/exec]
+  verbs: [create]
+- apiGroups: ["apps"]
+  resources: [deployments, statefulsets, replicasets, daemonsets]
+  verbs: [get, list, watch]
+- apiGroups: ["batch"]
+  resources: [jobs]
+  verbs: [get, list, watch]
+- apiGroups: ["monitoring.coreos.com"]
+  resources: [podmonitors, servicemonitors, prometheusrules]
+  verbs: [get, list]
+- apiGroups: ["k8s.cni.cncf.io"]
+  resources: [network-attachment-definitions]
+  verbs: [get, list]
+# --- Remediate (bounded) ---------------------------------------------------
+- apiGroups: [""]
+  resources: [pods]
+  verbs: [delete]
+- apiGroups: ["apps"]
+  resources: [deployments, deployments/scale]
+  verbs: [patch, update]
+- apiGroups: ["batch"]
+  resources: [jobs]
+  verbs: [delete]
+# --- Cross-agent / platform ------------------------------------------------
 - apiGroups: ["deployment.anda.aws.io"]
   resources: [deploymentplans, nfdeployments]
   verbs: [get, list, watch, create, patch, update]
 - apiGroups: ["provisioning.anpa.aws.io"]
   resources: [hardwareinventories, provisioningrequests]
   verbs: [get, list, watch]
-
 - apiGroups: ["argoproj.io"]
   resources: [applications]
   verbs: [get, list, patch]
@@ -27,14 +65,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-reader
+  name: {{ .Release.Name }}-operator
   labels:
     app.kubernetes.io/name: anra
     app.kubernetes.io/instance: {{ .Release.Name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-reader
+  name: {{ .Release.Name }}-operator
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.serviceAccount.name }}

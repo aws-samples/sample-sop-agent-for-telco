@@ -155,3 +155,54 @@ class TestNetworkPolicy:
         out = _render("--set", "image.repository=test", "--set", "image.tag=v1", "--set", "networkPolicy.enabled=false")
         np = _get_resource(out, "NetworkPolicy")
         assert np is None
+
+
+_WORKSHOP_CATALOG = (
+    "--set", "nfCatalog.srsran.enabled=false",
+    "--set", "nfCatalog.open5gs.enabled=false",
+    "--set", "nfCatalog.upf.enabled=false",
+    "--set", "nfCatalog.monitoring.enabled=false",
+    "--set", "nfCatalog.free5gc.enabled=true",
+    "--set-string", "nfCatalog.free5gc.chart=/app/helm-charts/free5gc-bundle/free5gc-0.0.2.tgz",
+    "--set-string", "nfCatalog.free5gc.version=0.0.2",
+    "--set-string", "nfCatalog.free5gc.namespace=free5gc",
+)
+
+
+class TestAndaRemediationRbac:
+    """Mutation rights are namespaced to the enabled nfCatalog namespaces only."""
+
+    def _docs(self, *extra):
+        return [d for d in yaml.safe_load_all(_render(*extra)) if d]
+
+    def test_remediation_role_per_enabled_namespace(self):
+        docs = self._docs(*_WORKSHOP_CATALOG)
+        roles = [d for d in docs if d["kind"] == "Role" and d["metadata"]["name"].endswith("-remediation")]
+        assert [r["metadata"]["namespace"] for r in roles] == ["free5gc"]
+        rb = next(d for d in docs if d["kind"] == "RoleBinding" and d["metadata"]["namespace"] == "free5gc")
+        assert rb["subjects"][0] == {"kind": "ServiceAccount", "name": "anda-sa", "namespace": "anda-system"}
+
+    def test_remediation_role_covers_helm_and_sop_steps(self):
+        docs = self._docs(*_WORKSHOP_CATALOG)
+        role = next(d for d in docs if d["kind"] == "Role" and d["metadata"]["namespace"] == "free5gc")
+        def verbs(group, resource):
+            return {v for r in role["rules"] if group in r["apiGroups"] and resource in r["resources"] for v in r["verbs"]}
+        assert {"create", "update", "patch"} <= verbs("", "secrets")          # helm release storage
+        assert {"create", "update", "patch"} <= verbs("apps", "deployments")
+        assert "delete" in verbs("", "pods")
+        assert "create" in verbs("", "pods/exec")
+        assert "delete" not in verbs("apps", "deployments")
+
+    def test_default_catalog_namespaces_each_get_a_role(self):
+        docs = self._docs()
+        namespaces = sorted({d["metadata"]["namespace"] for d in docs if d["kind"] == "Role" and d["metadata"]["name"].endswith("-remediation")})
+        assert namespaces == ["core", "monitoring", "ran"]
+
+    def test_clusterrole_gains_diagnostics_only(self):
+        docs = self._docs(*_WORKSHOP_CATALOG)
+        cr = next(d for d in docs if d["kind"] == "ClusterRole")
+        def verbs(group, resource):
+            return {v for r in cr["rules"] if group in r["apiGroups"] and resource in r["resources"] for v in r["verbs"]}
+        assert {"get", "list"} <= verbs("", "pods/log")
+        assert "create" in verbs("", "pods/exec")
+        assert verbs("apps", "deployments") <= {"get", "list", "watch"}  # no cluster-wide writes

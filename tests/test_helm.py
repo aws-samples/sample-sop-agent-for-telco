@@ -115,3 +115,41 @@ class TestConfigsDirectory:
     def test_telegraf_collector(self):
         p = Path(__file__).parent.parent / "configs" / "telegraf" / "core_collector.py"
         assert p.exists()
+
+
+class TestAnraRbac:
+    """Day-2 SOPs need log/exec for diagnosis and bounded mutations for FIX mode."""
+
+    def _rules(self):
+        docs = [d for d in helm_template() if d]
+        cr = next(d for d in docs if d["kind"] == "ClusterRole" and d["metadata"]["name"].endswith("-operator"))
+        return cr["rules"]
+
+    def _verbs(self, rules, group, resource):
+        verbs = set()
+        for r in rules:
+            if group in r["apiGroups"] and resource in r["resources"]:
+                verbs |= set(r["verbs"])
+        return verbs
+
+    def test_can_read_logs_and_exec(self):
+        rules = self._rules()
+        assert {"get", "list"} <= self._verbs(rules, "", "pods/log")
+        assert "create" in self._verbs(rules, "", "pods/exec")
+
+    def test_bounded_remediation_verbs(self):
+        rules = self._rules()
+        assert {"patch", "update"} <= self._verbs(rules, "apps", "deployments")
+        assert {"patch", "update"} <= self._verbs(rules, "apps", "deployments/scale")
+        assert "delete" in self._verbs(rules, "", "pods")
+        assert "delete" in self._verbs(rules, "batch", "jobs")
+        # never grant workload deletion or namespace writes
+        assert "delete" not in self._verbs(rules, "apps", "deployments")
+        assert "delete" not in self._verbs(rules, "apps", "statefulsets")
+        assert self._verbs(rules, "", "namespaces") <= {"get", "list", "watch"}
+
+    def test_binding_targets_operator_role(self):
+        docs = [d for d in helm_template() if d]
+        crb = next(d for d in docs if d["kind"] == "ClusterRoleBinding" and d["metadata"]["name"].endswith("-operator"))
+        assert crb["roleRef"]["name"] == crb["metadata"]["name"]
+        assert crb["subjects"][0]["name"] == "anra-sa"
