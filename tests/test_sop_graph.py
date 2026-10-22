@@ -40,7 +40,7 @@ class TestBuildSopGraph:
             select_model,
         )
 
-        deploy = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        deploy = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         assert select_model(deploy, "haiku") == "haiku"
 
     def test_entry_points_are_nodes_without_incoming_edges(self):
@@ -56,7 +56,7 @@ class TestBuildSopGraph:
         stem_set = {m["stem"] for m in metas}
         nodes_with_incoming = {to for _, to in edges if to in stem_set}
         entry_points = [m["stem"] for m in metas if m["stem"] not in nodes_with_incoming]
-        # deploy-5g-core should be an entry point (no dependencies)
+        # deploy-free5gc-core should be an entry point (no dependencies)
         assert len(entry_points) >= 1  # ANRA SOPs have no inter-SOP dependencies
 
 
@@ -124,7 +124,7 @@ class TestBuildEvalLoop:
                 build_eval_loop,
             )
 
-            graph = build_eval_loop("day1-deploy/deploy-5g-core.md", no_steering=True)
+            graph = build_eval_loop("day1-deploy/deploy-free5gc-core.sop.md", no_steering=True)
 
         assert graph is sentinel_graph
 

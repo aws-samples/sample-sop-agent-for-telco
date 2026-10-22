@@ -129,15 +129,15 @@ class TestSOPGeneration:
             resolve_sop,
         )
 
-        sop_dir = tmp_path / "sops" / "day2-remediate" / "ran"
+        sop_dir = tmp_path / "sops" / "day2-remediate" / "core"
         sop_dir.mkdir(parents=True)
-        (sop_dir / "remediate-du-cpu-overload.md").write_text("# Test")
+        (sop_dir / "free5gc-nf-unavailable.md").write_text("# Test")
 
         old = monitor.SOP_REPO
         monitor.SOP_REPO = str(tmp_path)
         try:
-            result = resolve_sop({"name": "test", "sop": "day2-remediate/ran/remediate-du-cpu-overload.md"})
-            assert "remediate-du-cpu-overload" in result
+            result = resolve_sop({"name": "test", "sop": "day2-remediate/core/free5gc-nf-unavailable.md"})
+            assert "free5gc-nf-unavailable" in result
         finally:
             monitor.SOP_REPO = old
 

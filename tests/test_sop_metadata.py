@@ -23,21 +23,21 @@ def _real_sop(name: str) -> str:
 
 class TestParseSopMetadata:
     def test_extracts_stage_number_from_filename(self):
-        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         # Stage is extracted from content "**Stage:** N", not filename
         # Generic SOPs may not have stage markers
-        assert meta["stem"] == "deploy-5g-core"
+        assert meta["stem"] == "deploy-free5gc-core.sop"
 
     def test_extracts_stem(self):
-        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
-        assert meta["stem"] == "deploy-5g-core"
+        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
+        assert meta["stem"] == "deploy-free5gc-core.sop"
 
     def test_counts_bash_blocks(self):
-        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         assert meta["bash_blocks"] > 0
 
     def test_counts_lines(self):
-        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         assert meta["lines"] > 10
 
     def test_missing_file_returns_defaults(self):
@@ -51,14 +51,14 @@ class TestParseSopMetadata:
 
     def test_missing_and_present_files_have_same_keys(self):
         missing = parse_sop_metadata("/nonexistent/fake-sop.md")
-        present = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        present = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         assert missing.keys() == present.keys()
 
     def test_all_sops_parse_without_error(self):
         # rglob, not glob: SOPs live in subdirs (day0-infra/, day1-deploy/, ...);
         # a non-recursive glob matched only the top-level TEMPLATE.md and passed
         # vacuously. Assert we actually found the tree.
-        sops = list(SOPS_DIR.rglob("*.md"))
+        sops = [p for p in SOPS_DIR.rglob("*.md") if "archive" not in p.relative_to(SOPS_DIR).parts]
         assert sops, "expected at least one SOP file under sops/"
         for sop in sops:
             meta = parse_sop_metadata(str(sop))
@@ -68,7 +68,7 @@ class TestParseSopMetadata:
 class TestResolveDependencies:
     def _all_metas(self):
         # rglob to include SOPs in subdirectories (see note in TestParseSopMetadata).
-        return [parse_sop_metadata(str(p)) for p in sorted(SOPS_DIR.rglob("*.md"))]
+        return [parse_sop_metadata(str(p)) for p in sorted(SOPS_DIR.rglob("*.md")) if "archive" not in p.relative_to(SOPS_DIR).parts]
 
     def test_returns_edges_or_empty(self):
         edges = resolve_dependencies(self._all_metas())
@@ -87,7 +87,7 @@ class TestResolveDependencies:
             assert frm != to
 
     def test_single_sop_no_edges(self):
-        metas = [parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))]
+        metas = [parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))]
         edges = resolve_dependencies(metas)
         assert edges == []
 
@@ -118,5 +118,5 @@ class TestSelectModel:
         assert select_model(meta, default="sonnet") == "sonnet"
 
     def test_real_deploy_nginx_gets_haiku(self):
-        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-5g-core.md"))
+        meta = parse_sop_metadata(_real_sop("day1-deploy/deploy-free5gc-core.sop.md"))
         assert select_model(meta) == "haiku"

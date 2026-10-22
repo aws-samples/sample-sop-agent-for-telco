@@ -176,18 +176,18 @@ class TestSOPResolution:
             resolve_sop,
         )
 
-        sop_dir = tmp_path / "sops" / "day2-remediate" / "ran"
+        sop_dir = tmp_path / "sops" / "day2-remediate" / "core"
         sop_dir.mkdir(parents=True)
-        (sop_dir / "remediate-du-cpu-overload.md").write_text("# Test SOP")
+        (sop_dir / "free5gc-nf-unavailable.md").write_text("# Test SOP")
 
         import amzn_cse_telco_autonomous_network_agents_app.agent.monitor as monitor
 
         old_repo = monitor.SOP_REPO
         monitor.SOP_REPO = str(tmp_path)
         try:
-            result = resolve_sop({"name": "test", "sop": "day2-remediate/ran/remediate-du-cpu-overload.md"})
+            result = resolve_sop({"name": "test", "sop": "day2-remediate/core/free5gc-nf-unavailable.md"})
             assert result is not None
-            assert "remediate-du-cpu-overload" in result
+            assert "free5gc-nf-unavailable" in result
         finally:
             monitor.SOP_REPO = old_repo
 

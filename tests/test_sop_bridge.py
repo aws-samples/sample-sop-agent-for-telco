@@ -205,7 +205,7 @@ class TestSOPDiscovery:
         """Prefers SOP with NF name in filename."""
         sops = tmp_path / "sops" / "day1-deploy"
         sops.mkdir(parents=True)
-        (sops / "deploy-5g-core.md").write_text("# generic")
+        (sops / "deploy-free5gc-core.sop.md").write_text("# generic")
         (sops / "deploy-amf.md").write_text("# AMF specific")
 
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge._SOP_ROOT", str(tmp_path)):
@@ -214,21 +214,21 @@ class TestSOPDiscovery:
             assert "amf" in result
 
     def test_falls_back_to_generic_core_sop(self, tmp_path):
-        """If no NF-specific SOP, uses generic 5g-core."""
+        """If no NF-specific SOP, uses the generic core deploy SOP."""
         sops = tmp_path / "sops" / "day1-deploy"
         sops.mkdir(parents=True)
-        (sops / "deploy-5g-core.md").write_text("# generic")
+        (sops / "deploy-free5gc-core.sop.md").write_text("# generic")
 
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge._SOP_ROOT", str(tmp_path)):
             result = self.bridge._find_relevant_sop("deploy", "smf")
             assert result is not None
-            assert "5g-core" in result
+            assert "free5gc-core" in result
 
     def test_remediation_uses_day2_directory(self, tmp_path):
         """Remediation intent searches day2-remediate/."""
         sops = tmp_path / "sops" / "day2-remediate" / "core"
         sops.mkdir(parents=True)
-        (sops / "remediate-nf-crashloop.md").write_text("# fix it")
+        (sops / "free5gc-pod-crashloop.md").write_text("# fix it")
 
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge._SOP_ROOT", str(tmp_path)):
             result = self.bridge._find_relevant_sop("remediation", "amf")

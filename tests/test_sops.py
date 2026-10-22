@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 SOP_DIR = Path(__file__).parent.parent / "sops"
-ALL_SOPS = list(SOP_DIR.rglob("*.md"))
+ALL_SOPS = [s for s in SOP_DIR.rglob("*.md") if "archive" not in s.relative_to(SOP_DIR).parts]
 # Exclude template
 REAL_SOPS = [s for s in ALL_SOPS if s.name != "TEMPLATE.md" and "Placeholder" not in s.read_text()[:50]]
 
@@ -55,17 +55,27 @@ class TestSOPStructure:
 
 
 class TestSOPCoverage:
-    def test_day0_sops_exist(self):
-        day0 = list((SOP_DIR / "day0-infra").glob("*.md"))
-        assert len(day0) >= 4, f"Expected >=4 Day 0 SOPs, got {len(day0)}"
+    """The workshop-v3 SOP set (docs/workshop-v3.md). Day-0 is CloudFormation only;
+    Day-1 is the Free5GC deploy/validate path; Day-2 are the alarm-bound SOPs."""
 
-    def test_day1_sops_exist(self):
-        day1 = list((SOP_DIR / "day1-deploy").glob("*.md"))
-        assert len(day1) >= 5, f"Expected >=5 Day 1 SOPs, got {len(day1)}"
+    WORKSHOP_SOPS = [
+        "day0-infra/provision-free5gc-cloudformation.sop.md",
+        "day1-deploy/deploy-free5gc-core.sop.md",
+        "day1-deploy/add-subscriber.md",
+        "day1-deploy/validate-free5gc-e2e.sop.md",
+        "day1-deploy/deploy-free5gc-monitoring-anra.sop.md",
+        "day2-remediate/core/free5gc-nf-unavailable.md",
+        "day2-remediate/core/free5gc-pod-crashloop.md",
+        "day2-remediate/core/free5gc-registration-unavailable.md",
+    ]
+
+    @pytest.mark.parametrize("rel", WORKSHOP_SOPS)
+    def test_workshop_sop_exists(self, rel):
+        assert (SOP_DIR / rel).exists(), f"workshop SOP missing: {rel}"
 
     def test_day2_sops_exist(self):
         day2 = list((SOP_DIR / "day2-remediate").rglob("*.md"))
-        assert len(day2) >= 5, f"Expected >=5 Day 2 SOPs, got {len(day2)}"
+        assert len(day2) >= 3, f"Expected >=3 Day 2 SOPs, got {len(day2)}"
 
     def test_template_exists(self):
         assert (SOP_DIR / "TEMPLATE.md").exists()
