@@ -14,7 +14,9 @@ def list_sops():
     sop_dir = Path(os.getenv("SOP_REPO", "/app")) / "sops"
     sops = []
     for f in sorted(sop_dir.rglob("*.md")):
-        if f.name == "TEMPLATE.md":
+        # TEMPLATE.md is scaffolding; sops/archive/ holds retired SOPs kept for
+        # reference (see sops/archive/README.md) — neither is operator-facing.
+        if f.name == "TEMPLATE.md" or "archive" in f.relative_to(sop_dir).parts:
             continue
         rel = str(f.relative_to(sop_dir))
         content = f.read_text()

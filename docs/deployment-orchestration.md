@@ -365,22 +365,22 @@ Complex actions triggering Tier 2: `drain`, `signal-amf-deregistration`, `pfcp-s
 
 ### SOP Resolver
 
-The resolver maps `(intent, nf_category, vendor)` → SOP file path:
+`SOPBridge._find_relevant_sop(intent, nf_name)` picks a SOP by convention rather than a
+static table (the former `SOP_REGISTRY` dict and its `/etc/anda/sop-mapping/sop-registry.yaml`
+ConfigMap override were removed):
 
-```python
-SOP_REGISTRY = {
-    ("deploy", "core", "*"):      "sops/day1-deploy/deploy-5g-core.md",
-    ("deploy", "upf", "open5gs"): "sops/day1-deploy/deploy-upf.md",
-    ("deploy", "upf", "nec"):     "sops/day1-deploy/nec-upf-deploy.md",
-    ("deploy", "ran", "*"):       "sops/day1-deploy/deploy-ran-du.md",
-    ("remediation", "*", "*"):    "sops/day2-remediate/{nf_type}.md",
-    ("decommission", "*", "*"):   "sops/day2-decommission.md",
-}
-```
+1. `intent` selects the directory: `deploy` / `upgrade` → `sops/day1-deploy/`,
+   `remediation` → `sops/day2-remediate/`; anything else defaults to `day1-deploy/`.
+2. The directory is walked recursively (`sops/archive/` is never searched). The first file
+   whose name contains the NF name wins (`deploy-amf.md` for `amf`).
+3. Otherwise the last file whose path contains `core` or `5g` is used as a generic fallback
+   (`deploy-free5gc-core.sop.md` in workshop-v3).
+4. No match → `None`; the SMART-tier prompt then tells the agent to read the SOPs directory
+   itself, and Tier 1 (direct helm) remains the fallback. A missing SOP never blocks.
 
-Resolution priority: exact match → wildcard vendor → wildcard category.  
-ConfigMap override: `/etc/anda/sop-mapping/sop-registry.yaml` (operators can add custom SOPs without code changes).  
-Fallback: If no SOP matches → Tier 1 (direct helm). Never blocks on a missing SOP.
+A `DeploymentPlan` can bypass resolution entirely with `spec.sopPath` (an explicit path relative
+to `sops/`). ANRA sets it when it hands an approved remediation to ANDA, so the SOP shown to the
+operator at approval time is the one ANDA executes.
 
 ### Feature Flag
 

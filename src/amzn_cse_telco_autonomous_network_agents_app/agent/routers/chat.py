@@ -61,7 +61,7 @@ async def chat(req: ChatRequest):
         sops = []
         try:
             sop_dir = Path(__file__).resolve().parent.parent.parent / "sops"
-            sops = [f.stem for f in sop_dir.rglob("*.md") if f.stem != "TEMPLATE"]
+            sops = [f.stem for f in sop_dir.rglob("*.md") if f.stem != "TEMPLATE" and "archive" not in f.relative_to(sop_dir).parts]
         except Exception:
             pass
 
