@@ -16,7 +16,10 @@ spec:
       # monitor.resolve_sop_reference(). See docs/workshop-v3.md.
       rules:
         - alert: free5gc_nf_unavailable
-          expr: kube_deployment_status_replicas_unavailable{namespace="free5gc",deployment=~"free5gc-.*"} > 0
+          # available == 0 catches both a scaled-to-zero Deployment and one whose
+          # pod cannot become Ready. (status_replicas_unavailable is desired minus
+          # available, so it stays 0 when desired is 0 and misses scale-downs.)
+          expr: kube_deployment_status_replicas_available{namespace="free5gc",deployment=~"free5gc-.*"} == 0
           for: 1m
           labels:
             severity: critical
@@ -64,7 +67,10 @@ spec:
             description: Prometheus has not received the AMF registered-UE metric for five minutes.
 
         - alert: free5gc_registration_unavailable
-          expr: sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) < 1
+          # `or vector(0)` makes an absent series evaluate as 0 registered UEs, so
+          # this fires when the AMF itself is down instead of silently returning
+          # no data. metrics_missing still fires separately for the scrape gap.
+          expr: (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) or vector(0)) < 1
           for: 1m
           labels:
             severity: critical

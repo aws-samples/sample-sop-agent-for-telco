@@ -2,7 +2,7 @@
 
 **Duration:** ~5 minutes
 **Severity:** critical
-**Trigger:** `free5gc_nf_unavailable` — a `free5gc-*` Deployment in namespace `free5gc` reports unavailable replicas (`kube_deployment_status_replicas_unavailable > 0`)
+**Trigger:** `free5gc_nf_unavailable` — a `free5gc-*` Deployment in namespace `free5gc` has no available replica (`kube_deployment_status_replicas_available == 0`)
 
 ## Overview
 A Free5GC core network function (AMF, SMF, UPF, NRF, AUSF, UDM, UDR, PCF or NSSF) has no ready replica. The impact depends on the NF: AMF or UPF down means the PacketRusher UE loses registration or user-plane traffic within seconds; NRF down stops NFs discovering each other; UDM/UDR/AUSF down blocks new registrations but leaves existing sessions up.
