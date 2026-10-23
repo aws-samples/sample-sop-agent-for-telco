@@ -22,9 +22,10 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "create"]
-  # Pod/Service monitoring (validation) and SOP diagnostics
+  # Pod/Service monitoring (validation) and SOP diagnostics.
+  # nodes: preflight_check lists nodes to confirm they are Ready before deploying.
   - apiGroups: [""]
-    resources: ["pods", "services", "endpoints", "configmaps", "events"]
+    resources: ["pods", "services", "endpoints", "configmaps", "events", "nodes"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/log"]

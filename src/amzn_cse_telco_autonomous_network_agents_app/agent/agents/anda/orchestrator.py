@@ -291,7 +291,10 @@ def process_deployment_plan(plan: Dict[str, Any]) -> None:
     """
     name = _plan_name(plan)
     namespace = plan.get("metadata", {}).get("namespace", "default")
-    cluster_name = plan.get("spec", {}).get("clusterName", "unknown-cluster")
+    # The CRD field is ``spec.cluster`` (what ANRA's handoff and the examples
+    # write); ``clusterName`` is accepted for older plans.
+    spec = plan.get("spec", {})
+    cluster_name = spec.get("cluster") or spec.get("clusterName") or "unknown-cluster"
 
     log.info("Processing DeploymentPlan '%s' on cluster '%s'", name, cluster_name)
     _update_plan_status(plan, "InProgress", "Orchestrator started processing")

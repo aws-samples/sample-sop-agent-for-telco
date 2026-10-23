@@ -203,6 +203,7 @@ class TestAndaRemediationRbac:
         cr = next(d for d in docs if d["kind"] == "ClusterRole")
         def verbs(group, resource):
             return {v for r in cr["rules"] if group in r["apiGroups"] and resource in r["resources"] for v in r["verbs"]}
+        assert {"get", "list"} <= verbs("", "nodes")  # preflight_check lists nodes
         assert {"get", "list"} <= verbs("", "pods/log")
         assert "create" in verbs("", "pods/exec")
         assert verbs("apps", "deployments") <= {"get", "list", "watch"}  # no cluster-wide writes
