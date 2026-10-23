@@ -123,7 +123,10 @@ def _trigger_anda(alarm_name: str, sop_path: str, entry: dict) -> bool:
             "description": f"SOP: {sop_path}",
             "sopPath": sop_path,
             "triggeredBy": "anra",
-            "priority": "emergency" if entry.get("severity") == "critical" else "normal",
+            # critical -> high keeps the plan on the SOP Bridge SMART tier (SOP + AI).
+            # "emergency" would route to Tier 3 (helm --force, no SOP), which is
+            # never what an operator approving a SOP intends.
+            "priority": _plan_priority(entry.get("severity")),
             "executionMode": "live",
             "networkFunctions": [
                 {
@@ -194,6 +197,14 @@ def _execute_locally(alarm_name: str, sop_path: str, entry: dict):
         "correlation": "operator-approved",
     })
     log.info("Local SOP complete for '%s': %s", alarm_name, result.get("status"))
+
+
+def _plan_priority(severity: str | None) -> str:
+    """Map alarm severity to DeploymentPlan.spec.priority (normal | high).
+
+    Deliberately never returns "emergency": that tier bypasses SOP execution.
+    """
+    return "high" if (severity or "").lower() == "critical" else "normal"
 
 
 def _resolve_nf_name(alarm_name: str, entry: dict) -> str:

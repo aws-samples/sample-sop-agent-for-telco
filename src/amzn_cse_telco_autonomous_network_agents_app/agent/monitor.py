@@ -75,6 +75,32 @@ def _merge_alarm_catalogs(alarm_ref: dict, catalog_paths: list[str]) -> dict:
 SOP_ANNOTATION = "sop"
 
 
+def alert_from_alertmanager(labels: dict, annotations: dict, source: str) -> dict:
+    """Normalise one Alertmanager alert into the monitor's alert dict.
+
+    Besides name/severity/summary/description, carry the Kubernetes identity
+    labels Prometheus attaches (``deployment``, ``pod``, ``namespace``) as
+    ``nf_instance`` / ``namespace``. push_pending_approval() forwards them onto
+    the approval entry, and approvals._resolve_nf_name() derives the NF from
+    ``nf_instance`` ("free5gc-amf-deployment" -> "amf"), so the DeploymentPlan
+    handed to ANDA targets the right NF instead of the layer default "core".
+    """
+    labels = labels or {}
+    annotations = annotations or {}
+    name = labels.get("alertname", "unknown")
+    return {
+        "name": name,
+        "severity": labels.get("severity", "warning"),
+        "service_impact": annotations.get("summary", ""),
+        "probable_cause": annotations.get("description", ""),
+        "sop": resolve_sop_reference(name, annotations),
+        "source": source,
+        "nf_instance": labels.get("deployment") or labels.get("statefulset") or labels.get("pod") or "",
+        "namespace": labels.get("namespace", ""),
+        "node_name": labels.get("node", ""),
+    }
+
+
 def resolve_sop_reference(alarm_name: str, annotations: dict | None = None, alarm_ref: dict | None = None) -> str:
     """Return the SOP path bound to an alarm, or "" if none.
 
@@ -416,14 +442,7 @@ def fetch_alertmanager_alerts():
     try:
         data = json.loads(raw)
         return [
-            {
-                "name": a["labels"].get("alertname", "unknown"),
-                "severity": a["labels"].get("severity", "warning"),
-                "service_impact": a.get("annotations", {}).get("summary", ""),
-                "probable_cause": a.get("annotations", {}).get("description", ""),
-                "sop": resolve_sop_reference(a["labels"].get("alertname", "unknown"), a.get("annotations", {})),
-                "source": "alertmanager",
-            }
+            alert_from_alertmanager(a.get("labels", {}), a.get("annotations", {}), "alertmanager")
             for a in data
             if a.get("status", {}).get("state") == "active" and a["labels"].get("alertname") not in {"Watchdog", "InfoInhibitor"}
         ]

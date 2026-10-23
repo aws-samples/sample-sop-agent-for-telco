@@ -202,6 +202,10 @@ class TestResolveSopReference:
         assert set(alerts) == {"free5gc_nf_unavailable", "free5gc_pod_restarting"}
         assert alerts["free5gc_nf_unavailable"]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
         assert alerts["free5gc_pod_restarting"]["sop"] == "day2-remediate/core/free5gc-pod-crashloop.md"
+        # labels without k8s identity -> empty, never missing keys
+        assert alerts["free5gc_nf_unavailable"]["nf_instance"] == ""
+        assert alerts["free5gc_nf_unavailable"]["namespace"] == ""
+
 
     def test_webhook_carries_sop(self, monkeypatch):
         import asyncio
@@ -219,7 +223,7 @@ class TestResolveSopReference:
                 "alerts": [
                     {
                         "status": "firing",
-                        "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical"},
+                        "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical", "namespace": "free5gc", "deployment": "free5gc-amf-deployment"},
                         "annotations": {"summary": "NF down"},
                     },
                     {"status": "resolved", "labels": {"alertname": "free5gc_pod_restarting"}, "annotations": {}},
@@ -229,6 +233,58 @@ class TestResolveSopReference:
         )
         assert result == {"received": 1}
         assert pushed[0]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
+        assert pushed[0]["nf_instance"] == "free5gc-amf-deployment"
+        assert pushed[0]["namespace"] == "free5gc"
+
+
+class TestAlertmanagerNfContext:
+    """Prometheus labels become the NF context ANDA needs for the DeploymentPlan."""
+
+    LABELS = {
+        "alertname": "free5gc_nf_unavailable",
+        "severity": "critical",
+        "namespace": "free5gc",
+        "deployment": "free5gc-amf-deployment",
+    }
+
+    def test_alert_carries_nf_instance_and_namespace(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import alert_from_alertmanager
+
+        a = alert_from_alertmanager(self.LABELS, {"summary": "down"}, "alertmanager")
+        assert a["nf_instance"] == "free5gc-amf-deployment"
+        assert a["namespace"] == "free5gc"
+        assert a["source"] == "alertmanager"
+
+    def test_pod_label_used_when_no_deployment(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import alert_from_alertmanager
+
+        a = alert_from_alertmanager(
+            {"alertname": "free5gc_pod_restarting", "namespace": "free5gc", "pod": "free5gc-smf-deployment-abc-xyz"}, {}, "x"
+        )
+        assert a["nf_instance"] == "free5gc-smf-deployment-abc-xyz"
+
+    def test_approval_entry_resolves_amf_from_deployment_label(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.core.state import _pending_approvals, push_pending_approval
+        from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import alert_from_alertmanager
+        from amzn_cse_telco_autonomous_network_agents_app.agent.routers.approvals import _resolve_nf_name
+
+        alert = alert_from_alertmanager(self.LABELS, {}, "alertmanager")
+        _pending_approvals.clear()
+        push_pending_approval(alert["name"], "sops/x.md", alert)
+        entry = _pending_approvals[alert["name"]]
+        assert entry["nf_instance"] == "free5gc-amf-deployment"
+        assert entry["namespace"] == "free5gc"
+        assert _resolve_nf_name(alert["name"], entry) == "amf"
+        _pending_approvals.clear()
+
+    def test_plan_priority_never_emergency(self):
+        from amzn_cse_telco_autonomous_network_agents_app.agent.routers.approvals import _plan_priority
+
+        assert _plan_priority("critical") == "high"
+        assert _plan_priority("warning") == "normal"
+        assert _plan_priority(None) == "normal"
+        assert "emergency" not in {_plan_priority(s) for s in ("critical", "warning", "info", "")}
+
 
 
 def test_workshop_alarm_sop_bindings_agree():
