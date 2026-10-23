@@ -60,6 +60,8 @@ export AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9
 export AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git rev-parse --short=7 HEAD)}"
 test "$AGENT_IMAGE_TAG" != latest
 if test -n "${ANRA_PASSWORD:-}"; then export ANRA_PASSWORD; fi
+# Set ANRA_AUTH_DISABLED=true only when the Cognito/CloudFront webui-auth stack gates access.
+if test -n "${ANRA_AUTH_DISABLED:-}"; then export ANRA_AUTH_DISABLED; fi
 bash scripts/free5gc/04-deploy-monitoring-anra.sh
 ```
 

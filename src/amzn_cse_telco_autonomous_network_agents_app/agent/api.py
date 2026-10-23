@@ -18,8 +18,14 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger(__name__)
 
 # ── HTTP Basic Auth ──
+# Fail-closed: with no ANRA_PASS every non-probe request is rejected. The only
+# way to run without Basic auth is the purpose-named opt-in ANRA_AUTH_DISABLED,
+# for deployments where authentication is enforced in front of the pod (for
+# example Cognito at the CloudFront edge, see Workshop Studio webui-auth stack).
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
 ANRA_USER = os.getenv("ANRA_USER", "admin")
-ANRA_PASS = os.getenv("ANRA_PASS", "")  # empty = no auth (TODO: fail-closed)
+ANRA_PASS = os.getenv("ANRA_PASS", "")
+ANRA_AUTH_DISABLED = os.getenv("ANRA_AUTH_DISABLED", "").strip().lower() in _TRUTHY
 
 
 # ── CORS allowlist ──
@@ -70,10 +76,16 @@ def _is_auth_bypass(path: str) -> bool:
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if not ANRA_PASS:
+        if ANRA_AUTH_DISABLED:
             return await call_next(request)
         if _is_auth_bypass(request.url.path):
             return await call_next(request)
+        if not ANRA_PASS:
+            # Fail closed: no password configured and bypass not explicitly enabled.
+            return Response(
+                status_code=503,
+                content="Authentication not configured: set ANRA_PASS or ANRA_AUTH_DISABLED=true",
+            )
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Basic "):
             try:
@@ -110,6 +122,13 @@ def create_app(role: str = "anra") -> FastAPI:
     """Create role-aware FastAPI application."""
     title = _ROLE_TITLES.get(role, f"ANO Platform ({role})")
     app = FastAPI(title=title, version="0.2.0")
+    if ANRA_AUTH_DISABLED:
+        log.warning(
+            "ANRA_AUTH_DISABLED is set: HTTP Basic auth is OFF. Every caller that can reach "
+            "this pod is trusted; an upstream gate (e.g. Cognito at the edge) must exist."
+        )
+    elif not ANRA_PASS:
+        log.error("ANRA_PASS is empty and ANRA_AUTH_DISABLED is not set: all API requests will be rejected (503).")
     app.add_middleware(BasicAuthMiddleware)
     app.add_middleware(
         CORSMiddleware,

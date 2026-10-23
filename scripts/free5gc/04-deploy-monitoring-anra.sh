@@ -72,15 +72,55 @@ fi
 
 # ANRA credentials must exist before the monitoring stack: Alertmanager mounts
 # them to authenticate its webhook to ANRA (see kube-prometheus-stack-values).
+#
+# ANRA_AUTH_DISABLED=true turns ANRA's HTTP Basic auth off. Use it ONLY when an
+# upstream gate authenticates every request before it reaches the pod (the
+# Workshop Studio webui-auth stack: Cognito at the CloudFront edge). The secret
+# then carries an empty password (works with images predating the explicit
+# toggle) and the chart sets ANRA_AUTH_DISABLED on the pod.
+# Auto-detect: when the Cognito/CloudFront "webui-auth" stack is present in this
+# account (Workshop Studio deploys it right after the EKS stack), disable ANRA's
+# own Basic auth and expose the UI on the NodePort that stack's ALB targets.
+# Set ANRA_AUTH_DISABLED explicitly to override the detection either way.
+ANRA_NODEPORT="${ANRA_NODEPORT:-30080}"
+if [ -z "${ANRA_AUTH_DISABLED:-}" ]; then
+  WEBUI_AUTH_STACK="$(aws cloudformation describe-stacks \
+    --query "Stacks[?Outputs[?OutputKey=='HostedUiDomain']] | [0].StackName" --output text 2>/dev/null || true)"
+  if [ -n "${WEBUI_AUTH_STACK}" ] && [ "${WEBUI_AUTH_STACK}" != None ]; then
+    ANRA_AUTH_DISABLED=true
+    ANRA_NODEPORT="$(aws cloudformation describe-stacks --stack-name "${WEBUI_AUTH_STACK}" \
+      --query "Stacks[0].Outputs[?OutputKey=='NodePort'].OutputValue" --output text)"
+    echo "Detected web UI auth stack ${WEBUI_AUTH_STACK}: ANRA auth delegated to the edge, NodePort ${ANRA_NODEPORT}."
+  fi
+fi
+ANRA_AUTH_DISABLED="$(printf '%s' "${ANRA_AUTH_DISABLED:-false}" | tr '[:upper:]' '[:lower:]')"
+case "${ANRA_AUTH_DISABLED}" in
+  true|1|yes|on) ANRA_AUTH_DISABLED=true ;;
+  *)             ANRA_AUTH_DISABLED=false ;;
+esac
+if [ "${ANRA_AUTH_DISABLED}" = true ]; then
+  echo "WARNING: ANRA_AUTH_DISABLED=true - ANRA Basic auth is OFF; access must be gated upstream (Cognito/CloudFront)." >&2
+fi
 if ! kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" >/dev/null 2>&1; then
-  ANRA_PASSWORD="${ANRA_PASSWORD:-$(openssl rand -hex 16)}"
+  if [ "${ANRA_AUTH_DISABLED}" = true ]; then
+    ANRA_PASSWORD=""
+  else
+    ANRA_PASSWORD="${ANRA_PASSWORD:-$(openssl rand -hex 16)}"
+  fi
   kubectl create secret generic anra-workshop-credentials -n "${ANRA_NAMESPACE}" \
     --from-literal=auth-username=admin \
     --from-literal=auth-password="${ANRA_PASSWORD}" \
     --from-literal=influxdb-token=''
-  umask 077
-  printf '%s\n' "${ANRA_PASSWORD}" > "${HOME}/anra-admin-password"
-  echo "Generated ANRA password stored at ${HOME}/anra-admin-password"
+  if [ -n "${ANRA_PASSWORD}" ]; then
+    umask 077
+    printf '%s\n' "${ANRA_PASSWORD}" > "${HOME}/anra-admin-password"
+    echo "Generated ANRA password stored at ${HOME}/anra-admin-password"
+  fi
+elif [ "${ANRA_AUTH_DISABLED}" = true ]; then
+  # Secret pre-exists (re-run): clear the password so the toggle is idempotent.
+  kubectl patch secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" \
+    --type merge -p '{"data":{"auth-password":""}}'
+  rm -f "${HOME}/anra-admin-password"
 fi
 # Mirror into the monitoring namespace (idempotent) for the Alertmanager mount.
 kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" -o json | \
@@ -147,6 +187,7 @@ helm upgrade --install anra "${REPO_ROOT}/helm-charts/anra" \
   --set-string ssm.region="${AWS_DEFAULT_REGION}" \
   --set-string config.cluster.name="${CLUSTER_NAME}" \
   --set-string credentials.existingSecret=anra-workshop-credentials \
+  --set auth.disabled="${ANRA_AUTH_DISABLED}" \
   --wait --timeout 5m
 
 # Fail if ANPA was installed accidentally; this workshop uses CloudFormation.
@@ -157,6 +198,31 @@ fi
 
 kubectl rollout status deployment/anda -n "${ANDA_NAMESPACE}" --timeout=300s
 kubectl rollout status deployment/anra -n "${ANRA_NAMESPACE}" --timeout=300s
+
+# Expose ANRA on the fixed NodePort the webui-auth ALB targets. Node security
+# groups admit this port from the ALB only, so it is not reachable otherwise.
+if [ "${ANRA_AUTH_DISABLED}" = true ]; then
+  kubectl apply -n "${ANRA_NAMESPACE}" -f - <<EOF_SVC
+apiVersion: v1
+kind: Service
+metadata:
+  name: anra-nodeport
+  labels:
+    app.kubernetes.io/part-of: webui-auth
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  selector:
+    app.kubernetes.io/name: anra
+    app.kubernetes.io/instance: anra
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: ${ANRA_NODEPORT}
+      protocol: TCP
+EOF_SVC
+fi
 kubectl get pods -n "${MONITORING_NAMESPACE}"
 kubectl get pods -n "${ANRA_NAMESPACE}"
 kubectl get pods -n "${ANDA_NAMESPACE}"

@@ -76,6 +76,6 @@ run_on_bastion 'deploy Free5GC and PacketRusher' \
 run_on_bastion 'validate the Free5GC data path' \
   "${COMMON_ENV}; cd ${REMOTE_ROOT}; bash tests/free5gc/run-tests.sh"
 run_on_bastion 'deploy monitoring, ANDA, and ANRA (ANPA skipped)' \
-  "${COMMON_ENV}; export BEDROCK_REGION=${BEDROCK_REGION} AGENT_IMAGE_REPOSITORY=${AGENT_IMAGE_REPOSITORY} AGENT_IMAGE_TAG=${AGENT_IMAGE_TAG}; cd ${REMOTE_ROOT}; bash scripts/free5gc/04-deploy-monitoring-anra.sh"
+  "${COMMON_ENV}; export BEDROCK_REGION=${BEDROCK_REGION} AGENT_IMAGE_REPOSITORY=${AGENT_IMAGE_REPOSITORY} AGENT_IMAGE_TAG=${AGENT_IMAGE_TAG} ANRA_AUTH_DISABLED=${ANRA_AUTH_DISABLED:-false}; cd ${REMOTE_ROOT}; bash scripts/free5gc/04-deploy-monitoring-anra.sh"
 
 printf 'Workshop-v3 bring-up complete. Bastion instance: %s\n' "${BASTION_ID}"

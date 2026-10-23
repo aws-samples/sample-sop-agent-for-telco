@@ -21,6 +21,9 @@ sys.modules.setdefault("strands", MagicMock())
 sys.modules.setdefault("strands.models.bedrock", MagicMock())
 sys.modules.setdefault("strands.multiagent", MagicMock())
 os.environ.setdefault("ANRA_CONFIG", "/dev/null")
+# The API fails closed without ANRA_PASS; these tests exercise routes, not auth,
+# so opt into the explicit bypass before the module reads its environment.
+os.environ.setdefault("ANRA_AUTH_DISABLED", "true")
 
 from fastapi.testclient import TestClient
 
