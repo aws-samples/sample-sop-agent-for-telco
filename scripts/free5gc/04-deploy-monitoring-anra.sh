@@ -83,9 +83,17 @@ fi
 # own Basic auth and expose the UI on the NodePort that stack's ALB targets.
 # Set ANRA_AUTH_DISABLED explicitly to override the detection either way.
 ANRA_NODEPORT="${ANRA_NODEPORT:-30080}"
+# The bastion role may describe a stack by name but is not granted
+# cloudformation:ListStacks, which an unfiltered describe-stacks needs; query the
+# conventional stack name first and only then fall back to the output scan.
+WEBUI_AUTH_STACK_NAME="${WEBUI_AUTH_STACK_NAME:-webui-auth}"
 if [ -z "${ANRA_AUTH_DISABLED:-}" ]; then
-  WEBUI_AUTH_STACK="$(aws cloudformation describe-stacks \
+  WEBUI_AUTH_STACK="$(aws cloudformation describe-stacks --stack-name "${WEBUI_AUTH_STACK_NAME}" \
     --query "Stacks[?Outputs[?OutputKey=='HostedUiDomain']] | [0].StackName" --output text 2>/dev/null || true)"
+  if [ -z "${WEBUI_AUTH_STACK}" ] || [ "${WEBUI_AUTH_STACK}" = None ]; then
+    WEBUI_AUTH_STACK="$(aws cloudformation describe-stacks \
+      --query "Stacks[?Outputs[?OutputKey=='HostedUiDomain']] | [0].StackName" --output text 2>/dev/null || true)"
+  fi
   if [ -n "${WEBUI_AUTH_STACK}" ] && [ "${WEBUI_AUTH_STACK}" != None ]; then
     ANRA_AUTH_DISABLED=true
     ANRA_NODEPORT="$(aws cloudformation describe-stacks --stack-name "${WEBUI_AUTH_STACK}" \
