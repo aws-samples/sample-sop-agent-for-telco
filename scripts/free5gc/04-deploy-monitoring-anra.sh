@@ -196,6 +196,14 @@ if helm list --all-namespaces -q | grep -qx anpa; then
   exit 1
 fi
 
+# A moving tag (dev, or anything that is not a commit SHA) leaves the pod spec
+# unchanged when the image behind it is overwritten, so Helm's --wait is a no-op.
+# Force new pods so imagePullPolicy: Always actually re-resolves the tag.
+if ! printf '%s' "${AGENT_IMAGE_TAG}" | grep -Eq '^[0-9a-f]{7,40}(@sha256:[0-9a-f]{64})?$'; then
+  echo "Moving image tag '${AGENT_IMAGE_TAG}' (test loop): restarting agent pods to re-pull." >&2
+  kubectl rollout restart deployment/anda -n "${ANDA_NAMESPACE}"
+  kubectl rollout restart deployment/anra -n "${ANRA_NAMESPACE}"
+fi
 kubectl rollout status deployment/anda -n "${ANDA_NAMESPACE}" --timeout=300s
 kubectl rollout status deployment/anra -n "${ANRA_NAMESPACE}" --timeout=300s
 

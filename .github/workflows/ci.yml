@@ -131,11 +131,19 @@ jobs:
             docker login --username AWS --password-stdin public.ecr.aws
       - name: Build and push
         run: |
-          SHA=$(git rev-parse --short HEAD)
-          docker build -t public.ecr.aws/t2j9i5y9/anra-workshop:$SHA \
-                       -t public.ecr.aws/t2j9i5y9/anra-workshop:workshop-v3-$SHA .
-          docker push public.ecr.aws/t2j9i5y9/anra-workshop:$SHA
-          docker push public.ecr.aws/t2j9i5y9/anra-workshop:workshop-v3-$SHA
+          # Immutable per-commit tags are what the workshop pins (WorkshopSourceCommit ->
+          # script 04 defaults AGENT_IMAGE_TAG to the checked-out short SHA). The moving
+          # "dev" tag always points at the latest build of this branch and exists only for
+          # the test loop (AGENT_IMAGE_TAG=dev); never reference it from workshop content.
+          REPO=public.ecr.aws/t2j9i5y9/anra-workshop
+          SHA=$(git rev-parse --short=7 HEAD)
+          docker build -t $REPO:$SHA -t $REPO:workshop-v3-$SHA -t $REPO:dev .
+          docker push $REPO:$SHA
+          docker push $REPO:workshop-v3-$SHA
+          docker push $REPO:dev
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $REPO:$SHA | cut -d@ -f2)
           echo "### 🚀 Workshop-v3 image published" >> $GITHUB_STEP_SUMMARY
-          echo "- \`public.ecr.aws/t2j9i5y9/anra-workshop:$SHA\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`public.ecr.aws/t2j9i5y9/anra-workshop:workshop-v3-$SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$REPO:$SHA\` (pin this)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$REPO:workshop-v3-$SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$REPO:dev\` (moving, test loop only)" >> $GITHUB_STEP_SUMMARY
+          echo "- digest: \`$DIGEST\`" >> $GITHUB_STEP_SUMMARY

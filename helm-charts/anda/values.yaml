@@ -7,6 +7,10 @@ agentRole: anda
 image:
   repository: ""  # Set during deploy: ECR URI for ano-platform image
   tag: ""  # Set by CI (scripts/ci-helm-deploy.sh uses first 8 chars of commit SHA)
+  # Always: a moving tag (e.g. "dev" from the test loop) is re-resolved on every pod
+  # start; with IfNotPresent a node would keep serving the layers it already has.
+  # Pods are only recreated on a spec change, so overwriting a tag still needs
+  # `kubectl rollout restart` — scripts/free5gc/04-deploy-monitoring-anra.sh does this.
   pullPolicy: Always
 
 serviceAccount:
