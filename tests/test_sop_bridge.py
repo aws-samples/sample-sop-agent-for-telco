@@ -297,14 +297,17 @@ class TestApprovedSopPath:
 
     def setup_method(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge import SOPBridge
+
         self.bridge = SOPBridge()
 
     def test_absolute_sop_path_resolves(self, tmp_path):
-        sop = tmp_path / "x.md"; sop.write_text("# X")
+        sop = tmp_path / "x.md"
+        sop.write_text("# X")
         assert self.bridge._resolve_plan_sop({"sopPath": str(sop)}) == str(sop)
 
     def test_relative_sop_path_resolves_under_sop_root(self, tmp_path):
         from unittest.mock import patch
+
         (tmp_path / "sops" / "day2-remediate" / "core").mkdir(parents=True)
         (tmp_path / "sops" / "day2-remediate" / "core" / "y.md").write_text("# Y")
         with patch("amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge._SOP_ROOT", str(tmp_path)):
@@ -320,8 +323,15 @@ class TestApprovedSopPath:
         sop = tmp_path / "free5gc-nf-unavailable.md"
         sop.write_text("# Remediate NF\n### Step 4: Re-attach the UE\nkubectl delete pod -l app=packetrusher")
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="free5gc", cluster="c", intent="remediation", reason="r",
-            vendor="free5gc", strategy=None, sop_path=str(sop), sop_explicit=True,
+            nf_name="amf",
+            namespace="free5gc",
+            cluster="c",
+            intent="remediation",
+            reason="r",
+            vendor="free5gc",
+            strategy=None,
+            sop_path=str(sop),
+            sop_explicit=True,
         )
         assert "## Approved SOP (execute this)" in prompt
         assert "Re-attach the UE" in prompt
@@ -329,8 +339,15 @@ class TestApprovedSopPath:
 
     def test_prompt_without_explicit_sop_is_unchanged(self):
         prompt = self.bridge._build_context_prompt(
-            nf_name="amf", namespace="free5gc", cluster="c", intent="remediation", reason="r",
-            vendor="free5gc", strategy=None, sop_path=None, sop_explicit=False,
+            nf_name="amf",
+            namespace="free5gc",
+            cluster="c",
+            intent="remediation",
+            reason="r",
+            vendor="free5gc",
+            strategy=None,
+            sop_path=None,
+            sop_explicit=False,
         )
         assert "Approved SOP" not in prompt
 
@@ -338,13 +355,12 @@ class TestApprovedSopPath:
 class TestVerdict:
     def _v(self, text):
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.sop_bridge import SOPBridge
+
         return SOPBridge._verdict(text)
 
     def test_success_report_mentioning_failure_words_is_success(self):
         # Real agent output from the live run: alarm name + "not a failure" + echoed instruction
-        out = ("Remediation Summary — AMF (free5gc_nf_unavailable)\n"
-               "subprov-882fr is an expected Completed Job, not a failure\n"
-               "Report final status: ✅ SUCCESS or ❌ FAILURE\n### ✅ SUCCESS")
+        out = "Remediation Summary — AMF (free5gc_nf_unavailable)\nsubprov-882fr is an expected Completed Job, not a failure\nReport final status: ✅ SUCCESS or ❌ FAILURE\n### ✅ SUCCESS"
         assert self._v(out) is True
 
     def test_failure_marker_last_is_failure(self):
@@ -363,16 +379,15 @@ class TestExecutePassesApprovedSop:
         self.bridge = SOPBridge()
 
     def test_execute_hands_resolved_sop_path_to_ai(self, tmp_path):
-        sop = tmp_path / "free5gc-nf-unavailable.md"; sop.write_text("# SOP")
+        sop = tmp_path / "free5gc-nf-unavailable.md"
+        sop.write_text("# SOP")
         plan = _make_plan(intent="remediation")
         plan["spec"]["sopPath"] = str(sop)
-        with patch.object(self.bridge, "_run_config_gen_if_needed"), \
-             patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
+        with patch.object(self.bridge, "_run_config_gen_if_needed"), patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
             self.bridge.execute("amf", plan, namespace="free5gc", cluster="c1")
         assert mock_ai.call_args.kwargs["approved_sop"] == str(sop)
 
     def test_execute_without_sop_path_passes_none(self):
-        with patch.object(self.bridge, "_run_config_gen_if_needed"), \
-             patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
+        with patch.object(self.bridge, "_run_config_gen_if_needed"), patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
             self.bridge.execute("amf", _make_plan(intent="remediation"), namespace="free5gc", cluster="c1")
         assert mock_ai.call_args.kwargs["approved_sop"] is None

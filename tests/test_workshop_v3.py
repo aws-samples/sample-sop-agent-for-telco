@@ -140,9 +140,7 @@ def test_vendor_catalog_can_bind_sop_to_alarm(tmp_path):
     from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import _merge_alarm_catalogs
 
     catalog = tmp_path / "catalog.yaml"
-    catalog.write_text(
-        yaml.safe_dump({"alarms": {"free5gc_nf_unavailable": {"sop": "day2-remediate/core/free5gc-nf-unavailable.md"}}})
-    )
+    catalog.write_text(yaml.safe_dump({"alarms": {"free5gc_nf_unavailable": {"sop": "day2-remediate/core/free5gc-nf-unavailable.md"}}}))
     merged = _merge_alarm_catalogs({"free5gc_nf_unavailable": {"layer": 2, "sop": ""}}, [str(catalog)])
     assert merged["free5gc_nf_unavailable"]["sop"] == "day2-remediate/core/free5gc-nf-unavailable.md"
 
@@ -159,9 +157,7 @@ class TestResolveSopReference:
     def test_annotation_wins(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import resolve_sop_reference
 
-        sop = resolve_sop_reference(
-            "free5gc_nf_unavailable", {"sop": " day2-remediate/core/custom.md "}, alarm_ref=self.REF
-        )
+        sop = resolve_sop_reference("free5gc_nf_unavailable", {"sop": " day2-remediate/core/custom.md "}, alarm_ref=self.REF)
         assert sop == "day2-remediate/core/custom.md"
 
     def test_falls_back_to_alarm_reference(self):
@@ -206,7 +202,6 @@ class TestResolveSopReference:
         assert alerts["free5gc_nf_unavailable"]["nf_instance"] == ""
         assert alerts["free5gc_nf_unavailable"]["namespace"] == ""
 
-
     def test_webhook_carries_sop(self, monkeypatch):
         import asyncio
 
@@ -219,16 +214,16 @@ class TestResolveSopReference:
 
         result = asyncio.run(
             webhooks.receive_alertmanager(
-            {
-                "alerts": [
-                    {
-                        "status": "firing",
-                        "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical", "namespace": "free5gc", "deployment": "free5gc-amf-deployment"},
-                        "annotations": {"summary": "NF down"},
-                    },
-                    {"status": "resolved", "labels": {"alertname": "free5gc_pod_restarting"}, "annotations": {}},
-                ]
-            }
+                {
+                    "alerts": [
+                        {
+                            "status": "firing",
+                            "labels": {"alertname": "free5gc_nf_unavailable", "severity": "critical", "namespace": "free5gc", "deployment": "free5gc-amf-deployment"},
+                            "annotations": {"summary": "NF down"},
+                        },
+                        {"status": "resolved", "labels": {"alertname": "free5gc_pod_restarting"}, "annotations": {}},
+                    ]
+                }
             )
         )
         assert result == {"received": 1}
@@ -258,9 +253,7 @@ class TestAlertmanagerNfContext:
     def test_pod_label_used_when_no_deployment(self):
         from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import alert_from_alertmanager
 
-        a = alert_from_alertmanager(
-            {"alertname": "free5gc_pod_restarting", "namespace": "free5gc", "pod": "free5gc-smf-deployment-abc-xyz"}, {}, "x"
-        )
+        a = alert_from_alertmanager({"alertname": "free5gc_pod_restarting", "namespace": "free5gc", "pod": "free5gc-smf-deployment-abc-xyz"}, {}, "x")
         assert a["nf_instance"] == "free5gc-smf-deployment-abc-xyz"
 
     def test_approval_entry_resolves_amf_from_deployment_label(self):
@@ -286,16 +279,11 @@ class TestAlertmanagerNfContext:
         assert "emergency" not in {_plan_priority(s) for s in ("critical", "warning", "info", "")}
 
 
-
 def test_workshop_alarm_sop_bindings_agree():
     """Rule annotation, anra-values config.alarms and the vendor catalog must bind
     the same SOP per alarm (docs/workshop-v3.md, Day-2 alarms)."""
     rules = yaml.safe_load((ROOT / "configs" / "free5gc-monitoring" / "free5gc-alert-rules.yaml").read_text())
-    rule_sops = {
-        r["alert"]: r.get("annotations", {}).get("sop")
-        for g in rules["spec"]["groups"]
-        for r in g["rules"]
-    }
+    rule_sops = {r["alert"]: r.get("annotations", {}).get("sop") for g in rules["spec"]["groups"] for r in g["rules"]}
     values = yaml.safe_load((ROOT / "configs" / "free5gc-monitoring" / "anra-values.yaml").read_text())
     value_sops = {a["name"]: a.get("sop") for a in values["config"]["alarms"]}
     catalog = yaml.safe_load((ROOT / "alarm-references" / "free5gc.yaml").read_text())
@@ -413,8 +401,10 @@ def test_anra_chart_renders_free5gc_environment_and_alarm_references():
 class TestEnrichmentOnlyForGeneratedSops:
     def test_repo_sop_detected(self, monkeypatch, tmp_path):
         from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+
         (tmp_path / "sops" / "day2-remediate" / "core").mkdir(parents=True)
-        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"; f.write_text("# x")
+        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"
+        f.write_text("# x")
         monkeypatch.setattr(monitor, "SOP_REPO", str(tmp_path))
         assert monitor._is_repo_sop(str(f)) is True
         assert monitor._is_repo_sop("/tmp/generated-sops/remediate-foo.md") is False
@@ -422,8 +412,10 @@ class TestEnrichmentOnlyForGeneratedSops:
 
     def test_submit_sop_skips_enrichment_for_repo_sop(self, monkeypatch, tmp_path):
         from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+
         (tmp_path / "sops" / "day2-remediate" / "core").mkdir(parents=True)
-        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"; f.write_text("# x")
+        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"
+        f.write_text("# x")
         monkeypatch.setattr(monitor, "SOP_REPO", str(tmp_path))
         monkeypatch.setattr(monitor, "APPROVAL_MODE", "manual")
         monkeypatch.setattr(monitor, "resolve_sop", lambda alert: str(f))
@@ -431,8 +423,9 @@ class TestEnrichmentOnlyForGeneratedSops:
         monkeypatch.setattr(monitor, "_enrich_sop_file", lambda p, a: calls.append(p) or p)
         captured = {}
         import amzn_cse_telco_autonomous_network_agents_app.agent.app_state as app_state
+
         monkeypatch.setattr(app_state, "push_pending_approval", lambda n, p, a: captured.update(sop=p))
         monitor._active_sops.discard("free5gc_nf_unavailable")
         monitor._submit_sop({"name": "free5gc_nf_unavailable", "severity": "critical", "source": "alertmanager"})
-        assert calls == []                      # enrichment not invoked
-        assert captured["sop"] == str(f)        # approval carries the repo path
+        assert calls == []  # enrichment not invoked
+        assert captured["sop"] == str(f)  # approval carries the repo path

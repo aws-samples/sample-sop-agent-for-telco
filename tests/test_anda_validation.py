@@ -36,9 +36,7 @@ def _fake_kubectl(pods_by_selector):
 
 class TestNfPodSelector:
     def test_free5gc_epc_mode_label_is_found(self, monkeypatch):
-        monkeypatch.setattr(
-            validation, "_kubectl", _fake_kubectl({"epc-mode=amf": [_running_pod("free5gc-amf-deployment-x")]})
-        )
+        monkeypatch.setattr(validation, "_kubectl", _fake_kubectl({"epc-mode=amf": [_running_pod("free5gc-amf-deployment-x")]}))
         assert validation._nf_pod_selector("amf", "free5gc") == "epc-mode=amf"
         result = validation.postdeploy_check("amf", "free5gc")
         assert result["status"] == "ok", result

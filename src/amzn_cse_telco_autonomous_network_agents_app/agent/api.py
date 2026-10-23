@@ -123,10 +123,7 @@ def create_app(role: str = "anra") -> FastAPI:
     title = _ROLE_TITLES.get(role, f"ANO Platform ({role})")
     app = FastAPI(title=title, version="0.2.0")
     if ANRA_AUTH_DISABLED:
-        log.warning(
-            "ANRA_AUTH_DISABLED is set: HTTP Basic auth is OFF. Every caller that can reach "
-            "this pod is trusted; an upstream gate (e.g. Cognito at the edge) must exist."
-        )
+        log.warning("ANRA_AUTH_DISABLED is set: HTTP Basic auth is OFF. Every caller that can reach this pod is trusted; an upstream gate (e.g. Cognito at the edge) must exist.")
     elif not ANRA_PASS:
         log.error("ANRA_PASS is empty and ANRA_AUTH_DISABLED is not set: all API requests will be rejected (503).")
     app.add_middleware(BasicAuthMiddleware)
