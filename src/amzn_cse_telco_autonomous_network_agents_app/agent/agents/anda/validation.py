@@ -228,6 +228,26 @@ def preflight_check(cluster_name: str, namespace: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+# Label keys NF charts use to identify a network function, in probe order.
+# Open5GS/srsRAN charts: app=<nf>; Free5GC chart: epc-mode=<nf>; generic Helm: app.kubernetes.io/name.
+NF_LABEL_KEYS: Tuple[str, ...] = ("app", "epc-mode", "app.kubernetes.io/name")
+
+
+def _nf_pod_selector(nf_type: str, namespace: str) -> str:
+    """Return the first ``<key>=<nf_type>`` selector that matches at least one pod.
+
+    Falls back to ``app=<nf_type>`` when none matches so the caller still gets a
+    deterministic "no pods" failure naming the primary convention.
+    """
+    for key in NF_LABEL_KEYS:
+        rc, stdout, _ = _kubectl(
+            f"get pods -n {namespace} -l {key}={nf_type} -o name"
+        )
+        if rc == 0 and stdout.strip():
+            return f"{key}={nf_type}"
+    return f"app={nf_type}"
+
+
 def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
     """Run post-deploy checks after an NF has been rolled out.
 
@@ -254,8 +274,9 @@ def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
     # ------------------------------------------------------------------
     # 1. Pod readiness
     # ------------------------------------------------------------------
+    selector = _nf_pod_selector(nf_type, namespace)
     rc, stdout, _ = _kubectl(
-        f"get pods -n {namespace} -l app={nf_type} -o json"
+        f"get pods -n {namespace} -l {selector} -o json"
     )
     if rc != 0:
         issues.append(
@@ -272,7 +293,7 @@ def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
             if not pods:
                 issues.append(
                     (
-                        f"No pods found for app={nf_type} in namespace '{namespace}'",
+                        f"No pods found for {selector} in namespace '{namespace}'",
                         True,
                     )
                 )
@@ -323,7 +344,7 @@ def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
     # 2. Service endpoint readiness
     # ------------------------------------------------------------------
     rc, stdout, _ = _kubectl(
-        f"get endpoints -n {namespace} -l app={nf_type} -o json"
+        f"get endpoints -n {namespace} -l {selector} -o json"
     )
     if rc == 0 and stdout.strip():
         try:
