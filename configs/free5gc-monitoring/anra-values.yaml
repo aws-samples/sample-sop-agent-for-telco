@@ -28,6 +28,7 @@ monitoring:
   influxdbOrg: free5gc
   influxdbBucket: free5gc
   alertmanagerUrl: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+  pollIntervalSeconds: 15  # WORKSHOP TUNING: halve alarm pickup latency
 
 config:
   cluster:

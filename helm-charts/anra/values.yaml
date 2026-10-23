@@ -359,6 +359,9 @@ monitoring:
   influxdbBucket: srsran
   # Alertmanager (deployed by `make monitoring` if available)
   alertmanagerUrl: "http://alertmanager.anra.svc:9093"
+  # Seconds between ANRA monitor loop iterations (threshold evaluation,
+  # Alertmanager/k8s polling). Lower = faster detection, more API calls.
+  pollIntervalSeconds: 30
 
 # Dashboard
 webui:
@@ -386,6 +389,10 @@ ssm:
 auth:
   username: admin
   password: ""
+  # Explicit opt-out. Only set true when an upstream gate (e.g. Cognito at the
+  # CloudFront edge) authenticates every request before it reaches the pod.
+  # With disabled=false and an empty password the API fails closed (503).
+  disabled: false
 
 # --- Self-Update (Edge Autonomy) ---
 # ANRA pulls its own updates from ECR — no dependency on management cluster.

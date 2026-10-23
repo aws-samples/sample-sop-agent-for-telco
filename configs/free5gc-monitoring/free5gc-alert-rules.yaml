@@ -8,9 +8,10 @@ metadata:
 spec:
   groups:
     - name: free5gc-workshop
-      interval: 30s
-      # WORKSHOP TUNING: `for:` windows are deliberately short (30s-2m) so a
-      # fault injected by a participant surfaces in ANRA within ~1-2 minutes.
+      interval: 15s
+      # WORKSHOP TUNING: `for:` windows are deliberately short (30s-2m) and the
+      # group evaluates every 15s so a fault injected by a participant surfaces
+      # in ANRA within about a minute.
       # Production rules should debounce longer. The `sop` annotation binds the
       # alert to a remediation SOP (path relative to sops/); ANRA reads it via
       # monitor.resolve_sop_reference(). See docs/workshop-v3.md.
@@ -20,7 +21,7 @@ spec:
           # pod cannot become Ready. (status_replicas_unavailable is desired minus
           # available, so it stays 0 when desired is 0 and misses scale-downs.)
           expr: kube_deployment_status_replicas_available{namespace="free5gc",deployment=~"free5gc-.*"} == 0
-          for: 1m
+          for: 30s
           labels:
             severity: critical
             layer: core
@@ -71,7 +72,7 @@ spec:
           # this fires when the AMF itself is down instead of silently returning
           # no data. metrics_missing still fires separately for the scrape gap.
           expr: (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) or vector(0)) < 1
-          for: 1m
+          for: 30s
           labels:
             severity: critical
             layer: core
