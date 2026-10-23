@@ -172,7 +172,8 @@ class SOPBridge:
         if execution_mode == "dry-run":
             return self._execute_dry_run(nf_name, plan_name)
 
-        # Live AI execution
+        # Live AI execution. An explicit spec.sopPath (set by ANRA when the
+        # operator approved a specific SOP) is resolved here and handed down.
         return self._execute_ai(
             nf_name=nf_name,
             namespace=namespace,
@@ -182,6 +183,7 @@ class SOPBridge:
             reason=reason,
             vendor=vendor,
             strategy=strategy,
+            approved_sop=self._resolve_plan_sop(spec),
         )
 
     # -----------------------------------------------------------------------
@@ -226,18 +228,20 @@ class SOPBridge:
         reason: str,
         vendor: str,
         strategy: Optional[Any],
+        approved_sop: Optional[str] = None,
     ) -> SOPResult:
-        """Execute deployment via AI agent with full context."""
+        """Execute deployment via AI agent with full context.
+
+        ``approved_sop`` is the resolved DeploymentPlan.spec.sopPath, if any; it
+        takes precedence over the filename heuristic and is inlined in the prompt.
+        """
         from amzn_cse_telco_autonomous_network_agents_app.agent.sop_executor import create_agent
         from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.progress_hook import (
             DeploymentProgressHook,
         )
 
         tools = self.get_tools()
-        # An explicit spec.sopPath (set by ANRA when the operator approved a
-        # specific SOP) takes precedence over the filename heuristic. The agent
-        # must then follow that SOP rather than improvise a generic deploy.
-        sop_path = self._resolve_plan_sop(spec) or self._find_relevant_sop(intent, nf_name)
+        sop_path = approved_sop or self._find_relevant_sop(intent, nf_name)
         prompt = self._build_context_prompt(
             nf_name=nf_name,
             namespace=namespace,
@@ -247,7 +251,7 @@ class SOPBridge:
             vendor=vendor,
             strategy=strategy,
             sop_path=sop_path,
-            sop_explicit=bool(self._resolve_plan_sop(spec)),
+            sop_explicit=bool(approved_sop),
         )
 
         # Create progress hook for live status updates

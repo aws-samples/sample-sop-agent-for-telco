@@ -356,3 +356,23 @@ class TestVerdict:
 
     def test_success_then_later_failure_is_failure(self):
         assert self._v("✅ SUCCESS step 1\n... ❌ FAILURE verification") is False
+
+
+class TestExecutePassesApprovedSop:
+    def setup_method(self):
+        self.bridge = SOPBridge()
+
+    def test_execute_hands_resolved_sop_path_to_ai(self, tmp_path):
+        sop = tmp_path / "free5gc-nf-unavailable.md"; sop.write_text("# SOP")
+        plan = _make_plan(intent="remediation")
+        plan["spec"]["sopPath"] = str(sop)
+        with patch.object(self.bridge, "_run_config_gen_if_needed"), \
+             patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
+            self.bridge.execute("amf", plan, namespace="free5gc", cluster="c1")
+        assert mock_ai.call_args.kwargs["approved_sop"] == str(sop)
+
+    def test_execute_without_sop_path_passes_none(self):
+        with patch.object(self.bridge, "_run_config_gen_if_needed"), \
+             patch.object(self.bridge, "_execute_ai", return_value=SOPResult(success=True)) as mock_ai:
+            self.bridge.execute("amf", _make_plan(intent="remediation"), namespace="free5gc", cluster="c1")
+        assert mock_ai.call_args.kwargs["approved_sop"] is None

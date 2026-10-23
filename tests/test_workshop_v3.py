@@ -408,3 +408,31 @@ def test_anra_chart_renders_free5gc_environment_and_alarm_references():
     config = yaml.safe_load(configmap["data"]["agent-config.yaml"])
     assert config["alarm_references"] == ["alarm-references/free5gc.yaml"]
     assert config["nodes"][0]["namespaces"] == ["free5gc"]
+
+
+class TestEnrichmentOnlyForGeneratedSops:
+    def test_repo_sop_detected(self, monkeypatch, tmp_path):
+        from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+        (tmp_path / "sops" / "day2-remediate" / "core").mkdir(parents=True)
+        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"; f.write_text("# x")
+        monkeypatch.setattr(monitor, "SOP_REPO", str(tmp_path))
+        assert monitor._is_repo_sop(str(f)) is True
+        assert monitor._is_repo_sop("/tmp/generated-sops/remediate-foo.md") is False
+        assert monitor._is_repo_sop("") is False
+
+    def test_submit_sop_skips_enrichment_for_repo_sop(self, monkeypatch, tmp_path):
+        from amzn_cse_telco_autonomous_network_agents_app.agent import monitor
+        (tmp_path / "sops" / "day2-remediate" / "core").mkdir(parents=True)
+        f = tmp_path / "sops" / "day2-remediate" / "core" / "x.md"; f.write_text("# x")
+        monkeypatch.setattr(monitor, "SOP_REPO", str(tmp_path))
+        monkeypatch.setattr(monitor, "APPROVAL_MODE", "manual")
+        monkeypatch.setattr(monitor, "resolve_sop", lambda alert: str(f))
+        calls = []
+        monkeypatch.setattr(monitor, "_enrich_sop_file", lambda p, a: calls.append(p) or p)
+        captured = {}
+        import amzn_cse_telco_autonomous_network_agents_app.agent.app_state as app_state
+        monkeypatch.setattr(app_state, "push_pending_approval", lambda n, p, a: captured.update(sop=p))
+        monitor._active_sops.discard("free5gc_nf_unavailable")
+        monitor._submit_sop({"name": "free5gc_nf_unavailable", "severity": "critical", "source": "alertmanager"})
+        assert calls == []                      # enrichment not invoked
+        assert captured["sop"] == str(f)        # approval carries the repo path

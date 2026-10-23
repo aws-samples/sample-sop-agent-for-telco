@@ -656,6 +656,40 @@ SOP:
         return sop_content
 
 
+def _is_repo_sop(sop_path: str) -> bool:
+    """True when sop_path is a hand-written SOP under SOP_REPO/sops (not generated)."""
+    try:
+        repo_sops = (Path(SOP_REPO) / "sops").resolve()
+        return Path(sop_path).resolve().is_relative_to(repo_sops)
+    except (OSError, ValueError):
+        return False
+
+
+def _enrich_sop_file(sop_path: str, alert: dict) -> str:
+    """Run _enrich_sop on the file and return the path to use (enriched or original)."""
+    try:
+        sop_content = Path(sop_path).read_text()
+        log.info(f"Enriching SOP for {alert['name']} ({len(sop_content)} chars)")
+        enriched = _enrich_sop(sop_content, alert)
+        try:
+            from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
+            push_activity("enrich", "Bedrock enriching SOP for %s" % alert["name"])
+        except Exception:
+            pass
+        if enriched != sop_content:
+            enriched_path = f"/tmp/{Path(sop_path).stem}-enriched.md"  # nosec B108
+            Path(enriched_path).write_text(enriched)
+            sop_path = enriched_path
+            log.info(f"Using enriched SOP: {enriched_path}")
+        else:
+            log.info("Enrichment returned original (Bedrock unavailable or no changes)")
+    except Exception as e:
+        log.warning(f"Enrichment failed for {alert['name']}: {e}")
+
+    return sop_path
+
+
 def _submit_sop(alert, correlation_result=None):
     """Submit SOP execution to thread pool. Non-blocking."""
     global _dynamic_sop_count, _dynamic_sop_reset
@@ -684,26 +718,16 @@ def _submit_sop(alert, correlation_result=None):
         log.warning(f"No SOP available for {alert['name']}")
         return
 
-    # Enrich SOP with real environment values before execution
-    try:
-        sop_content = Path(sop_path).read_text()
-        log.info(f"Enriching SOP for {alert['name']} ({len(sop_content)} chars)")
-        enriched = _enrich_sop(sop_content, alert)
-        try:
-            from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
-
-            push_activity("enrich", "Bedrock enriching SOP for %s" % alert["name"])
-        except Exception:
-            pass
-        if enriched != sop_content:
-            enriched_path = f"/tmp/{Path(sop_path).stem}-enriched.md"  # nosec B108
-            Path(enriched_path).write_text(enriched)
-            sop_path = enriched_path
-            log.info(f"Using enriched SOP: {enriched_path}")
-        else:
-            log.info("Enrichment returned original (Bedrock unavailable or no changes)")
-    except Exception as e:
-        log.warning(f"Enrichment failed for {alert['name']}: {e}")
+    # Enrich SOP with real environment values before execution — only for
+    # Bedrock-generated SOPs (they carry <pod-name>/<namespace> placeholders).
+    # Hand-written SOPs under SOP_REPO/sops already use real resource names, and
+    # enrichment (a) costs a 20-40s Haiku call, (b) can drop steps or hit
+    # max_tokens, and (c) yields a /tmp path ANDA cannot read when the approval
+    # is handed over as DeploymentPlan.spec.sopPath.
+    if _is_repo_sop(sop_path):
+        log.info(f"Repository SOP for {alert['name']} — skipping enrichment: {sop_path}")
+    else:
+        sop_path = _enrich_sop_file(sop_path, alert)
 
     if APPROVAL_MODE != "auto":
         log.info(f"Approval required for {alert['name']} — SOP: {sop_path}")
