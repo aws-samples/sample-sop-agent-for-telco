@@ -234,6 +234,10 @@ class SOPBridge:
         )
 
         tools = self.get_tools()
+        # An explicit spec.sopPath (set by ANRA when the operator approved a
+        # specific SOP) takes precedence over the filename heuristic. The agent
+        # must then follow that SOP rather than improvise a generic deploy.
+        sop_path = self._resolve_plan_sop(spec) or self._find_relevant_sop(intent, nf_name)
         prompt = self._build_context_prompt(
             nf_name=nf_name,
             namespace=namespace,
@@ -242,15 +246,14 @@ class SOPBridge:
             reason=reason,
             vendor=vendor,
             strategy=strategy,
+            sop_path=sop_path,
+            sop_explicit=bool(self._resolve_plan_sop(spec)),
         )
 
         # Create progress hook for live status updates
         progress_hook = DeploymentProgressHook(
             plan_name=plan_name, nf_name=nf_name,
         )
-
-        # Find the best SOP for context (agent reads it, but doesn't blindly follow)
-        sop_path = self._find_relevant_sop(intent, nf_name)
 
         try:
             agent, _ = create_agent(
@@ -273,7 +276,7 @@ class SOPBridge:
             result = agent(prompt)
 
             output = str(result) if result else ""
-            success = "❌" not in output and "FAILURE" not in output.upper()
+            success = self._verdict(output)
 
             progress_hook.patch_cr_phase("Completed" if success else "Failed")
 
@@ -322,12 +325,36 @@ class SOPBridge:
         reason: str,
         vendor: str,
         strategy: Optional[Any],
+        sop_path: Optional[str] = None,
+        sop_explicit: bool = False,
     ) -> str:
-        """Build a context-rich prompt that lets the AI agent decide the approach."""
+        """Build a context-rich prompt that lets the AI agent decide the approach.
+
+        When ``sop_explicit`` is set, ``sop_path`` is the SOP an operator approved
+        for this plan: its content is inlined and the agent is told to execute it
+        (diagnose, remediate, verify, including follow-on steps such as
+        re-attaching the UE) instead of the generic install/upgrade decision tree.
+        """
         parts: List[str] = []
 
         parts.append(f"# Deployment Task: {intent} {nf_name}")
         parts.append("")
+        if sop_explicit and sop_path:
+            sop_text = self._read_sop_text(sop_path)
+            if sop_text:
+                parts.append("## Approved SOP (execute this)")
+                parts.append(f"An operator approved `{os.path.basename(sop_path)}` for this {intent}. "
+                             "Follow its Steps in order: run the Diagnose steps first, choose the "
+                             "Remediate branch that matches what you observe, then run every Verify "
+                             "step and any follow-on step the SOP marks as required (for example "
+                             "re-attaching the UE after an AMF/UPF restart). Adapt commands to the "
+                             "real pod/deployment names you see; skip a step only when its "
+                             "precondition is absent and say so.")
+                parts.append("")
+                parts.append("```markdown")
+                parts.append(sop_text)
+                parts.append("```")
+                parts.append("")
         parts.append("## Context")
         parts.append(f"- **NF:** {nf_name}")
         parts.append(f"- **Namespace:** {namespace}")
@@ -396,6 +423,57 @@ class SOPBridge:
     # -----------------------------------------------------------------------
     # SOP Discovery (non-rigid — agent uses as reference, not dispatch)
     # -----------------------------------------------------------------------
+
+    # SOP text cap for the prompt: our SOPs are 6-10 KB; cap protects the context.
+    _SOP_INLINE_MAX_CHARS = 16000
+
+    def _resolve_plan_sop(self, spec: Dict[str, Any]) -> Optional[str]:
+        """Return the SOP file named by ``spec.sopPath`` if it exists, else None.
+
+        Accepts an absolute path (as written by ANRA, e.g. ``/app/sops/...``) or a
+        path relative to ``<SOP_ROOT>/sops/``.
+        """
+        raw = (spec or {}).get("sopPath") or ""
+        if not isinstance(raw, str) or not raw.strip():
+            return None
+        raw = raw.strip()
+        candidates = [raw] if os.path.isabs(raw) else [
+            os.path.join(_SOP_ROOT, "sops", raw),
+            os.path.join(_SOP_ROOT, raw),
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                return c
+        log.warning("DeploymentPlan sopPath %r not found; falling back to SOP lookup", raw)
+        return None
+
+    def _read_sop_text(self, path: str) -> str:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as exc:
+            log.warning("Unable to read SOP %s: %s", path, exc)
+            return ""
+        if len(text) > self._SOP_INLINE_MAX_CHARS:
+            text = text[: self._SOP_INLINE_MAX_CHARS] + "\n\n[... SOP truncated for prompt size ...]"
+        return text
+
+    @staticmethod
+    def _verdict(output: str) -> bool:
+        """Decide success from the agent's final report.
+
+        The prompt asks for a closing ``✅ SUCCESS`` or ``❌ FAILURE``. Judge by the
+        LAST such marker rather than by substring presence: a successful report
+        legitimately contains the words "failure"/"unavailable" (alarm names,
+        "not a failure", the instruction echoed back), which used to flip the
+        result to Failed. No marker at all is treated as failure.
+        """
+        text = output or ""
+        last_ok = max(text.rfind("✅ SUCCESS"), text.rfind("SUCCESS"))
+        last_bad = max(text.rfind("❌ FAILURE"), text.rfind("❌"))
+        if last_ok < 0 and last_bad < 0:
+            return False
+        return last_ok > last_bad
 
     def _find_relevant_sop(self, intent: str, nf_name: str) -> Optional[str]:
         """Find the most relevant SOP file for context.
