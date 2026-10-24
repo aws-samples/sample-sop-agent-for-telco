@@ -205,10 +205,23 @@ hatch run dev                 # FastAPI on :8080
 hatch test -- tests/helm/     # Helm chart unit tests
 ```
 
+### Publishing the Workshop Image
+
+The publishing implementation lives in `scripts/publish-workshop-image.sh`. For a local release, authenticate with the workshop image account and run:
+
+```bash
+AWS_PROFILE=cse-dev-test scripts/publish-workshop-image.sh
+```
+
+The script verifies the `workshop-v3` branch, a clean working tree, successful local CI gates, AWS account `833542146025`, and the authoritative repository `public.ecr.aws/t2j9i5y9/anra-workshop` before building or pushing. It publishes immutable `<SHA>` and `workshop-v3-<SHA>` tags and prints the resulting digest and deployment exports. Use `--publish-dev` only for the moving test-loop tag. Use `--dry-run --skip-validation --allow-dirty` to inspect the plan without contacting AWS or Docker.
+
+The GitHub `publish-workshop-image` job uses OIDC credentials and calls this same script after all CI gates pass; the workflow no longer carries a second copy of the build/push commands.
+
 ### Pipeline
 
 - **Build system**: Hatch
 - **CI**: GitHub Actions on `workshop-v3`
+- **Image publisher**: `scripts/publish-workshop-image.sh`
 - **Images**: immutable commit-SHA and `workshop-v3-<SHA>` tags; no `latest` publication
 - **Coverage**: project threshold defined in `pyproject.toml`
 

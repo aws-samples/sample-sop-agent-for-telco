@@ -64,7 +64,8 @@ def test_sop3_installer_derives_metadata_without_switching_contexts():
     assert "kubectl config view --minify" in text
     assert "KUBE_CLUSTER_REFERENCE" in text
     assert "aws eks update-kubeconfig" not in text
-    assert "STACK_NAME" not in text
+    assert "\nSTACK_NAME=" not in text
+    assert '--stack-name "${STACK_NAME}"' not in text
     assert 'AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git -C' in text
     assert 'AGENT_IMAGE_TAG}" = "latest"' in text
     assert '--set-string config.cluster.name="${CLUSTER_NAME}"' in text

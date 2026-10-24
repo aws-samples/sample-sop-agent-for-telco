@@ -113,7 +113,7 @@ jobs:
   publish-workshop-image:
     name: Publish workshop image
     runs-on: ubuntu-latest
-    needs: [unit-tests, code-quality, security, helm-validate]
+    needs: [unit-tests, code-quality, security, helm-validate, shellcheck]
     if: github.event_name == 'push' && github.ref == 'refs/heads/workshop-v3'
     permissions:
       id-token: write
@@ -125,25 +125,5 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - name: Login to Public ECR
-        run: |
-          aws ecr-public get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin public.ecr.aws
-      - name: Build and push
-        run: |
-          # Immutable per-commit tags are what the workshop pins (WorkshopSourceCommit ->
-          # script 04 defaults AGENT_IMAGE_TAG to the checked-out short SHA). The moving
-          # "dev" tag always points at the latest build of this branch and exists only for
-          # the test loop (AGENT_IMAGE_TAG=dev); never reference it from workshop content.
-          REPO=public.ecr.aws/t2j9i5y9/anra-workshop
-          SHA=$(git rev-parse --short=7 HEAD)
-          docker build -t $REPO:$SHA -t $REPO:workshop-v3-$SHA -t $REPO:dev .
-          docker push $REPO:$SHA
-          docker push $REPO:workshop-v3-$SHA
-          docker push $REPO:dev
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $REPO:$SHA | cut -d@ -f2)
-          echo "### 🚀 Workshop-v3 image published" >> $GITHUB_STEP_SUMMARY
-          echo "- \`$REPO:$SHA\` (pin this)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`$REPO:workshop-v3-$SHA\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`$REPO:dev\` (moving, test loop only)" >> $GITHUB_STEP_SUMMARY
-          echo "- digest: \`$DIGEST\`" >> $GITHUB_STEP_SUMMARY
+      - name: Build and publish workshop-v3 image
+        run: scripts/publish-workshop-image.sh --skip-validation --publish-dev
