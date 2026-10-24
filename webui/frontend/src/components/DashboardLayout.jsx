@@ -13,7 +13,6 @@ import {
   LockOutlined,
   CrownOutlined,
   CheckCircleOutlined,
-  CloudServerOutlined,
   DeploymentUnitOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
@@ -22,15 +21,13 @@ import { useDemoMode } from '../context/DemoContext'
 
 const PAGE_TITLES = {
   '/': 'Mission Control',
-  '/anpa': 'ANPA — Autonomous Network Provisioning Agent (Day 0)',
-  '/anda': 'ANDA — Autonomous Network Deployment Agent (Day 1)',
-  '/anra': 'ANRA — Autonomous Network Remediation Agent (Day 2)',
+  '/anda': 'Network Change Agent',
+  '/anra': 'Network Assurance Agent',
   '/approvals': 'Decisions & Approvals',
   '/alarms': 'Alarms & Remediation',
   '/sops': 'SOPs',
-  '/incidents': 'Incidents',
   '/topology': 'Topology',
-  '/ask': 'Ask ANO',
+  '/ask': 'Ask AI Agent',
 }
 
 const { Header, Sider, Content } = Layout
@@ -79,9 +76,8 @@ const DashboardLayout = ({ children }) => {
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: 'Mission Control' },
     { type: 'divider' },
-    { key: '/anpa', icon: <CloudServerOutlined />, label: 'ANPA (Day 0)' },
-    { key: '/anda', icon: <DeploymentUnitOutlined />, label: 'ANDA (Day 1)' },
-    { key: '/anra', icon: <SafetyCertificateOutlined />, label: 'ANRA (Day 2)' },
+    { key: '/anra', icon: <SafetyCertificateOutlined />, label: 'Network Assurance Agent' },
+    { key: '/anda', icon: <DeploymentUnitOutlined />, label: 'Network Change Agent' },
     { type: 'divider' },
     {
       key: '/approvals',
@@ -96,10 +92,9 @@ const DashboardLayout = ({ children }) => {
       ),
     },
     { key: '/alarms', icon: <AlertOutlined />, label: 'Alarms' },
-    { key: '/incidents', icon: <AlertOutlined />, label: 'Incidents' },
     { key: '/topology', icon: <ApartmentOutlined />, label: 'Topology' },
     { key: '/sops', icon: <SyncOutlined />, label: 'SOPs' },
-    { key: '/ask', icon: <RobotOutlined />, label: 'Ask ANO' },
+    { key: '/ask', icon: <RobotOutlined />, label: 'Ask AI Agent' },
   ]
 
   const handleMenuClick = ({ key }) => {

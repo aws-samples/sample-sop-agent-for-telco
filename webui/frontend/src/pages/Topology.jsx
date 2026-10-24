@@ -66,7 +66,7 @@ const PodView = () => {
         <Space>
           <span style={{ fontSize: 13, color: showAnra ? '#999' : '#1565c0' }}>5G Network</span>
           <Switch checked={showAnra} onChange={setShowAnra} />
-          <span style={{ fontSize: 13, color: showAnra ? '#e65100' : '#999' }}>ANRA Overlay</span>
+          <span style={{ fontSize: 13, color: showAnra ? '#e65100' : '#999' }}>Assurance Overlay</span>
         </Space>
       </div>
 

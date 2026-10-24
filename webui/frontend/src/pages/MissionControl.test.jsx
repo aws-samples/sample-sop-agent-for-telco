@@ -13,8 +13,6 @@ const mockGetMonitoringStats = vi.fn()
 const mockGetAnraTrackRecord = vi.fn()
 const mockGetAndaActiveDeployment = vi.fn()
 const mockGetAndaFleetOpinions = vi.fn()
-const mockGetInventory = vi.fn()
-const mockGetProvisioningRequests = vi.fn()
 
 vi.mock('../services/api', () => ({
   getAgentsStatus: (...args) => mockGetAgentsStatus(...args),
@@ -26,8 +24,6 @@ vi.mock('../services/api', () => ({
   getAnraTrackRecord: (...args) => mockGetAnraTrackRecord(...args),
   getAndaActiveDeployment: (...args) => mockGetAndaActiveDeployment(...args),
   getAndaFleetOpinions: (...args) => mockGetAndaFleetOpinions(...args),
-  getInventory: (...args) => mockGetInventory(...args),
-  getProvisioningRequests: (...args) => mockGetProvisioningRequests(...args),
 }))
 
 // ── Mock useNavigate ──
@@ -57,8 +53,6 @@ const reasoningFixture = {
 const monitoringFixture = { tier1_rules: 12, tier2_metrics: 12, tier2_pct: 67 }
 const alarmsFixture = { alarms: [{ id: 1 }, { id: 2 }], count: 2 }
 const trackRecordFixture = { auto_resolved: 3, mttr_minutes: 4.2, sop_success_rate: 95 }
-const inventoryFixture = { servers: [{ hostname: 'mi-026bd', phase: 'Ready' }, { hostname: 'mi-0c32a', phase: 'Ready' }] }
-const provisioningFixture = { requests: [] }
 const fleetFixture = { nfs: [{ name: 'AMF', status: 'Running', opinion: 'stable' }, { name: 'SMF', status: 'Running', opinion: 'upgrade' }, { name: 'UPF', status: 'Running', opinion: 'stable' }] }
 const activeDeploymentFixture = { status: 'in-progress', nf: 'SMF', stage: 'draining' }
 
@@ -82,8 +76,6 @@ function mockAllApisSuccess() {
   mockGetAnraTrackRecord.mockResolvedValue(trackRecordFixture)
   mockGetAndaActiveDeployment.mockResolvedValue(activeDeploymentFixture)
   mockGetAndaFleetOpinions.mockResolvedValue(fleetFixture)
-  mockGetInventory.mockResolvedValue(inventoryFixture)
-  mockGetProvisioningRequests.mockResolvedValue(provisioningFixture)
 }
 
 // ── Tests ──
@@ -101,22 +93,20 @@ describe('MissionControl', () => {
     mockGetAnraTrackRecord.mockReturnValue(new Promise(() => {}))
     mockGetAndaActiveDeployment.mockReturnValue(new Promise(() => {}))
     mockGetAndaFleetOpinions.mockReturnValue(new Promise(() => {}))
-    mockGetInventory.mockReturnValue(new Promise(() => {}))
-    mockGetProvisioningRequests.mockReturnValue(new Promise(() => {}))
     renderMissionControl()
 
     expect(screen.getByText('Autonomous Network Operations')).toBeInTheDocument()
-    expect(screen.getByText(/3 Agents/)).toBeInTheDocument()
+    expect(screen.getByText(/2 Agents/)).toBeInTheDocument()
   })
 
-  it('renders all three agent cards with correct day labels', async () => {
+  it('renders the two participant-facing agent cards', async () => {
     mockAllApisSuccess()
     renderMissionControl()
 
     await waitFor(() => {
-      expect(screen.getByText('Day 0 — Provisioning')).toBeInTheDocument()
-      expect(screen.getByText('Day 1 — Deployment')).toBeInTheDocument()
-      expect(screen.getByText('Day 2 — Remediation')).toBeInTheDocument()
+      expect(screen.getAllByText('Network Assurance Agent').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Network Change Agent').length).toBeGreaterThan(0)
+      expect(screen.queryByText('Day 0 — Provisioning')).not.toBeInTheDocument()
     })
   })
 
@@ -133,8 +123,6 @@ describe('MissionControl', () => {
       expect(mockGetAnraTrackRecord).toHaveBeenCalledTimes(1)
       expect(mockGetAndaActiveDeployment).toHaveBeenCalledTimes(1)
       expect(mockGetAndaFleetOpinions).toHaveBeenCalledTimes(1)
-      expect(mockGetInventory).toHaveBeenCalledTimes(1)
-      expect(mockGetProvisioningRequests).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -147,7 +135,7 @@ describe('MissionControl', () => {
     })
 
     expect(screen.getByText('3GPP drain: AMF sessions=0')).toBeInTheDocument()
-    expect(screen.getByText('Provisioning request PR-003 completed')).toBeInTheDocument()
+    expect(screen.queryByText('Provisioning request PR-003 completed')).not.toBeInTheDocument()
     expect(screen.getByText('Observe')).toBeInTheDocument()
     expect(screen.getByText('Decide')).toBeInTheDocument()
   })
@@ -157,17 +145,19 @@ describe('MissionControl', () => {
     renderMissionControl()
 
     await waitFor(() => {
-      expect(screen.getByText('Day 0 — Provisioning')).toBeInTheDocument()
+      expect(screen.getAllByText('Network Assurance Agent').length).toBeGreaterThan(0)
     })
 
-    fireEvent.click(screen.getByText('Day 0 — Provisioning').closest('.agent-hero-card'))
-    expect(mockNavigate).toHaveBeenCalledWith('/anpa')
+    const assuranceCardLabel = screen.getAllByText('Network Assurance Agent')
+      .find(element => element.closest('.agent-hero-card'))
+    const changeCardLabel = screen.getAllByText('Network Change Agent')
+      .find(element => element.closest('.agent-hero-card'))
 
-    fireEvent.click(screen.getByText('Day 1 — Deployment').closest('.agent-hero-card'))
-    expect(mockNavigate).toHaveBeenCalledWith('/anda')
-
-    fireEvent.click(screen.getByText('Day 2 — Remediation').closest('.agent-hero-card'))
+    fireEvent.click(assuranceCardLabel.closest('.agent-hero-card'))
     expect(mockNavigate).toHaveBeenCalledWith('/anra')
+
+    fireEvent.click(changeCardLabel.closest('.agent-hero-card'))
+    expect(mockNavigate).toHaveBeenCalledWith('/anda')
   })
 
   it('shows KPI cards with detection rules from API', async () => {
@@ -202,8 +192,6 @@ describe('MissionControl', () => {
     mockGetAnraTrackRecord.mockResolvedValue(trackRecordFixture)
     mockGetAndaActiveDeployment.mockResolvedValue(null)
     mockGetAndaFleetOpinions.mockResolvedValue(null)
-    mockGetInventory.mockResolvedValue(inventoryFixture)
-    mockGetProvisioningRequests.mockResolvedValue(provisioningFixture)
 
     renderMissionControl()
 

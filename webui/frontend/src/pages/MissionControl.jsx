@@ -8,7 +8,6 @@ import {
   SyncOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  CloudServerOutlined,
   DeploymentUnitOutlined,
   SafetyCertificateOutlined,
   EyeOutlined,
@@ -16,7 +15,6 @@ import {
   ToolOutlined,
   ClusterOutlined,
   ApiOutlined,
-  HddOutlined,
   WifiOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons'
@@ -35,12 +33,9 @@ import {
   getAlarms,
   getMetrics,
   getMonitoringStats,
-  getAnraIncidentCurrent,
   getAnraTrackRecord,
   getAndaActiveDeployment,
   getAndaFleetOpinions,
-  getInventory,
-  getProvisioningRequests,
 } from '../services/api'
 
 // ═══════════════════════════════════════════════════
@@ -48,32 +43,21 @@ import {
 // ═══════════════════════════════════════════════════
 
 const AGENT_META = {
-  ANPA: {
-    color: '#FA8C16',
-    gradient: 'linear-gradient(135deg, #FFF7E6 0%, #FFE7BA 100%)',
-    borderColor: '#FFD591',
-    icon: <CloudServerOutlined />,
-    day: 'Day 0',
-    title: 'Provisioning',
-    description: 'Bare-metal discovery, OS install, EKS node lifecycle',
-  },
   ANDA: {
+    displayName: 'Network Change Agent',
     color: '#52c41a',
     gradient: 'linear-gradient(135deg, #F6FFED 0%, #D9F7BE 100%)',
     borderColor: '#B7EB8F',
     icon: <DeploymentUnitOutlined />,
-    day: 'Day 1',
-    title: 'Deployment',
-    description: '3GPP-aware NF deployment, drain, rollback',
+    subtitle: 'Executes approved network changes',
   },
   ANRA: {
+    displayName: 'Network Assurance Agent',
     color: '#1890FF',
     gradient: 'linear-gradient(135deg, #E6F7FF 0%, #BAE7FF 100%)',
     borderColor: '#91D5FF',
     icon: <SafetyCertificateOutlined />,
-    day: 'Day 2',
-    title: 'Remediation',
-    description: 'OODA fault detection, correlation, auto-heal',
+    subtitle: 'Detects, correlates, and proposes actions',
   },
 }
 
@@ -133,8 +117,8 @@ const AgentHeroCard = ({ agentKey, agent, stats, onClick }) => {
             <span style={{ fontSize: 22, color: meta.color }}>{meta.icon}</span>
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1f1f1f', lineHeight: 1.2 }}>{agentKey}</div>
-            <div style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{meta.day} — {meta.title}</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#1f1f1f', lineHeight: 1.2 }}>{meta.displayName}</div>
+            <div style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{meta.subtitle}</div>
           </div>
         </div>
         <span style={{
@@ -182,9 +166,8 @@ const AgentHeroCard = ({ agentKey, agent, stats, onClick }) => {
 
 const AgentLifecycleFlow = () => {
   const stages = [
-    { key: 'ANPA', label: 'Day 0\nProvision', icon: <HddOutlined />, color: '#FA8C16' },
-    { key: 'ANDA', label: 'Day 1\nDeploy', icon: <DeploymentUnitOutlined />, color: '#52c41a' },
-    { key: 'ANRA', label: 'Day 2\nOperate', icon: <SafetyCertificateOutlined />, color: '#1890FF' },
+    { key: 'ANRA', label: 'Network Assurance Agent', shortLabel: 'Assure', icon: <SafetyCertificateOutlined />, color: '#1890FF' },
+    { key: 'ANDA', label: 'Network Change Agent', shortLabel: 'Change', icon: <DeploymentUnitOutlined />, color: '#52c41a' },
   ]
 
   return (
@@ -194,7 +177,7 @@ const AgentLifecycleFlow = () => {
     }}>
       {stages.map((stage, i) => (
         <div key={stage.key} style={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip title={`${stage.key}: ${stage.label.replace('\n', ' — ')}`}>
+          <Tooltip title={stage.label}>
             <div style={{
               width: 56, height: 56, borderRadius: '50%',
               background: `${stage.color}15`, border: `2px solid ${stage.color}`,
@@ -202,7 +185,7 @@ const AgentLifecycleFlow = () => {
               cursor: 'default',
             }}>
               <span style={{ fontSize: 18, color: stage.color }}>{stage.icon}</span>
-              <span style={{ fontSize: 8, color: stage.color, fontWeight: 700, marginTop: 1 }}>{stage.key}</span>
+              <span style={{ fontSize: 8, color: stage.color, fontWeight: 700, marginTop: 1 }}>{stage.shortLabel}</span>
             </div>
           </Tooltip>
           {i < stages.length - 1 && (
@@ -244,9 +227,9 @@ const CrossAgentInteraction = ({ interactions }) => {
           fontSize: 11, color: '#555', padding: '4px 8px',
           background: '#fafafa', borderRadius: 4,
         }}>
-          <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10 }}>{item.from}</Tag>
+          <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10 }}>{AGENT_META[item.from]?.displayName || item.from}</Tag>
           <span style={{ color: '#bbb' }}>→</span>
-          <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10 }}>{item.to}</Tag>
+          <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10 }}>{AGENT_META[item.to]?.displayName || item.to}</Tag>
           <span style={{ flex: 1 }}>{item.query}</span>
         </div>
       ))}
@@ -299,7 +282,7 @@ const ReasoningEntry = ({ entry }) => {
             style={{ margin: 0, fontSize: 10, fontWeight: 600 }}
             color={AGENT_META[entry.agent?.toUpperCase()]?.color || '#6A1B9A'}
           >
-            {entry.agent}
+            {AGENT_META[entry.agent?.toUpperCase()]?.displayName || entry.agent}
           </Tag>
         )}
         {entry.status && (
@@ -392,8 +375,6 @@ const MissionControl = () => {
   const [infraLoading, setInfraLoading] = useState(true)
   const [trackRecord, setTrackRecord] = useState(null)
   const [activeDeployment, setActiveDeployment] = useState(null)
-  const [inventory, setInventory] = useState(null)
-  const [provisioningRequests, setProvisioningRequests] = useState(null)
   const [fleetOpinions, setFleetOpinions] = useState(null)
 
   const loadAgents = () => {
@@ -404,7 +385,10 @@ const MissionControl = () => {
 
   const loadReasoning = () => {
     getAgentsReasoning()
-      .then(data => { setReasoning(data?.entries || []); setReasoningLoading(false) })
+      .then(data => {
+        setReasoning((data?.entries || []).filter(entry => entry.agent?.toUpperCase() !== 'ANPA'))
+        setReasoningLoading(false)
+      })
       .catch(() => setReasoningLoading(false))
   }
 
@@ -430,14 +414,10 @@ const MissionControl = () => {
       getAnraTrackRecord(),
       getAndaActiveDeployment(),
       getAndaFleetOpinions(),
-      getInventory(),
-      getProvisioningRequests(),
-    ]).then(([trackResult, deployResult, fleetResult, invResult, provResult]) => {
+    ]).then(([trackResult, deployResult, fleetResult]) => {
       if (trackResult.status === 'fulfilled') setTrackRecord(trackResult.value)
       if (deployResult.status === 'fulfilled') setActiveDeployment(deployResult.value)
       if (fleetResult.status === 'fulfilled') setFleetOpinions(fleetResult.value)
-      if (invResult.status === 'fulfilled') setInventory(invResult.value)
-      if (provResult.status === 'fulfilled') setProvisioningRequests(provResult.value)
     })
   }
 
@@ -463,11 +443,14 @@ const MissionControl = () => {
   // Derived data
   const agentMap = useMemo(() => {
     const map = {}
-    agents.forEach(a => { map[a.name?.toUpperCase()] = a })
+    agents
+      .filter(a => ['ANDA', 'ANRA'].includes(a.name?.toUpperCase()))
+      .forEach(a => { map[a.name?.toUpperCase()] = a })
     return map
   }, [agents])
 
-  const activeAgents = agents.filter(a => a.state === 'active' || a.state === 'thinking')
+  const visibleAgents = agents.filter(a => ['ANDA', 'ANRA'].includes(a.name?.toUpperCase()))
+  const activeAgents = visibleAgents.filter(a => a.state === 'active' || a.state === 'thinking')
   const alarmCount = alarms?.count || alarms?.alarms?.length || 0
   const tier1Rules = monStats?.tier1_rules || 0
   const tier2Metrics = monStats?.tier2_metrics || 0
@@ -497,9 +480,6 @@ const MissionControl = () => {
   const crossAgentInteractions = useMemo(() => {
     const interactions = []
     reasoning.forEach(entry => {
-      if (entry.message?.includes('ask_anpa') || entry.message?.includes('ANPA')) {
-        interactions.push({ from: 'ANRA', to: 'ANPA', query: 'Hardware status check' })
-      }
       if (entry.message?.includes('ask_anda') || entry.message?.includes('ANDA')) {
         interactions.push({ from: 'ANRA', to: 'ANDA', query: 'Recent deployments' })
       }
@@ -507,27 +487,12 @@ const MissionControl = () => {
     // Always show at least the capability
     if (interactions.length === 0) {
       interactions.push(
-        { from: 'ANRA', to: 'ANPA', query: 'Hardware health correlation' },
         { from: 'ANRA', to: 'ANDA', query: 'Deployment change correlation' },
         { from: 'ANDA', to: 'ANRA', query: 'Cluster health pre-check' },
       )
     }
     return interactions.slice(0, 3)
   }, [reasoning])
-
-  // ANPA stats
-  const anpaStats = useMemo(() => {
-    const inv = inventory?.servers || inventory || []
-    const reqs = provisioningRequests?.requests || provisioningRequests || []
-    const total = Array.isArray(inv) ? inv.length : 0
-    const ready = Array.isArray(inv) ? inv.filter(s => s.phase === 'Ready').length : 0
-    const pending = Array.isArray(reqs) ? reqs.filter(r => r.phase !== 'Ready' && r.phase !== 'Completed').length : 0
-    return [
-      { value: total || '2', label: 'Servers' },
-      { value: ready || '2', label: 'Ready' },
-      { value: pending || '0', label: 'Pending' },
-    ]
-  }, [inventory, provisioningRequests])
 
   // ANDA stats
   const andaStats = useMemo(() => {
@@ -579,7 +544,7 @@ const MissionControl = () => {
             <ClusterOutlined style={{ fontSize: 18, color: '#1890ff' }} />
             <div>
               <span style={{ fontWeight: 600, fontSize: 14 }}>Autonomous Network Operations</span>
-              <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>3 Agents • OODA Loop • Full Lifecycle</span>
+              <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>2 Agents • OODA Loop • Closed-loop Operations</span>
             </div>
           </div>
           <AgentLifecycleFlow />
@@ -592,7 +557,7 @@ const MissionControl = () => {
           <KpiCard
             title="Active Agents"
             value={activeAgents.length}
-            suffix={`/ ${agents.length || 3}`}
+            suffix={`/ ${visibleAgents.length || 2}`}
             icon={<RobotOutlined />}
             sparkData={sparklineMetrics}
             sparkKey="value"
@@ -639,28 +604,20 @@ const MissionControl = () => {
 
       {/* ═══ Agent Hero Cards ═══ */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={8}>
-          <AgentHeroCard
-            agentKey="ANPA"
-            agent={agentMap['ANPA']}
-            stats={anpaStats}
-            onClick={() => navigate('/anpa')}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <AgentHeroCard
-            agentKey="ANDA"
-            agent={agentMap['ANDA']}
-            stats={andaStats}
-            onClick={() => navigate('/anda')}
-          />
-        </Col>
-        <Col xs={24} md={8}>
+        <Col xs={24} md={12}>
           <AgentHeroCard
             agentKey="ANRA"
             agent={agentMap['ANRA']}
             stats={anraStats}
             onClick={() => navigate('/anra')}
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <AgentHeroCard
+            agentKey="ANDA"
+            agent={agentMap['ANDA']}
+            stats={andaStats}
+            onClick={() => navigate('/anda')}
           />
         </Col>
       </Row>
@@ -744,9 +701,9 @@ const MissionControl = () => {
                 fontSize: 12, color: '#555', padding: '6px 10px',
                 background: '#fafafa', borderRadius: 6, border: '1px solid #f0f0f0',
               }}>
-                <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{item.from}</Tag>
+                <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{AGENT_META[item.from]?.displayName || item.from}</Tag>
                 <span style={{ color: '#bbb', fontSize: 14 }}>→</span>
-                <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{item.to}</Tag>
+                <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{AGENT_META[item.to]?.displayName || item.to}</Tag>
                 <span style={{ flex: 1, fontStyle: 'italic' }}>{item.query}</span>
               </div>
             ))}

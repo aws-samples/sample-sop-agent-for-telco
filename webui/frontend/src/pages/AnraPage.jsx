@@ -1,20 +1,17 @@
 import { useState, useEffect } from 'react'
 import {
-  Row, Col, Card, Tag, Skeleton, Empty, Alert, Statistic,
-  Timeline, Steps, Descriptions, Progress, Button,
+  Row, Col, Card, Tag, Skeleton, Empty, Alert,
+  Timeline, Steps, Descriptions, Progress,
 } from 'antd'
 import {
   SafetyCertificateOutlined,
   FireOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   ThunderboltOutlined,
   EyeOutlined,
   HistoryOutlined,
   TrophyOutlined,
-  LinkOutlined,
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
 import { getAnraIncidentCurrent, getAnraTrackRecord, getAgentsReasoning } from '../services/api'
 
 const OODA_STEPS = [
@@ -86,8 +83,6 @@ const OodaChain = ({ currentState, loading }) => {
 }
 
 const IncidentCard = ({ incident, loading }) => {
-  const navigate = useNavigate()
-
   if (loading) return <Skeleton active paragraph={{ rows: 4 }} />
 
   if (!incident || !incident.active) {
@@ -141,17 +136,6 @@ const IncidentCard = ({ incident, loading }) => {
         )}
       </Descriptions>
 
-      {incident.incident_id && (
-        <Button
-          type="link"
-          icon={<LinkOutlined />}
-          size="small"
-          style={{ marginTop: 12, paddingLeft: 0 }}
-          onClick={() => navigate(`/incidents/${incident.incident_id}`)}
-        >
-          View incident timeline
-        </Button>
-      )}
     </div>
   )
 }
@@ -324,7 +308,7 @@ const AnraPage = () => {
             title={
               <span>
                 <ThunderboltOutlined style={{ marginRight: 8, color: '#7C4DFF' }} />
-                ANRA Reasoning
+                Assurance Agent Reasoning
               </span>
             }
             bordered={false}
@@ -350,7 +334,7 @@ const AnraPage = () => {
                   children: (
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#6A1B9A', marginBottom: 2 }}>
-                        {entry.agent && <span>[{entry.agent}] </span>}
+                        {entry.agent && <span>[Network Assurance Agent] </span>}
                         {entry.message}
                       </div>
                       {entry.detail && (

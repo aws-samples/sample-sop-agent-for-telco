@@ -6,7 +6,7 @@ import axios from 'axios'
 const SUGGESTIONS = ['What alarms are active?', 'Explain the last SOP execution', 'What is the network status?', 'What happened in the last hour?']
 
 const AskAnra = () => {
-  const [msgs, setMsgs] = useState([{ role: 'agent', text: "I'm ANRA — ask me about alarms, SOPs, nodes, or blast radius." }])
+  const [msgs, setMsgs] = useState([{ role: 'agent', text: "I'm the AI Network Operations Agent — ask me about alarms, SOPs, nodes, or service impact." }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef(null)
@@ -41,7 +41,7 @@ const AskAnra = () => {
           {SUGGESTIONS.map(q => <Tag key={q} color="blue" style={{ cursor: 'pointer' }} onClick={() => send(q)}>{q}</Tag>)}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Input value={input} onChange={e => setInput(e.target.value)} onPressEnter={() => send()} placeholder="Ask ANRA..." />
+          <Input value={input} onChange={e => setInput(e.target.value)} onPressEnter={() => send()} placeholder="Ask the AI Agent..." />
           <Button type="primary" icon={<SendOutlined />} onClick={() => send()} loading={loading} />
         </div>
       </div>

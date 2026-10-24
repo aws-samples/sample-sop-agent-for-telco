@@ -166,7 +166,7 @@ const DeploymentPipeline = ({ deployment, loading }) => {
         }
         description={deployment.reasoning && (
           <div style={{ background: '#F3E5F5', borderRadius: 4, padding: '6px 10px', marginTop: 8, borderLeft: '3px solid #CE93D8' }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#6A1B9A', marginRight: 6 }}>ANDA reasoning:</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#6A1B9A', marginRight: 6 }}>Change Agent reasoning:</span>
             <span style={{ fontSize: 12, color: '#333' }}>{deployment.reasoning}</span>
           </div>
         )}
@@ -275,13 +275,13 @@ const FleetTable = ({ opinions, loading }) => {
       },
     },
     {
-      title: 'ANDA Opinion',
+      title: 'Change Agent Opinion',
       dataIndex: 'opinion',
       key: 'opinion',
       render: opinion => {
         const color = OPINION_COLORS[opinion?.toLowerCase()] || '#8c8c8c'
         return opinion ? (
-          <Tooltip title="ANDA's recommendation based on fleet health">
+          <Tooltip title="Change Agent recommendation based on fleet health">
             <span
               style={{
                 display: 'inline-flex',
@@ -481,7 +481,7 @@ const AndaPage = () => {
             title={
               <span>
                 <RobotOutlined style={{ marginRight: 8, color: '#6A1B9A' }} />
-                NF Fleet with ANDA Opinions
+                NF Fleet with Change Agent Opinions
               </span>
             }
             bordered={false}

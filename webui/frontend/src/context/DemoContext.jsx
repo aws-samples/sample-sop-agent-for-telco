@@ -52,15 +52,13 @@ export const MOCK_IMPACT_DATA = {
 }
 
 export const MOCK_REASONING_FEED = [
-  { time: '14:32:01', agent: 'ANRA', message: 'Detected thermal anomaly on worker-01 — fan RPM dropped 40%' },
-  { time: '14:32:03', agent: 'ANRA', message: 'Checking BMC SEL for hardware events via Redfish...' },
-  { time: '14:32:05', agent: 'ANRA', message: 'Root cause: Fan-3 failure. Recommending workload migration.' },
-  { time: '14:32:08', agent: 'ANPA', message: 'VirtualMedia mount on worker-04 succeeded — HookOS booting' },
-  { time: '14:32:10', agent: 'ANDA', message: 'Canary deployment gnb v24.10 healthy at 90% — promoting' },
-  { time: '14:32:15', agent: 'ANRA', message: 'Blast radius: du-1 DOWN, cu-cp-1 UNREACHABLE — initiating drain' },
-  { time: '14:32:18', agent: 'ANPA', message: 'Tinkerbell workflow STATE_SUCCESS — node joining cluster' },
-  { time: '14:32:22', agent: 'ANDA', message: 'NF migration complete: du-1 rescheduled to worker-04' },
-  { time: '14:32:25', agent: 'ANRA', message: 'All KPIs recovered. Incident auto-closed.' },
+  { time: '14:32:01', agent: 'Network Assurance Agent', message: 'Detected thermal anomaly on worker-01 — fan RPM dropped 40%' },
+  { time: '14:32:03', agent: 'Network Assurance Agent', message: 'Checking BMC SEL for hardware events via Redfish...' },
+  { time: '14:32:05', agent: 'Network Assurance Agent', message: 'Root cause: Fan-3 failure. Recommending workload migration.' },
+  { time: '14:32:10', agent: 'Network Change Agent', message: 'Canary deployment gnb v24.10 healthy at 90% — promoting' },
+  { time: '14:32:15', agent: 'Network Assurance Agent', message: 'Blast radius: du-1 DOWN, cu-cp-1 UNREACHABLE — initiating drain' },
+  { time: '14:32:22', agent: 'Network Change Agent', message: 'NF migration complete: du-1 rescheduled to worker-04' },
+  { time: '14:32:25', agent: 'Network Assurance Agent', message: 'All KPIs recovered. Incident auto-closed.' },
 ]
 
 export const DemoProvider = ({ children }) => {
