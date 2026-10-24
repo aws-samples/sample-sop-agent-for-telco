@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 # Corrector always uses the strongest available tier — no point retrying with a
 # weaker one. Resolved via sop_executor._resolve_model_id (-> SMART tier).
-_CORRECTOR_MODEL = "opus"
+_CORRECTOR_MODEL = "sonnet"
 
 
 class FaultType(StrEnum):

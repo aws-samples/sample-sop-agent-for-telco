@@ -101,17 +101,18 @@ class TestSelectModel:
         meta = {"bash_blocks": 12, "lines": 160}
         assert select_model(meta) == "sonnet"
 
-    def test_complex_sop_gets_opus(self):
+    def test_complex_sop_gets_sonnet(self):
+        # sonnet is the strongest tier: the workshop has no opus model.
         meta = {"bash_blocks": 25, "lines": 400}
-        assert select_model(meta) == "opus"
+        assert select_model(meta) == "sonnet"
 
-    def test_high_lines_low_blocks_gets_opus(self):
+    def test_high_lines_low_blocks_gets_sonnet(self):
         meta = {"bash_blocks": 5, "lines": 350}
-        assert select_model(meta) == "opus"
+        assert select_model(meta) == "sonnet"
 
-    def test_high_blocks_low_lines_gets_opus(self):
+    def test_high_blocks_low_lines_gets_sonnet(self):
         meta = {"bash_blocks": 22, "lines": 100}
-        assert select_model(meta) == "opus"
+        assert select_model(meta) == "sonnet"
 
     def test_default_override(self):
         meta = {"bash_blocks": 3, "lines": 30}

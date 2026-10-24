@@ -16,20 +16,16 @@ from pathlib import Path
 # Model tiers select_model can return, cheapest to most capable. These are the
 # SOP-complexity tier labels (distinct from framework ModelTier FAST/SMART);
 # named here so callers and tests reference symbols, not scattered literals.
+# The workshop uses exactly two models (Haiku 4.5, Sonnet 5), so "sonnet" is the
+# strongest tier; there is no separate opus tier.
 MODEL_HAIKU = "haiku"
 MODEL_SONNET = "sonnet"
-# Label kept for the "strongest tier" bump; resolves to the SMART tier (Sonnet 5)
-# in sop_executor._MODEL_TIER_MAP since the workshop uses only two models.
-MODEL_OPUS = "opus"
 
 # Complexity thresholds that gate the tier bump. A SOP with many bash blocks or
-# many lines is harder to execute reliably, so it earns a stronger model:
-#   >= OPUS_*  -> opus (large / script-heavy runbooks)
-#   >= SONNET_* -> sonnet (mid-size)
-#   else       -> the caller's default tier
+# many lines is harder to execute reliably, so it earns the stronger model:
+#   >= SONNET_* -> sonnet (mid-size and larger runbooks)
+#   else        -> the caller's default tier
 # The bash-block and line cutoffs are independent (either one trips the bump).
-_OPUS_BASH_BLOCKS = 20
-_OPUS_LINES = 300
 _SONNET_BASH_BLOCKS = 10
 _SONNET_LINES = 150
 
@@ -154,8 +150,6 @@ def select_model(meta: dict, default: str = MODEL_HAIKU) -> str:
 
     Returns the strongest tier whose threshold the SOP trips, else ``default``.
     """
-    if meta["bash_blocks"] >= _OPUS_BASH_BLOCKS or meta["lines"] >= _OPUS_LINES:
-        return MODEL_OPUS
     if meta["bash_blocks"] >= _SONNET_BASH_BLOCKS or meta["lines"] >= _SONNET_LINES:
         return MODEL_SONNET
     return default

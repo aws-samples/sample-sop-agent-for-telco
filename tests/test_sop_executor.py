@@ -161,7 +161,9 @@ class TestToolContracts:
     def test_model_tier_map(self):
         assert "haiku" in _MODEL_TIER_MAP
         assert "sonnet" in _MODEL_TIER_MAP
-        assert "opus" in _MODEL_TIER_MAP
+        # The workshop is limited to two models; no opus alias may leak into --help.
+        assert "opus" not in _MODEL_TIER_MAP
+        assert set(_MODEL_TIER_MAP) == {"haiku", "sonnet"}
 
 
 # ── Modularity guardrail (S2.2) ──
