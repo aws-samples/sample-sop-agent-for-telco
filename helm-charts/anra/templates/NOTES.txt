@@ -1,4 +1,4 @@
-ANRA deployed to namespace {{ .Release.Namespace }}.
+Network Assurance Agent (ANRA) deployed to namespace {{ .Release.Namespace }}.
 
 Dashboard:
 {{- if .Values.ingress.enabled }}
@@ -10,9 +10,14 @@ Dashboard:
   kubectl port-forward svc/anra {{ .Values.webui.port }}:{{ .Values.webui.port }} -n {{ .Release.Namespace }}
 {{- end }}
 
-Monitoring:
-  InfluxDB: {{ include "anra.influxdbUrl" . | default "not configured" }}
+Alarm source:
   Alertmanager: {{ include "anra.alertmanagerUrl" . | default "not configured" }}
+{{- with (include "anra.influxdbUrl" .) }}
+  InfluxDB:     {{ . }}
+{{- end }}
 
-To deploy sample workloads (Open5GS, srsRAN, Telegraf, InfluxDB):
-  See configs/ directory or run: deploy.sh --with-sample-workload --with-monitoring
+Approval mode: {{ .Values.approval.mode | default "manual" }}
+
+Next:
+  kubectl get pods -n {{ .Release.Namespace }}
+  kubectl logs deployment/{{ include "anra.fullname" . }} -n {{ .Release.Namespace }} -f
