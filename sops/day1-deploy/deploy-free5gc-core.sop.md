@@ -64,6 +64,7 @@ bash scripts/free5gc/03-deploy-workloads.sh
 **Expected**: Every worker reports the gtp5g module loaded; Free5GC core, MongoDB, WebUI, UPF, and PacketRusher pods reach Running state; the PacketRusher log reports a PDU session and UE address.
 
 **Constraints:**
+- You MUST pass `timeout=480` to run_command for this step because the script includes deliberate pod-stabilisation sleeps totalling approximately 5 minutes.
 - You MUST stop if gtp5g is not confirmed because the Free5GC UPF cannot start without the compatible kernel module.
 - You MUST use the bundled `free5gc-0.0.2.tgz` and `packetrusher-0.0.3.tgz` archives rather than downloading mutable charts.
 - You MUST NOT install Open5GS because workshop-v3 has one authoritative 5G core.
