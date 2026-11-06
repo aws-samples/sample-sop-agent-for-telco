@@ -108,7 +108,7 @@ def correct_sop(
 
     session = boto3.Session(profile_name=profile, region_name=region)
     model = BedrockModel(
-        model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        model_id="global.anthropic.claude-haiku-5-5",
         boto_session=session,
     )
     agent = Agent(

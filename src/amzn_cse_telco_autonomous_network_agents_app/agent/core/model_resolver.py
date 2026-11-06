@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 # Do NOT add Haiku 3.5, Sonnet 4.x or Opus 4.x — they are EOL/deprecated for
 # re:Invent sessions.
 _PREFERRED_FAST = [
-    "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "global.anthropic.claude-haiku-5-5",
+    "us.anthropic.claude-haiku-5-5",
 ]
 
 _PREFERRED_SMART = [
@@ -145,17 +145,20 @@ def build_model(tier: ModelTier = ModelTier.FAST, profile: str = "", region: str
 _MODEL_FALLBACKS = {
     # Legacy / deprecated IDs (still reachable via a stale BEDROCK_MODEL_ID or
     # bedrock.modelOverride) redirect onto the approved set.
-    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0": "global.anthropic.claude-haiku-5-5",
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "global.anthropic.claude-sonnet-5",
     "us.anthropic.claude-sonnet-4-20250514-v1:0": "global.anthropic.claude-sonnet-5",
     "us.anthropic.claude-sonnet-4-5-20250929-v1:0": "global.anthropic.claude-sonnet-5",
     "us.anthropic.claude-sonnet-4-6": "global.anthropic.claude-sonnet-5",
     "us.anthropic.claude-opus-4-20250514-v1:0": "global.anthropic.claude-sonnet-5",
     "us.anthropic.claude-opus-4-6-v1": "global.anthropic.claude-sonnet-5",
+    # Legacy haiku 4.5 redirects to haiku 5.5
+    "global.anthropic.claude-haiku-4-5-20251001-v1:0": "global.anthropic.claude-haiku-5-5",
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0": "global.anthropic.claude-haiku-5-5",
     # Approved set: global CRIS -> us CRIS -> up one tier. Chain terminates at
     # us.anthropic.claude-sonnet-5 (no entry).
-    "global.anthropic.claude-haiku-4-5-20251001-v1:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "us.anthropic.claude-haiku-4-5-20251001-v1:0": "global.anthropic.claude-sonnet-5",
+    "global.anthropic.claude-haiku-5-5": "us.anthropic.claude-haiku-5-5",
+    "us.anthropic.claude-haiku-5-5": "global.anthropic.claude-sonnet-5",
     "global.anthropic.claude-sonnet-5": "us.anthropic.claude-sonnet-5",
 }
 

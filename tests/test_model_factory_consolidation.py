@@ -44,7 +44,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.core import model_resolv
 # The first entry of _PREFERRED_FAST (Workshop Studio-approved Haiku 4.5 via
 # global CRIS) — the resolver must still return it when nothing overrides and it
 # is available, and must fall back to it when profile listing fails.
-_PREVIOUSLY_HARDCODED_FAST = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+_PREVIOUSLY_HARDCODED_FAST = "global.anthropic.claude-haiku-5-5"
 
 _AGENT_ROOT = Path(__file__).resolve().parent.parent / "src" / "amzn_cse_telco_autonomous_network_agents_app" / "agent"
 

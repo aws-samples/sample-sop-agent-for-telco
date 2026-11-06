@@ -61,7 +61,7 @@ class TestModelResolverConfig:
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="fast")
 
         # Mock active profiles to contain the first haiku model
-        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-5-5"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -144,7 +144,7 @@ class TestModelResolverConfig:
         monkeypatch.setenv("BEDROCK_MODEL_TIER", "smart")  # env says smart
         cfg = SiteConfig(bedrock_model_override="", bedrock_model_tier="fast")  # config says fast
 
-        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-5-5"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
@@ -171,7 +171,7 @@ class TestModelResolverConfig:
         monkeypatch.delenv("BEDROCK_MODEL_ID", raising=False)
         monkeypatch.delenv("BEDROCK_MODEL_TIER", raising=False)
 
-        haiku_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+        haiku_model = "global.anthropic.claude-haiku-5-5"
         with (
             patch(
                 "amzn_cse_telco_autonomous_network_agents_app.agent.core.config_store.get_config",
