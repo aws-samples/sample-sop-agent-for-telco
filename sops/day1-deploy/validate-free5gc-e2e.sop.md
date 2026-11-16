@@ -1,7 +1,7 @@
 # Validate Free5GC End to End
 
 ## Overview
-Validate the PacketRusher registration, PDU session, DNS, user-plane connectivity, and throughput after the workshop-v3 Free5GC deployment.
+Validate the PacketRusher registration, PDU session, DNS, and user-plane connectivity after the workshop-v3 Free5GC deployment. Throughput testing is optional and runs only when `IPERF_IMAGE` is set to an immutable iperf3 image.
 
 ## Parameters
 
@@ -28,7 +28,7 @@ bash tests/free5gc/run-tests.sh | tee /tmp/workshop-v3-free5gc-e2e.log
 grep -q 'ALL TESTS PASSED' /tmp/workshop-v3-free5gc-e2e.log
 ```
 
-**Expected**: The test suite reports `ALL TESTS PASSED`, including UE IP assignment, user-plane ping, DNS, and throughput.
+**Expected**: The test suite reports `ALL TESTS PASSED`, covering UE IP assignment, user-plane ping, and DNS. The throughput section reports `[SKIP]` unless `IPERF_IMAGE` is set.
 
 **Constraints:**
 - You MUST preserve the complete test log as evidence.

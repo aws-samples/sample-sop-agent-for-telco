@@ -24,6 +24,13 @@ defaults:
   ranNamespace: free5gc
 
 monitoring:
+  # Intentionally empty: this deployment has no InfluxDB/Telegraf. Free5GC exposes
+  # Prometheus metrics (PodMonitor) and kube-prometheus-stack provides the alert
+  # rules, so Alertmanager is the detection source. With an empty URL the
+  # InfluxDB threshold evaluator returns no alerts and startup logs
+  # "InfluxDB: (disabled)". The `source`/`field`/`condition` keys on the alarms
+  # below are therefore inert; their layer/depends_on/nf_scope keys still feed
+  # the correlator's dependency graph and must stay.
   influxdbUrl: ""
   influxdbOrg: free5gc
   influxdbBucket: free5gc

@@ -134,4 +134,4 @@ if [ -n "${PR}" ]; then
     grep -Ei "pdu|address received|val0000|5GMM" || true
 fi
 echo ""
-echo "Done. Run tests/run-tests.sh to validate the E2E 5G call."
+echo "Done. Validate the E2E 5G call with SOP 2 (sops/day1-deploy/validate-free5gc-e2e.sop.md) or bash tests/free5gc/run-tests.sh."
