@@ -31,6 +31,11 @@ guardrails:
   {{- toYaml .Values.config.guardrails | nindent 2 }}
 {{- end }}
 
+{{- if (.Values.config).detection }}
+detection:
+  {{- toYaml .Values.config.detection | nindent 2 }}
+{{- end }}
+
 {{- if .Values.monitoring }}
 monitoring:
   influxdb_url: {{ (.Values.monitoring).influxdbUrl | default "" | quote }}

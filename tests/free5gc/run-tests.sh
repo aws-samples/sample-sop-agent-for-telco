@@ -9,7 +9,7 @@ set -uo pipefail
 NAMESPACE="${NAMESPACE:-free5gc}"
 VRF="${VRF:-vrf0000000003}"
 UE_IF="${UE_IF:-val0000000003}"
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0
 
 section() { echo ""; echo "=========================================="; echo "$1"; echo "=========================================="; }
 check()   { if [ "$1" -eq 0 ]; then echo "  [PASS] $2"; PASS=$((PASS+1)); else echo "  [FAIL] $2"; FAIL=$((FAIL+1)); fi; }
@@ -91,6 +91,7 @@ if [ -n "${IPERF_IMAGE:-}" ]; then
   esac
 else
   echo "  [SKIP] Set IPERF_IMAGE to an immutable iperf3 image to run throughput testing."
+  SKIP=$((SKIP+1))
 fi
 
 section "Section 4: Interface & UPF Validation"
@@ -104,7 +105,10 @@ if [ -n "${UPF_POD}" ]; then
 fi
 
 section "Results"
-echo "PASS: ${PASS}   FAIL: ${FAIL}"
+echo "PASS: ${PASS}   FAIL: ${FAIL}   SKIP: ${SKIP}"
+if [ "${SKIP}" -gt 0 ]; then
+  echo "Throughput testing skipped (optional; set IPERF_IMAGE to an immutable iperf3 image to run it)."
+fi
 if [ "${FAIL}" -eq 0 ]; then
   echo "ALL TESTS PASSED"
   exit 0

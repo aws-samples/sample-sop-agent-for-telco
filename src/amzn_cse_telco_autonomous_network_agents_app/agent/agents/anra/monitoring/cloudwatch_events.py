@@ -9,7 +9,9 @@ Two sources for the same signal (pod crash / OOM / scheduling failure):
 * ``poll_k8s_pod_health`` is a kubectl fallback for clusters without
   Container Insights.
 
-The run loop calls both and unions the results.
+The run loop always calls the CloudWatch poller. It calls the kubectl poller
+only when ``config.detection.k8s_pod_health`` is true (the default) and
+unions the results.
 """
 
 import logging

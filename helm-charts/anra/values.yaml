@@ -227,6 +227,12 @@ config:
     provider: yaml
   alarmReferences:
     - alarm-references/generic-5g.json
+  # Alert-source toggles, rendered verbatim into agent-config.yaml (snake_case keys).
+  detection:
+    # kubectl poller that raises nf_crashloop for CrashLoopBackOff/OOMKilled/Error/
+    # ImagePullBackOff pods. Set false when a Prometheus rule already alerts on pod
+    # restarts, so one incident does not produce two decision cards.
+    k8s_pod_health: true
 
 
 # Top-level alarm rules fallback — survives pipeline --set config.cluster.name=X

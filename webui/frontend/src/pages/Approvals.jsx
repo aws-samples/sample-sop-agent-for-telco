@@ -13,7 +13,7 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons'
-import { getApprovals, postApprove } from '../services/api'
+import { getApprovals, getSop, postApprove } from '../services/api'
 
 const SECTION_STYLES = {
   reasoning: {
@@ -37,6 +37,16 @@ const SECTION_STYLES = {
     icon: <WarningOutlined />,
     labelColor: '#E65100',
   },
+}
+
+const openSop = (path) => {
+  getSop(path)
+    .then(sop => Modal.info({
+      title: path,
+      width: 700,
+      content: <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, maxHeight: '60vh', overflow: 'auto' }}>{sop.content}</pre>,
+    }))
+    .catch(() => message.error(`Could not load SOP ${path}`))
 }
 
 const SectionBlock = ({ type, content }) => {
@@ -130,6 +140,8 @@ const ApprovalCard = ({ approval, onDecision }) => {
     })
   }
 
+  const sopName = approval.sop ? approval.sop.split('/').pop()?.replace('.md', '') || approval.sop : ''
+
   return (
     <Card
       bordered={false}
@@ -181,9 +193,24 @@ const ApprovalCard = ({ approval, onDecision }) => {
           {(approval.sop || approval.action) && (
             <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {approval.sop && (
-                <Tooltip title="Standard Operating Procedure">
-                  <Tag icon={<InfoCircleOutlined />}>
-                    SOP: {approval.sop.split('/').pop()?.replace('.md', '') || approval.sop}
+                <Tooltip title={approval.sop_view_path ? 'Open Standard Operating Procedure' : 'Standard Operating Procedure'}>
+                  <Tag
+                    icon={<InfoCircleOutlined />}
+                    style={approval.sop_view_path ? { cursor: 'pointer' } : undefined}
+                    onClick={approval.sop_view_path ? () => openSop(approval.sop_view_path) : undefined}
+                    {...(approval.sop_view_path && {
+                      role: 'button',
+                      tabIndex: 0,
+                      'aria-label': `Open SOP ${sopName}`,
+                      onKeyDown: (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          if (e.key === ' ') e.preventDefault()
+                          openSop(approval.sop_view_path)
+                        }
+                      },
+                    })}
+                  >
+                    SOP: {sopName}
                   </Tag>
                 </Tooltip>
               )}

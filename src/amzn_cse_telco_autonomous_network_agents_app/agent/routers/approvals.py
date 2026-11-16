@@ -15,6 +15,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
     push_execution,
     snapshot_pending_approvals,
 )
+from amzn_cse_telco_autonomous_network_agents_app.agent.routers.sops import generated_view_path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -41,7 +42,8 @@ class ApprovalRequest(BaseModel):
 @router.get("/api/approvals")
 def get_approvals():
     pending = snapshot_pending_approvals()
-    return {"pending": list(pending.values()), "count": len(pending)}
+    cards = [{**entry, "sop_view_path": generated_view_path(entry.get("sop", ""))} for entry in pending.values()]
+    return {"pending": cards, "count": len(pending)}
 
 
 @router.post("/api/approve")

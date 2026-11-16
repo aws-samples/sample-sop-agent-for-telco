@@ -74,6 +74,13 @@ class AnomalyConfig:
 
 
 @dataclass
+class DetectionConfig:
+    # kubectl-based CrashLoopBackOff/OOMKilled poller that raises nf_crashloop.
+    # Disable when a Prometheus rule already alerts on the same pod restarts.
+    k8s_pod_health: bool = True
+
+
+@dataclass
 class GuardrailsConfig:
     protected_namespaces: list = field(default_factory=lambda: ["free5gc", "srsran", "open5gs", "anra", "anra-system", "kube-system"])
     blocked_commands: list = field(
@@ -169,6 +176,7 @@ class SiteConfig:
     alarms: list = field(default_factory=list)
     guardrails: GuardrailsConfig = field(default_factory=GuardrailsConfig)
     anomaly_detection: AnomalyConfig = field(default_factory=AnomalyConfig)
+    detection: DetectionConfig = field(default_factory=DetectionConfig)
     # --- Extensions ---
     # Dotted module paths imported at boot so their @register_* decorators run
     # (see framework.plugin_loader). Loaded once at startup; changes require a
@@ -397,5 +405,11 @@ def _parse(raw: dict) -> SiteConfig:
     if ad:
         _ad_fields = set(AnomalyConfig.__dataclass_fields__)
         c.anomaly_detection = AnomalyConfig(**{k: v for k, v in ad.items() if k in _ad_fields})
+
+    # Parse alert-source toggles
+    det = raw.get("detection", {})
+    if det:
+        _det_fields = set(DetectionConfig.__dataclass_fields__)
+        c.detection = DetectionConfig(**{k: v for k, v in det.items() if k in _det_fields})
 
     return c

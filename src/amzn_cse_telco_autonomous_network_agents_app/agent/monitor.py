@@ -769,6 +769,19 @@ def _submit_sop(alert, correlation_result=None):
     _executor.submit(_run)
 
 
+def _collect_alerts(cfg):
+    """Poll every enabled detection source once and return the combined alerts."""
+    return (
+        evaluate_ran_thresholds()
+        + evaluate_os_thresholds()
+        + fetch_alertmanager_alerts()
+        + poll_redfish_sel()
+        + poll_cloudwatch_k8s_events()
+        + (poll_k8s_pod_health() if cfg.detection.k8s_pod_health else [])
+        + evaluate_dynamic_anomalies()
+    )
+
+
 def run_loop():
     seen = {}  # alarm_name -> last_seen timestamp
     cycle = 0
@@ -783,6 +796,8 @@ def run_loop():
     from amzn_cse_telco_autonomous_network_agents_app.agent.config import load_config
 
     cfg = load_config()
+    if not cfg.detection.k8s_pod_health:
+        log.info("k8s pod-health poller disabled by config (detection.k8s_pod_health=false)")
     redfish_queue = None
     if any(n.bmc.ip for n in cfg.nodes):
         from amzn_cse_telco_autonomous_network_agents_app.agent.redfish_events import enrich_event, event_queue, start_receiver, subscribe_bmc
@@ -801,15 +816,7 @@ def run_loop():
     while True:
         try:
             cycle += 1
-            alerts = (
-                evaluate_ran_thresholds()
-                + evaluate_os_thresholds()
-                + fetch_alertmanager_alerts()
-                + poll_redfish_sel()
-                + poll_cloudwatch_k8s_events()
-                + poll_k8s_pod_health()
-                + evaluate_dynamic_anomalies()
-            )
+            alerts = _collect_alerts(cfg)
 
             # Drain injected alarms (from demo trigger buttons)
             try:

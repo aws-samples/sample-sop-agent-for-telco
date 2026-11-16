@@ -143,7 +143,7 @@ while True:
   evaluate_ran_thresholds()       ← srsRAN-specific KPIs
   evaluate_os_thresholds()        ← Host CPU/memory/disk
   poll_cloudwatch_k8s_events()    ← K8s cluster events
-  poll_k8s_pod_health()           ← CrashLoopBackOff detection
+  poll_k8s_pod_health()           ← CrashLoopBackOff detection (only if detection.k8s_pod_health)
   poll_redfish_sel()              ← BMC hardware faults
   fetch_alertmanager_alerts()     ← Prometheus alerts
 

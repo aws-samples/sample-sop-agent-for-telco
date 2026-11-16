@@ -33,7 +33,9 @@ grep -q 'ALL TESTS PASSED' /tmp/workshop-v3-free5gc-e2e.log
 **Constraints:**
 - You MUST preserve the complete test log as evidence.
 - You MUST NOT infer success from pod health alone because a Running core can still have a broken PDU session or user plane.
-- If the script reports any failure, You MUST stop before deploying SOP 3.
+- You MUST treat a `[SKIP]` throughput line as expected when `IPERF_IMAGE` is unset; it MUST NOT be reported as a failure or a gap.
+- You MUST judge the run by the `FAIL:` count in the `PASS: N   FAIL: N   SKIP: N` summary and the `ALL TESTS PASSED` line, not by the presence of `[SKIP]`.
+- If the script reports any `[FAIL]` line or a non-zero `FAIL:` count, You MUST stop before deploying SOP 3.
 
 ### 2. Capture control-plane evidence
 Collect the AMF, SMF, UPF, and PacketRusher evidence needed to establish the healthy baseline.
@@ -41,14 +43,16 @@ Collect the AMF, SMF, UPF, and PacketRusher evidence needed to establish the hea
 ```bash
 kubectl logs -n "${NAMESPACE:-free5gc}" deployment/free5gc-amf-deployment --tail=100 | grep -iE 'registration|registered|NG'
 kubectl logs -n "${NAMESPACE:-free5gc}" deployment/free5gc-smf-deployment --tail=100 | grep -iE 'PFCP|session'
-kubectl logs -n "${NAMESPACE:-free5gc}" deployment/free5gc-upf-deployment --tail=100 | grep -iE 'PFCP|association'
+kubectl logs -n "${NAMESPACE:-free5gc}" deployment/free5gc-upf-deployment --tail=100 | grep -iE 'PFCP|association|heartbeat|session'
 kubectl logs -n "${NAMESPACE:-free5gc}" -l app=packetrusher --tail=100 | grep -iE 'PDU|address received|val0000'
 ```
 
-**Expected**: Logs show successful NG registration, PFCP association, PDU-session establishment, and a UE interface/address.
+**Expected**: Logs show successful NG registration, an established N4 (PFCP) link, PDU-session establishment, and a UE interface/address. The UPF log shows either a PFCP association message or ongoing PFCP heartbeat/session activity.
 
 **Constraints:**
 - You MUST record these outputs before introducing monitoring or faults so later recovery can be compared with the same baseline.
+- You MUST treat the N4 link as PASS when the UPF log shows either a PFCP association message or ongoing PFCP heartbeat/session activity, because heartbeats are only exchanged on an established association.
+- You MUST NOT report the N4 link as failed solely because the association message has rotated out of the `--tail` window.
 - You SHOULD redact identifiers if the workshop values are changed from disposable test identities.
 
 ## Examples

@@ -50,6 +50,8 @@ config:
       namespaces: [free5gc]
   guardrails:
     protected_namespaces: [free5gc, anra-system, anda-system, monitoring, kube-system]
+  detection:
+    k8s_pod_health: false   # Prometheus rule free5gc_pod_restarting covers restarts; avoids a duplicate generated-SOP card
   alarms:
     - name: free5gc_nf_unavailable
       layer: 2

@@ -82,6 +82,10 @@ fi
 # account (Workshop Studio deploys it right after the EKS stack), disable ANRA's
 # own Basic auth and expose the UI on the NodePort that stack's ALB targets.
 # Set ANRA_AUTH_DISABLED explicitly to override the detection either way.
+# A detected stack is the expected Workshop Studio setup and is reported as INFO
+# on stdout; an explicit ANRA_AUTH_DISABLED=true with no detected stack keeps the
+# WARNING on stderr because nothing here can confirm the upstream gate exists.
+ANRA_AUTH_DELEGATED=false
 ANRA_NODEPORT="${ANRA_NODEPORT:-30080}"
 # The bastion role may describe a stack by name but is not granted
 # cloudformation:ListStacks, which an unfiltered describe-stacks needs; query the
@@ -96,6 +100,7 @@ if [ -z "${ANRA_AUTH_DISABLED:-}" ]; then
   fi
   if [ -n "${WEBUI_AUTH_STACK}" ] && [ "${WEBUI_AUTH_STACK}" != None ]; then
     ANRA_AUTH_DISABLED=true
+    ANRA_AUTH_DELEGATED=true
     ANRA_NODEPORT="$(aws cloudformation describe-stacks --stack-name "${WEBUI_AUTH_STACK}" \
       --query "Stacks[0].Outputs[?OutputKey=='NodePort'].OutputValue" --output text)"
     echo "Detected web UI auth stack ${WEBUI_AUTH_STACK}: ANRA auth delegated to the edge, NodePort ${ANRA_NODEPORT}."
@@ -106,7 +111,9 @@ case "${ANRA_AUTH_DISABLED}" in
   true|1|yes|on) ANRA_AUTH_DISABLED=true ;;
   *)             ANRA_AUTH_DISABLED=false ;;
 esac
-if [ "${ANRA_AUTH_DISABLED}" = true ]; then
+if [ "${ANRA_AUTH_DELEGATED}" = true ]; then
+  echo "INFO: ANRA Basic auth is off; the Web UI Access stack ${WEBUI_AUTH_STACK} authenticates every request at the CloudFront edge (Cognito). Dashboard NodePort ${ANRA_NODEPORT}."
+elif [ "${ANRA_AUTH_DISABLED}" = true ]; then
   echo "WARNING: ANRA_AUTH_DISABLED=true - ANRA Basic auth is OFF; access must be gated upstream (Cognito/CloudFront)." >&2
 fi
 if ! kubectl get secret anra-workshop-credentials -n "${ANRA_NAMESPACE}" >/dev/null 2>&1; then

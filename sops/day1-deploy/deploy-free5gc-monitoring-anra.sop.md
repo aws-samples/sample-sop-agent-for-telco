@@ -84,10 +84,10 @@ kubectl get deployment anra -n anra-system -o json | jq -er '
     .name == "DEFAULT_NF_VENDOR" or
     .name == "DEFAULT_RAN_NAMESPACE" or
     .name == "ALERTMANAGER_URL") | "\(.name)=\(.value)"] | sort | .[]'
-kubectl get configmap anra-config -n anra-system -o jsonpath='{.data.agent-config\.yaml}' | grep -E 'alarm_references:|free5gc|namespaces:'
+kubectl get configmap anra-config -n anra-system -o jsonpath='{.data.agent-config\.yaml}' | grep -E 'alarm_references:|free5gc|namespaces:|detection|k8s_pod_health'
 ```
 
-**Expected**: Approval is `manual`, core namespace/vendor and RAN namespace are `free5gc`, Alertmanager points to the monitoring service, and `free5gc` appears under watched namespaces and alarm references.
+**Expected**: Approval is `manual`, core namespace/vendor and RAN namespace are `free5gc`, Alertmanager points to the monitoring service, `free5gc` appears under watched namespaces and alarm references, and `detection.k8s_pod_health` is `false` because in this deployment the Prometheus rule `free5gc_pod_restarting` covers restarts.
 
 **Constraints:**
 - You MUST stop if only `DEFAULT_NF_NAMESPACE` is correct but the watched namespace is absent because pod-health events would still ignore Free5GC.
