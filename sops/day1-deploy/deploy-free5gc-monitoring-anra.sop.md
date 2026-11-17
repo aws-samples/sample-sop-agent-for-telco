@@ -68,6 +68,7 @@ bash scripts/free5gc/04-deploy-monitoring-anra.sh
 **Expected**: Prometheus, Alertmanager, Grafana, ANDA, and ANRA are Ready; the script reports the current context and derived cluster metadata, and reports `ANPA=skipped`.
 
 **Constraints:**
+- You MUST pass `timeout=720` to run_command for this step because the script includes Helm waits of up to 10 minutes for kube-prometheus-stack, plus 5 minutes each for ANDA and ANRA.
 - You MUST use an immutable image tag that corresponds to the checked-out workshop source.
 - You MUST deploy the monitoring stack separately from the ANRA chart because the ANRA chart is agent-only.
 - You MUST NOT install ANPA because workshop-v3 uses CloudFormation for infrastructure.
