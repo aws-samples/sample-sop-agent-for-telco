@@ -111,7 +111,21 @@ kubectl exec -n anra-system deployment/anra -- \
 - You MUST verify the Free5GC PodMonitor rather than counting generic Kubernetes targets.
 - If Alertmanager is unhealthy or unreachable from ANRA, You MUST stop before testing the alert path.
 
-### 5. Send a non-mutating pipeline test
+### 5. Verify the dashboard NodePort Service
+
+Confirm that the deployment script created the NodePort Service that exposes the ANRA dashboard through the ALB. This Service is only created when the `webui-auth` CloudFormation stack is detected; a script timeout can cause it to be skipped even though the agents are healthy.
+
+```bash
+kubectl get svc anra-nodeport -n anra-system
+```
+
+**Expected**: The service exists with `type: NodePort` and `nodePort: 30080`.
+
+**Constraints:**
+- You MUST verify this service exists because without it the ALB cannot reach the ANRA pod and the dashboard shows "not ready".
+- If the service is missing, You MUST re-run `bash scripts/free5gc/04-deploy-monitoring-anra.sh` — the Helm steps are idempotent and the script will create the service on the second run. Do not proceed to the pipeline test until this service exists.
+
+### 6. Send a non-mutating pipeline test
 Send an informational alert with no remediation SOP mapping.
 
 ```bash
