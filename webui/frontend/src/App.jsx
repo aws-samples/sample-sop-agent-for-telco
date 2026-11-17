@@ -9,7 +9,6 @@ import AndaPage from './pages/AndaPage'
 import Approvals from './pages/Approvals'
 import Alarms from './pages/Alarms'
 import SOPs from './pages/SOPs'
-import Topology from './pages/Topology'
 import AskAnra from './pages/AskAnra'
 
 function App() {
@@ -26,7 +25,6 @@ function App() {
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/alarms" element={<Alarms />} />
               <Route path="/sops" element={<SOPs />} />
-              <Route path="/topology" element={<Topology />} />
               <Route path="/ask" element={<AskAnra />} />
             </Routes>
           </DashboardLayout>

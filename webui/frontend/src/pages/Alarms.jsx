@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Table, Tag, Badge, Drawer, Descriptions, Spin, Alert, Row, Col, Statistic, Button } from 'antd'
-import { AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, NodeIndexOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { AlertOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import axios from 'axios'
 import RemediationPipeline from '../components/RemediationPipeline'
 import ActivityFeed from '../components/ActivityFeed'
@@ -17,7 +16,6 @@ const Alarms = () => {
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState(null)
   const [ready, setReady] = useState(false)
-  const navigate = useNavigate()
 
   const load = () => {
     Promise.all([
@@ -166,12 +164,6 @@ const Alarms = () => {
 
       {/* Alarm Detail Drawer */}
       <Drawer title={selected?.name} open={!!selected} onClose={() => setSelected(null)} width={480}
-        extra={selected?.source && (
-          <Button type="primary" icon={<NodeIndexOutlined />} size="small"
-            onClick={() => { setSelected(null); navigate(`/topology?highlight=${selected.source}`) }}>
-            View Impact
-          </Button>
-        )}
       >
         {selected && (
           <Descriptions column={1} bordered size="small">

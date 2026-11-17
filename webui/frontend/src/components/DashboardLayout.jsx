@@ -6,7 +6,6 @@ import {
   DashboardOutlined,
   AlertOutlined,
   RobotOutlined,
-  ApartmentOutlined,
   SyncOutlined,
   LogoutOutlined,
   UserOutlined,
@@ -26,7 +25,6 @@ const PAGE_TITLES = {
   '/approvals': 'Decisions & Approvals',
   '/alarms': 'Alarms & Remediation',
   '/sops': 'SOPs',
-  '/topology': 'Topology',
   '/ask': 'Ask AI Agent',
 }
 
@@ -92,7 +90,6 @@ const DashboardLayout = ({ children }) => {
       ),
     },
     { key: '/alarms', icon: <AlertOutlined />, label: 'Alarms' },
-    { key: '/topology', icon: <ApartmentOutlined />, label: 'Topology' },
     { key: '/sops', icon: <SyncOutlined />, label: 'SOPs' },
     { key: '/ask', icon: <RobotOutlined />, label: 'Ask AI Agent' },
   ]
