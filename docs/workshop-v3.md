@@ -27,8 +27,8 @@ The initial infrastructure, deployment scripts, Free5GC/PacketRusher charts, das
 
 Workshop-v3 preserves the following validated version and address contracts:
 
-- EKS `1.33`
-- AWS VPC CNI `v1.20.4-eksbuild.1`
+- EKS `1.35`
+- AWS VPC CNI `v1.23.2-eksbuild.8`
 - Multus `v4.0.2-eksbuild.1`
 - gtp5g `v0.9.15`
 - Free5GC `v4.2.3` in `free5gc-0.0.2.tgz`
