@@ -166,12 +166,18 @@ for tag in "${IMAGE_TAGS[@]}"; do
   docker push "${PUBLIC_ECR_REPOSITORY}:${tag}"
 done
 
-DIGEST="$(aws ecr-public describe-images \
-  --region "${PUBLIC_ECR_REGION}" \
-  --repository-name "${PUBLIC_ECR_REPOSITORY_NAME}" \
-  --image-ids imageTag="${SHORT_SHA}" \
-  --query 'imageDetails[0].imageDigest' \
-  --output text)"
+DIGEST=""
+for _retry in 1 2 3; do
+  DIGEST="$(aws ecr-public describe-images \
+    --region "${PUBLIC_ECR_REGION}" \
+    --repository-name "${PUBLIC_ECR_REPOSITORY_NAME}" \
+    --image-ids imageTag="${SHORT_SHA}" \
+    --query 'imageDetails[0].imageDigest' \
+    --output text 2>/dev/null || true)"
+  [[ -n "${DIGEST}" && "${DIGEST}" != "None" ]] && break
+  echo "==> Waiting for ECR to reflect pushed image (attempt ${_retry}/3)..."
+  sleep 5
+done
 if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
   echo "ERROR: image push completed but Public ECR returned no digest." >&2
   exit 1
