@@ -161,25 +161,19 @@ done
 echo "==> Building ${PUBLIC_ECR_REPOSITORY}:${SHORT_SHA}"
 docker build "${BUILD_ARGS[@]}" --file Dockerfile .
 
+DIGEST=""
 for tag in "${IMAGE_TAGS[@]}"; do
   echo "==> Pushing ${PUBLIC_ECR_REPOSITORY}:${tag}"
-  docker push "${PUBLIC_ECR_REPOSITORY}:${tag}"
+  push_output="$(docker push "${PUBLIC_ECR_REPOSITORY}:${tag}" 2>&1)"
+  echo "${push_output}"
+  # Capture the digest from the first tag's push output (all tags share the same digest)
+  if [[ -z "${DIGEST}" ]]; then
+    DIGEST="$(echo "${push_output}" | grep -oE 'sha256:[a-f0-9]{64}' | head -1)"
+  fi
 done
 
-DIGEST=""
-for _retry in 1 2 3; do
-  DIGEST="$(aws ecr-public describe-images \
-    --region "${PUBLIC_ECR_REGION}" \
-    --repository-name "${PUBLIC_ECR_REPOSITORY_NAME}" \
-    --image-ids imageTag="${SHORT_SHA}" \
-    --query 'imageDetails[0].imageDigest' \
-    --output text 2>/dev/null || true)"
-  [[ -n "${DIGEST}" && "${DIGEST}" != "None" ]] && break
-  echo "==> Waiting for ECR to reflect pushed image (attempt ${_retry}/3)..."
-  sleep 5
-done
-if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
-  echo "ERROR: image push completed but Public ECR returned no digest." >&2
+if [[ -z "${DIGEST}" ]]; then
+  echo "ERROR: image push completed but could not extract digest from push output." >&2
   exit 1
 fi
 
