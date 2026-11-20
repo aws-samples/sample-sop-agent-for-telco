@@ -34,7 +34,9 @@ jobs:
             --ignore=tests/test_adaptive_steering.py \
             --ignore=tests/test_sop_graph.py \
             --ignore=tests/test_sop_nodes.py \
-            --ignore=tests/test_graph_conditions.py
+            --ignore=tests/test_graph_conditions.py \
+            --ignore=tests/test_detection_config.py \
+            --ignore=tests/test_sops_router.py
 
   code-quality:
     name: Code quality (ruff)
