@@ -22,7 +22,16 @@
 # EKS add-on health is read through kubectl because the role has no eks:DescribeAddon.
 set -uo pipefail
 
-EXPECTED_REGION="${EXPECTED_REGION:-us-west-2}"
+# The bastion's own Region, read from instance metadata (IMDSv2). Empty if
+# metadata is unreachable (for example, when run off the bastion).
+instance_region() {
+  local token
+  token="$(curl -sf -m 2 -X PUT http://169.254.169.254/latest/api/token \
+    -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')" || return 0
+  curl -sf -m 2 -H "X-aws-ec2-metadata-token: $token" \
+    http://169.254.169.254/latest/meta-data/placement/region || true
+}
+EXPECTED_REGION="${EXPECTED_REGION:-$(instance_region)}"
 WORKSHOP_DIR="${WORKSHOP_DIR:-$HOME/environment/workshop}"
 STATUS_FILE="${STATUS_FILE:-$HOME/.workshop-status}"
 RESULT_FILE="${RESULT_FILE:-$HOME/.workshop-check}"
@@ -137,7 +146,10 @@ check_env() {
       "These are set by ~/.bashrc for ec2-user. Run 'sudo su - ec2-user' (note the dash) and rerun."
     return 1
   fi
-  if [ "$AWS_DEFAULT_REGION" = "$EXPECTED_REGION" ]; then
+  if [ -z "$EXPECTED_REGION" ]; then
+    report WARN "Region" "$AWS_DEFAULT_REGION (could not read the bastion's Region from instance metadata)" \
+      "Run this on the bastion, or set EXPECTED_REGION."
+  elif [ "$AWS_DEFAULT_REGION" = "$EXPECTED_REGION" ]; then
     report OK "Region" "$AWS_DEFAULT_REGION"
   else
     report FAIL "Region" "$AWS_DEFAULT_REGION (expected $EXPECTED_REGION)" "$FACILITATOR"
@@ -375,6 +387,6 @@ if [ "$FAILS" -gt 0 ]; then
 elif [ "$WARNS" -gt 0 ]; then
   printf '%sAll checks passed with %d warning(s).%s You can continue.\n' "$C_WARN" "$WARNS" "$C_OFF"
 else
-  printf '%sAll checks passed.%s Your environment is ready. Continue to Deploy the 5G Network.\n' "$C_OK" "$C_OFF"
+  printf '%sAll checks passed.%s Your environment is ready. Continue to Deploy the 5G network.\n' "$C_OK" "$C_OFF"
 fi
 exit 0
