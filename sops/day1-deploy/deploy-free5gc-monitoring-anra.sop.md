@@ -5,7 +5,7 @@ Use the Kubernetes context prepared by Workshop Studio to deploy pinned Promethe
 
 ## Parameters
 
-- **bedrock_region** (optional, default: `us-west-2`): AWS Region used for Amazon Bedrock inference.
+- **bedrock_region** (optional, default: the cluster's Region): AWS Region used for Amazon Bedrock inference.
 - **agent_image_repository** (optional, default: `public.ecr.aws/t2j9i5y9/anra-workshop`): Registry and repository containing the tested workshop-v3 image.
 - **agent_image_tag** (optional, default: current Git commit short SHA): Immutable image tag associated with the checked-out workshop-v3 source revision.
 - **anra_password** (optional): Dashboard password; when omitted, the deployment script generates one and stores it in `${HOME}/anra-admin-password` with owner-only permissions.
@@ -54,7 +54,7 @@ test -f scripts/send-free5gc-test-alert.py
 Run the deterministic installer. It derives cluster metadata from the current kubeconfig and retains any immutable image configuration exported by the workshop instructions.
 
 ```bash
-export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
+if test -n "${BEDROCK_REGION:-}"; then export BEDROCK_REGION; fi
 export AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9/anra-workshop}"
 export AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git rev-parse --short=7 HEAD)}"
 test "$AGENT_IMAGE_TAG" != latest

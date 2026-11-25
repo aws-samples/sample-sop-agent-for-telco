@@ -327,7 +327,7 @@ def test_scripts_do_not_keep_ind321_layout_defaults():
         assert 'NAMESPACE="${NAMESPACE:-default}"' not in text
         assert "eks-ind321-lcm" not in text
     sop3 = (ROOT / "scripts" / "free5gc" / "04-deploy-monitoring-anra.sh").read_text()
-    assert 'BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"' in sop3
+    assert 'BEDROCK_REGION="${BEDROCK_REGION:-${AWS_DEFAULT_REGION}}"' in sop3
     assert '--set-string bedrock.region="${BEDROCK_REGION}"' in sop3
     assert "--set infrastructureBootstrap.enabled=false" in sop3
 

@@ -6,7 +6,7 @@ set -euo pipefail
 
 export STACK_NAME="${STACK_NAME:-telco-workshop-v3}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
-export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
+export BEDROCK_REGION="${BEDROCK_REGION:-${AWS_DEFAULT_REGION}}"
 export CLUSTER_NAME="${CLUSTER_NAME:-eks-${STACK_NAME}}"
 AGENT_IMAGE_REPOSITORY="${AGENT_IMAGE_REPOSITORY:-public.ecr.aws/t2j9i5y9/anra-workshop}"
 AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:?Set AGENT_IMAGE_TAG to an immutable workshop-v3 image tag}"

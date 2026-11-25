@@ -3,7 +3,6 @@
 # not installed: CloudFormation provisions the workshop infrastructure.
 set -euo pipefail
 
-BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 FREE5GC_NAMESPACE="${FREE5GC_NAMESPACE:-free5gc}"
 MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
 ANRA_NAMESPACE="${ANRA_NAMESPACE:-anra-system}"
@@ -35,6 +34,8 @@ else
   CLUSTER_NAME="${KUBE_CLUSTER_REFERENCE##*/}"
 fi
 export AWS_DEFAULT_REGION
+# Bedrock follows the cluster Region unless BEDROCK_REGION is set explicitly.
+BEDROCK_REGION="${BEDROCK_REGION:-${AWS_DEFAULT_REGION}}"
 
 AGENT_IMAGE_TAG="${AGENT_IMAGE_TAG:-$(git -C "${REPO_ROOT}" rev-parse --short=7 HEAD)}"
 if [ -z "${AGENT_IMAGE_TAG}" ] || [ "${AGENT_IMAGE_TAG}" = "latest" ]; then
