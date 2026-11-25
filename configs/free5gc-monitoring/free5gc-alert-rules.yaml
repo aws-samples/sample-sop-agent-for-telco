@@ -75,14 +75,20 @@ spec:
             description: Prometheus has not received the AMF registered-UE metric for two minutes while the AMF is running.
 
         - alert: free5gc_registration_unavailable
-          # Two ways to have no registered UE: the AMF reports fewer than one, or
-          # the AMF has no available replica (its metric is then absent). A
-          # running AMF that has not been scraped yet matches neither branch, so
-          # a fresh Prometheus does not raise a false alarm before its first AMF
-          # scrape. metrics_missing covers a lasting scrape gap on a running AMF.
+          # Three ways to lose the UE: the AMF reports fewer than one registered
+          # UE; the AMF has no available replica (its metric is then absent); or
+          # the simulated radio site (PacketRusher: gNB + UE) has no available
+          # replica. The third branch is needed because Free5GC keeps a UE
+          # registered (CM-IDLE) after its gNB disappears, as 3GPP specifies, so
+          # the AMF metric alone never drops when the radio site goes away. The
+          # 1m max_over_time ignores the short PacketRusher recreation that the
+          # remediation SOPs perform to re-attach the UE. A
+          # running AMF that has not been scraped yet matches no branch, so a
+          # fresh Prometheus does not raise a false alarm before its first scrape.
           expr: |
             (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) < 1)
               or on() (sum(kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}) == 0)
+              or on() (max(max_over_time(kube_deployment_status_replicas_available{namespace="free5gc",deployment="packetrusher-packetrusher"}[1m])) == 0)
           for: 30s
           labels:
             severity: critical
@@ -90,5 +96,5 @@ spec:
             alarm_key: free5gc_registration_unavailable
           annotations:
             summary: No UE is connected to the Free5GC AMF
-            description: The workshop baseline expects at least one connected PacketRusher UE.
+            description: No UE is registered, or the AMF or the simulated radio site (PacketRusher) has no available replica. The workshop baseline expects one connected PacketRusher UE.
             sop: day2-remediate/core/free5gc-registration-unavailable.md

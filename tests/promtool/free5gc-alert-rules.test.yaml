@@ -9,6 +9,8 @@ tests:
     input_series:
       - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}'
         values: '1x20'
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="packetrusher-packetrusher"}'
+        values: '1x20'
     alert_rule_test:
       - eval_time: 2m
         alertname: free5gc_registration_unavailable
@@ -25,7 +27,7 @@ tests:
           - exp_labels: {severity: critical, layer: core, alarm_key: free5gc_registration_unavailable}
             exp_annotations:
               summary: No UE is connected to the Free5GC AMF
-              description: The workshop baseline expects at least one connected PacketRusher UE.
+              description: No UE is registered, or the AMF or the simulated radio site (PacketRusher) has no available replica. The workshop baseline expects one connected PacketRusher UE.
               sop: day2-remediate/core/free5gc-registration-unavailable.md
       - eval_time: 2m
         alertname: free5gc_metrics_missing
@@ -44,12 +46,46 @@ tests:
           - exp_labels: {severity: critical, layer: core, alarm_key: free5gc_registration_unavailable}
             exp_annotations:
               summary: No UE is connected to the Free5GC AMF
-              description: The workshop baseline expects at least one connected PacketRusher UE.
+              description: No UE is registered, or the AMF or the simulated radio site (PacketRusher) has no available replica. The workshop baseline expects one connected PacketRusher UE.
               sop: day2-remediate/core/free5gc-registration-unavailable.md
+  # Radio site gone (scenario 3): PacketRusher scaled to 0, but the AMF still
+  # reports the UE as Registered (CM-IDLE).
+  - interval: 15s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}'
+        values: '1x20'
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="packetrusher-packetrusher"}'
+        values: '0x20'
+      - series: 'free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: free5gc_registration_unavailable
+        exp_alerts:
+          - exp_labels: {severity: critical, layer: core, alarm_key: free5gc_registration_unavailable}
+            exp_annotations:
+              summary: No UE is connected to the Free5GC AMF
+              description: No UE is registered, or the AMF or the simulated radio site (PacketRusher) has no available replica. The workshop baseline expects one connected PacketRusher UE.
+              sop: day2-remediate/core/free5gc-registration-unavailable.md
+  # PacketRusher recreated by an SOP (down for 45 s): no alarm.
+  - interval: 15s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}'
+        values: '1x20'
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="packetrusher-packetrusher"}'
+        values: '1 1 1 1 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1'
+      - series: 'free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: free5gc_registration_unavailable
+        exp_alerts: []
   # Healthy.
   - interval: 15s
     input_series:
       - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}'
+        values: '1x20'
+      - series: 'kube_deployment_status_replicas_available{namespace="free5gc",deployment="packetrusher-packetrusher"}'
         values: '1x20'
       - series: 'free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}'
         values: '1x20'

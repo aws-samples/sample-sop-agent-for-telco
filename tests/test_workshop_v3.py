@@ -322,6 +322,9 @@ def test_registration_rule_ignores_an_unscraped_running_amf():
     assert 'gmm_state="Registered"}) < 1)' in expr
     assert ('or on() (sum(kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}) == 0)') in expr
     assert (ROOT / "tests" / "promtool" / "free5gc-alert-rules.test.yaml").exists()
+    # Free5GC keeps the UE registered after its gNB goes away, so the radio
+    # site's own Deployment must be part of the rule (scenario 3).
+    assert 'deployment="packetrusher-packetrusher"}[1m])) == 0)' in expr
 
 
 def test_core_install_checks_nrf_registration_before_packetrusher():
