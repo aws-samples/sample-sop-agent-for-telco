@@ -425,3 +425,15 @@ class TestEnrichmentOnlyForGeneratedSops:
         monitor._submit_sop({"name": "free5gc_nf_unavailable", "severity": "critical", "source": "alertmanager"})
         assert calls == []  # enrichment not invoked
         assert captured["sop"] == str(f)  # approval carries the repo path
+
+
+def test_correlate_log_line_says_nothing_runs_in_manual_mode():
+    from amzn_cse_telco_autonomous_network_agents_app.agent.monitor import _correlate_log_line
+
+    result = {"action": "execute", "confidence": 0.9, "root_cause": "Free5GCWorkshopPipelineTest"}
+    manual = _correlate_log_line("Free5GCWorkshopPipelineTest", result, approval_mode="manual")
+    assert manual.startswith("CORRELATE: Free5GCWorkshopPipelineTest action=execute confidence=0.9")
+    assert "nothing runs until approved" in manual
+    assert "nothing runs" not in _correlate_log_line("X", result, approval_mode="auto")
+    escalate = {**result, "action": "escalate"}
+    assert "nothing runs" not in _correlate_log_line("X", escalate, approval_mode="manual")

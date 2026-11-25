@@ -782,6 +782,23 @@ def _collect_alerts(cfg):
     )
 
 
+
+def _correlate_log_line(alarm_name: str, result: dict, approval_mode: str = "") -> str:
+    """Format the CORRELATE log line.
+
+    "execute" is the correlator's verdict (this alarm is the root cause, act on
+    it). Outside auto mode, acting means proposing an SOP for approval, so say
+    so: the bare word reads as if something already ran.
+    """
+    mode = approval_mode or APPROVAL_MODE
+    line = (
+        f"CORRELATE: {alarm_name} action={result['action']} "
+        f"confidence={result['confidence']} root={result['root_cause']}"
+    )
+    if result["action"] == "execute" and mode != "auto":
+        line += f" (approval mode {mode}: proposing only, nothing runs until approved)"
+    return line
+
 def run_loop():
     seen = {}  # alarm_name -> last_seen timestamp
     cycle = 0
@@ -983,7 +1000,7 @@ def run_loop():
                         _suppressed[alert["name"]] = result["root_cause"]
                         continue
 
-                    log.info(f"CORRELATE: {alert['name']} action={result['action']} confidence={result['confidence']} root={result['root_cause']}")
+                    log.info(_correlate_log_line(alert["name"], result))
                     try:
                         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
 
