@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { Card, Input, Button, Tag, Spin } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
 import axios from 'axios'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const SUGGESTIONS = ['What alarms are active?', 'Explain the last SOP execution', 'What is the network status?', 'What happened in the last hour?']
 
@@ -30,7 +32,15 @@ const AskAnra = () => {
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         {msgs.map((m, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
-            <div style={{ maxWidth: '70%', padding: '10px 14px', borderRadius: 12, background: m.role === 'user' ? '#1890ff' : '#f5f5f5', color: m.role === 'user' ? '#fff' : '#000', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+            {m.role === 'user' ? (
+              <div style={{ maxWidth: '70%', padding: '10px 14px', borderRadius: 12, background: '#1890ff', color: '#fff', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+            ) : (
+              // Agent replies are markdown. react-markdown does not render raw HTML,
+              // so model output cannot inject markup into the dashboard.
+              <div className="ask-agent-reply" style={{ maxWidth: '70%', padding: '10px 14px', borderRadius: 12, background: '#f5f5f5', color: '#000' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+              </div>
+            )}
           </div>
         ))}
         {loading && <Spin style={{ display: 'block', margin: '8px auto' }} />}

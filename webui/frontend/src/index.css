@@ -416,3 +416,12 @@ code {
 .ant-modal-title:active {
   cursor: grabbing;
 }
+
+/* Ask AI Agent: markdown replies (tables, lists) */
+.ask-agent-reply > :first-child { margin-top: 0; }
+.ask-agent-reply > :last-child { margin-bottom: 0; }
+.ask-agent-reply table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.ask-agent-reply th,
+.ask-agent-reply td { border: 1px solid #d9d9d9; padding: 4px 8px; text-align: left; }
+.ask-agent-reply th { background: #fafafa; }
+.ask-agent-reply pre { white-space: pre-wrap; background: #fff; padding: 8px; border-radius: 6px; }
