@@ -67,7 +67,7 @@ def test_monitoring_values_route_alertmanager_to_real_anra_endpoint():
     webhook = receivers[0]["webhook_configs"][0]["url"]
     assert webhook.endswith("/api/alertmanager")
     assert "/api/webhooks/alertmanager" not in webhook
-    assert values["grafana"]["admin"]["existingSecret"] == "free5gc-grafana-admin"
+    assert values["grafana"]["enabled"] is False
 
 
 def test_free5gc_anra_contract():
@@ -105,10 +105,6 @@ def test_alert_rules_and_dashboard_are_parseable():
     configured_alarms = {alarm["name"]: alarm for alarm in anra_values["config"]["alarms"]}
     assert names <= set(configured_alarms)
     assert configured_alarms["free5gc_registration_unavailable"]["field"] == registered_ue_metric
-
-    dashboard = json.loads((MONITORING / "dashboards" / "free5gc-core-overview.json").read_text())
-    connected_ues = next(panel for panel in dashboard["panels"] if panel["title"] == "Connected UEs")
-    assert registered_ue_metric in connected_ues["targets"][0]["expr"]
 
 
 def test_configured_alarm_catalog_enriches_runtime_context(tmp_path):

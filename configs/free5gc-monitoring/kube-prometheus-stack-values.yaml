@@ -59,27 +59,9 @@ alertmanager:
                 password_file: /etc/alertmanager/secrets/anra-workshop-credentials/auth-password
       - name: "null"
 
+# Grafana is not used in the workshop: participants have no path to it.
 grafana:
-  enabled: true
-  defaultDashboardsEnabled: true
-  admin:
-    existingSecret: free5gc-grafana-admin
-    userKey: admin-user
-    passwordKey: admin-password
-  service:
-    type: ClusterIP
-  sidecar:
-    dashboards:
-      enabled: true
-      label: grafana_dashboard
-      labelValue: "1"
-      searchNamespace: ALL
-      provider:
-        allowUiUpdates: true
-    datasources:
-      enabled: true
-      label: grafana_datasource
-      labelValue: "1"
+  enabled: false
 
 kubeEtcd:
   enabled: false

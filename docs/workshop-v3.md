@@ -9,7 +9,7 @@ CloudFormation → EKS + Multus + gtp5g
               Free5GC + PacketRusher
                          │
                          ▼
-       Prometheus + Alertmanager + Grafana
+           Prometheus + Alertmanager
                          │
                          ▼
                    ANDA + ANRA
@@ -42,7 +42,7 @@ The Multus CIDRs, launch-template ENI order, and static chart addresses are one 
 1. `provision-free5gc-cloudformation.sop.md` creates the infrastructure.
 2. `deploy-free5gc-core.sop.md` configures Multus/gtp5g and installs Free5GC plus PacketRusher.
 3. `validate-free5gc-e2e.sop.md` proves registration, PDU session, DNS, traffic, and throughput.
-4. `deploy-free5gc-monitoring-anra.sop.md` installs Prometheus, Alertmanager, Grafana, ANDA, and ANRA.
+4. `deploy-free5gc-monitoring-anra.sop.md` installs Prometheus, Alertmanager, ANDA, and ANRA.
 
 The one-shot equivalent is:
 
@@ -61,7 +61,7 @@ This is disposable workshop infrastructure, not a production baseline. Compared 
 - Defaults public SSH/dashboard ingress to `127.0.0.1/32`; use SSM port forwarding.
 - Scopes the Multus security group to the workshop VPC.
 - Removes worker-node `AWSCloudFormationFullAccess` and `ElasticLoadBalancingFullAccess`.
-- Requires generated or supplied Grafana and ANRA passwords rather than checked-in passwords.
+- Requires a generated or supplied ANRA password rather than checked-in passwords.
 - Keeps IMDSv2 required.
 - Disables the public EKS API endpoint; kubectl access runs through the bastion and private endpoint.
 

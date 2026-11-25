@@ -120,10 +120,9 @@ gate "shellcheck" shellcheck_job
 # helm-validate job, static part
 assets_static() {
   "$CFN_LINT" -t infra/cloudformation/vpc-eks-multus.yaml -i W3005 W3687 W1020 &&
-    bash -n scripts/free5gc/*.sh tests/free5gc/run-tests.sh &&
-    "$PYTHON" -m json.tool configs/free5gc-monitoring/dashboards/free5gc-core-overview.json >/dev/null
+    bash -n scripts/free5gc/*.sh tests/free5gc/run-tests.sh
 }
-gate "cfn-lint + bash -n + dashboard JSON" assets_static
+gate "cfn-lint + bash -n" assets_static
 
 if $FAST; then
   skip "helm" "--fast"

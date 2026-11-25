@@ -1,7 +1,7 @@
 # Deploy Free5GC Monitoring and ANRA
 
 ## Overview
-Use the Kubernetes context prepared by Workshop Studio to deploy pinned Prometheus, Alertmanager, and Grafana configuration around the validated Free5GC service, then install ANDA and ANRA in manual-approval mode. This SOP does not discover or select an EKS cluster because CloudFormation owns Day-0 infrastructure and ANPA is intentionally excluded.
+Use the Kubernetes context prepared by Workshop Studio to deploy pinned Prometheus and Alertmanager configuration around the validated Free5GC service, then install ANDA and ANRA in manual-approval mode. This SOP does not discover or select an EKS cluster because CloudFormation owns Day-0 infrastructure and ANPA is intentionally excluded.
 
 ## Parameters
 
@@ -36,7 +36,6 @@ kubectl get --raw=/readyz >/dev/null
 test -f configs/free5gc-monitoring/kube-prometheus-stack-values.yaml
 test -f configs/free5gc-monitoring/free5gc-alert-rules.yaml
 test -f configs/free5gc-monitoring/anra-values.yaml
-test -f configs/free5gc-monitoring/dashboards/free5gc-core-overview.json
 test -f alarm-references/free5gc.yaml
 test -f scripts/send-free5gc-test-alert.py
 ! grep -R '/api/webhooks/alertmanager' configs/free5gc-monitoring configs/alertmanager
@@ -65,7 +64,7 @@ if test -n "${ANRA_AUTH_DISABLED:-}"; then export ANRA_AUTH_DISABLED; fi
 bash scripts/free5gc/04-deploy-monitoring-anra.sh
 ```
 
-**Expected**: Prometheus, Alertmanager, Grafana, ANDA, and ANRA are Ready; the script reports the current context and derived cluster metadata, and reports `ANPA=skipped`.
+**Expected**: Prometheus, Alertmanager, ANDA, and ANRA are Ready; the script reports the current context and derived cluster metadata, and reports `ANPA=skipped`.
 
 **Constraints:**
 - You MUST pass `timeout=720` to run_command for this step because the script includes Helm waits of up to 10 minutes for kube-prometheus-stack, plus 5 minutes each for ANDA and ANRA.

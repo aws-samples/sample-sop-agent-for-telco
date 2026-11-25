@@ -8,7 +8,7 @@ Workshop-v3 is based on `origin/workshop-v2` commit `e938040` and replaces its a
 CloudFormation → EKS/Multus/gtp5g → Free5GC/PacketRusher
                                       │
                                       ▼
-                     Prometheus/Alertmanager/Grafana
+                       Prometheus/Alertmanager
                                       │
                                       ▼
                                   ANDA + ANRA
@@ -186,7 +186,7 @@ The umbrella chart also defaults `anpa.enabled=false` on this branch.
 
 ### Credential Pattern
 
-The installer generates secret-backed Grafana and ANRA dashboard passwords when they do not exist and stores the generated values in owner-readable files on the bastion. The disposable workshop currently uses node-role credentials for Bedrock; replace this with EKS Pod Identity for non-workshop deployments.
+The installer generates a secret-backed ANRA dashboard password when it does not exist and stores the generated value in owner-readable files on the bastion. The disposable workshop currently uses node-role credentials for Bedrock; replace this with EKS Pod Identity for non-workshop deployments.
 
 ## Development
 
@@ -236,7 +236,7 @@ The GitHub `publish-workshop-image` job uses OIDC credentials and calls this sam
 | **Provisioning** | CloudFormation plus SSM-driven cluster configuration |
 | **5G Core** | Free5GC v4.2.3 |
 | **5G traffic** | PacketRusher |
-| **Monitoring** | Prometheus, Alertmanager, and Grafana |
+| **Monitoring** | Prometheus and Alertmanager |
 | **Packaging** | Helm 3 |
 | **CI/CD** | GitHub Actions |
 

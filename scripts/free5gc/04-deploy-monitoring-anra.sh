@@ -49,7 +49,6 @@ kubectl get --raw=/readyz >/dev/null
 for required in \
   "${MONITORING_DIR}/kube-prometheus-stack-values.yaml" \
   "${MONITORING_DIR}/free5gc-alert-rules.yaml" \
-  "${MONITORING_DIR}/dashboards/free5gc-core-overview.json" \
   "${ANRA_VALUES}" \
   "${REPO_ROOT}/alarm-references/free5gc.yaml" \
   "${FREE5GC_CHART}"; do
@@ -59,16 +58,6 @@ done
 kubectl create namespace "${MONITORING_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${ANRA_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${ANDA_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
-
-if ! kubectl get secret free5gc-grafana-admin -n "${MONITORING_NAMESPACE}" >/dev/null 2>&1; then
-  GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-$(openssl rand -hex 16)}"
-  kubectl create secret generic free5gc-grafana-admin -n "${MONITORING_NAMESPACE}" \
-    --from-literal=admin-user=admin \
-    --from-literal=admin-password="${GRAFANA_PASSWORD}"
-  umask 077
-  printf '%s\n' "${GRAFANA_PASSWORD}" > "${HOME}/grafana-admin-password"
-  echo "Generated Grafana password stored at ${HOME}/grafana-admin-password"
-fi
 
 # ANRA credentials must exist before the monitoring stack: Alertmanager mounts
 # them to authenticate its webhook to ANRA (see kube-prometheus-stack-values).
@@ -152,11 +141,6 @@ helm upgrade --install "${KPS_RELEASE}" prometheus-community/kube-prometheus-sta
 
 kubectl apply -n "${MONITORING_NAMESPACE}" \
   -f "${MONITORING_DIR}/free5gc-alert-rules.yaml"
-kubectl create configmap free5gc-core-overview-dashboard \
-  -n "${MONITORING_NAMESPACE}" \
-  --from-file=free5gc-core-overview.json="${MONITORING_DIR}/dashboards/free5gc-core-overview.json" \
-  --dry-run=client -o yaml | \
-  kubectl label --local -f - grafana_dashboard=1 -o yaml | kubectl apply -f -
 
 # If Free5GC was installed before the Prometheus Operator CRDs existed, enable
 # its PodMonitor now without changing the validated chart values.

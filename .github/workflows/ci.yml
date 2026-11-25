@@ -90,7 +90,6 @@ jobs:
           pip install cfn-lint==1.57.1
           cfn-lint -t infra/cloudformation/vpc-eks-multus.yaml -i W3005 W3687 W1020
           bash -n scripts/free5gc/*.sh tests/free5gc/run-tests.sh
-          python -m json.tool configs/free5gc-monitoring/dashboards/free5gc-core-overview.json >/dev/null
           helm lint helm-charts/free5gc-bundle/free5gc-0.0.2.tgz
           helm lint helm-charts/free5gc-bundle/packetrusher-0.0.3.tgz
           helm template anra helm-charts/anra/ \

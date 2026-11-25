@@ -138,7 +138,6 @@ workshop-v3:
 
 workshop-v3-validate:
 	bash -n scripts/free5gc/*.sh tests/free5gc/run-tests.sh
-	python -m json.tool configs/free5gc-monitoring/dashboards/free5gc-core-overview.json >/dev/null
 	PYTHONPATH=src python -m pytest tests/test_workshop_v3.py tests/test_sops.py -q
 
 help:
