@@ -201,9 +201,29 @@ check_source_pin() {
       "Cannot verify against the stack; continue only if the facilitator confirms this revision."
   elif [ "$expected" = "$actual" ]; then
     report OK "Source pin" "${actual:0:10} matches WorkshopSourceCommit"
+  elif override="$(pin_override "$actual")"; then
+    report WARN "Source pin" "checkout ${actual:0:10} != pinned ${expected:0:10}; facilitator override: ${override}" \
+      "Moved to a newer build by the facilitator's emergency procedure; continue."
   else
     report FAIL "Source pin" "checkout ${actual:0:10} != pinned ${expected:0:10}" "$FACILITATOR"
   fi
+}
+
+# Emergency procedure (FACILITATOR_GUIDE.md): when a live event must move to a
+# newer build, the facilitator has every bastion write PIN_OVERRIDE_FILE with
+# the approved commit and a reason. The check then reports WARN instead of FAIL,
+# but only when the checkout is exactly that commit; any other revision still
+# fails. Format: one line, "<full or 7+ char SHA> <reason>".
+PIN_OVERRIDE_FILE="${PIN_OVERRIDE_FILE:-$HOME/.workshop-pin-override}"
+pin_override() {  # $1 = checkout SHA; prints the reason and succeeds on a match
+  local sha reason
+  [ -r "$PIN_OVERRIDE_FILE" ] || return 1
+  read -r sha reason < "$PIN_OVERRIDE_FILE" || [ -n "${sha:-}" ] || return 1
+  [ "${#sha}" -ge 7 ] || return 1
+  case "$1" in
+    "$sha"*) printf '%s' "${reason:-no reason given}" ;;
+    *) return 1 ;;
+  esac
 }
 
 check_cluster() {
