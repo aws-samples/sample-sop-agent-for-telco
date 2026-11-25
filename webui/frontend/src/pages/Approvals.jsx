@@ -13,7 +13,7 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons'
-import { getApprovals, getSop, postApprove } from '../services/api'
+import { getApprovals, getSop, postApprove, APPROVALS_CHANGED_EVENT } from '../services/api'
 
 const SECTION_STYLES = {
   reasoning: {
@@ -425,7 +425,13 @@ const Approvals = () => {
         <Row gutter={[16, 16]}>
           {filteredList.map((approval, i) => (
             <Col xs={24} lg={12} key={approval.id || approval.alarm_name || i}>
-              <ApprovalCard approval={approval} onDecision={loadApprovals} />
+              <ApprovalCard
+                approval={approval}
+                onDecision={() => {
+                  loadApprovals()
+                  window.dispatchEvent(new Event(APPROVALS_CHANGED_EVENT))
+                }}
+              />
             </Col>
           ))}
         </Row>

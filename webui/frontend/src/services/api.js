@@ -90,3 +90,6 @@ export const agentAPI = {
 }
 
 export default API
+
+// Fired after an approve/reject so the sidebar badge refreshes without waiting for its poll.
+export const APPROVALS_CHANGED_EVENT = 'approvals-changed'

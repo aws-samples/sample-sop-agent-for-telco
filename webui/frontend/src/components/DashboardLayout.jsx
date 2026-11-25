@@ -15,7 +15,7 @@ import {
   DeploymentUnitOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import { getApprovals } from '../services/api'
+import { getApprovals, APPROVALS_CHANGED_EVENT } from '../services/api'
 import { useDemoMode } from '../context/DemoContext'
 
 const PAGE_TITLES = {
@@ -55,7 +55,11 @@ const DashboardLayout = ({ children }) => {
     }
     loadApprovals()
     const t = setInterval(loadApprovals, 30000)
-    return () => clearInterval(t)
+    window.addEventListener(APPROVALS_CHANGED_EVENT, loadApprovals)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener(APPROVALS_CHANGED_EVENT, loadApprovals)
+    }
   }, [])
 
   const handleChangePassword = async (values) => {
