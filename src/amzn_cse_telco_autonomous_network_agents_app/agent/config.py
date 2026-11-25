@@ -288,7 +288,7 @@ def load_config(path: str = "") -> SiteConfig:
     for p in _CONFIG_PATHS:
         if p and Path(p).exists():
             return _load_file(p)
-    logger.warning("No agent-config.yaml found — using defaults")
+    logger.info("No agent-config.yaml found — using defaults")
     return SiteConfig()
 
 

@@ -8,6 +8,7 @@ Provides: CmdResult, run_cmd, display helpers, and all reusable @tool functions
 that can be imported by multiple agents (SOP executor, correlation, remediation, etc.)
 """
 
+import json
 import logging
 import os
 import re
@@ -397,14 +398,24 @@ def ssm_command(instance_id: str, command: str, timeout: int = 30) -> str:
     timeout = min(timeout, 120)
     tool_call("ssm_command", f"instance={instance_id} cmd={command[:40]}...")
     _site_config = _get_site_config()
-    region = _site_config.cluster_region
+    # SSM targets the Region the agent runs in: the Helm chart sets AWS_REGION
+    # to ssm.region, and the bastion sets AWS_DEFAULT_REGION. Fall back to the
+    # site config only when neither is set.
+    region = (
+        os.getenv("AWS_REGION")
+        or os.getenv("AWS_DEFAULT_REGION")
+        or _site_config.cluster_region
+    )
     profile = _site_config.bedrock_profile
-    profile_arg = f"--profile {profile}" if profile else ""
+    profile_arg = f"--profile {shlex.quote(profile)}" if profile else ""
+    # Build the parameters as JSON and shell-quote every argument, so quotes,
+    # $? and other shell syntax in the command reach the remote host unchanged.
+    parameters = json.dumps({"commands": [command]})
     send = run_cmd(
-        f"aws ssm send-command --instance-ids {instance_id} "
+        f"aws ssm send-command --instance-ids {shlex.quote(instance_id)} "
         f"--document-name AWS-RunShellScript "
-        f"--parameters 'commands=[\"{command}\"]' "
-        f"{profile_arg} --region {region} "
+        f"--parameters {shlex.quote(parameters)} "
+        f"{profile_arg} --region {shlex.quote(region)} "
         f"--query Command.CommandId --output text",
         timeout=30,
     )
@@ -417,8 +428,8 @@ def ssm_command(instance_id: str, command: str, timeout: int = 30) -> str:
     for _ in range(timeout // 3):
         _t.sleep(3)
         get = run_cmd(
-            f"aws ssm get-command-invocation --command-id {cmd_id} "
-            f"--instance-id {instance_id} {profile_arg} --region {region} "
+            f"aws ssm get-command-invocation --command-id {shlex.quote(cmd_id)} "
+            f"--instance-id {shlex.quote(instance_id)} {profile_arg} --region {shlex.quote(region)} "
             f"--query '[Status,StandardOutputContent,StandardErrorContent]' --output text",
             timeout=15,
         )

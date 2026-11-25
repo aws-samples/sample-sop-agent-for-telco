@@ -66,6 +66,7 @@ bash scripts/free5gc/03-deploy-workloads.sh
 **Constraints:**
 - You MUST pass `timeout=480` to run_command for this step because the script includes deliberate pod-stabilisation sleeps totalling approximately 5 minutes.
 - You MUST stop if gtp5g is not confirmed because the Free5GC UPF cannot start without the compatible kernel module.
+- You MUST confirm gtp5g from the per-node `LOADED`/`MISSING` lines the script prints, and MUST NOT run separate checks with `ssm_command`, because the script already checks every worker through Kubernetes and the workers are not SSM targets in this SOP.
 - You MUST use the bundled `free5gc-0.0.2.tgz` and `packetrusher-0.0.3.tgz` archives rather than downloading mutable charts.
 - You MUST NOT install Open5GS because workshop-v3 has one authoritative 5G core.
 - If subscriber reconciliation fails, You MUST stop rather than hiding the failure because the E2E validation depends on the expected slice.
