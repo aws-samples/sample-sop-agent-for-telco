@@ -119,6 +119,13 @@ def snapshot_alarms_with_active_names() -> tuple[list[dict], set]:
         return list(_alarms), set(_active_alarm_names)
 
 
+def snapshot_active_alarms() -> list[dict]:
+    """Alarms that are firing now. ``_alarms`` keeps history (up to 200), so a
+    reader that wants the current state must filter by ``_active_alarm_names``."""
+    with _lock:
+        return [a for a in _alarms if a["name"] in _active_alarm_names]
+
+
 def snapshot_executions() -> list[dict]:
     with _lock:
         return list(_executions)

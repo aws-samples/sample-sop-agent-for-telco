@@ -20,6 +20,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.core.state import (  # n
     push_pending_approval,
     snapshot_activity,
     snapshot_active_alarm_names,
+    snapshot_active_alarms,
     snapshot_alarms,
     snapshot_alarms_with_active_names,
     snapshot_correlations,

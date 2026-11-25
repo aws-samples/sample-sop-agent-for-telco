@@ -576,6 +576,38 @@ def execute_sop(sop_path, alert):
 _executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="sop")
 _active_sops: set = set()
 _suppressed: dict = {}
+# Seconds a suppressed symptom must keep firing after its root alarm cleared
+# before it is raised as its own alarm. After the AMF comes back, the UE takes
+# about a minute to re-register; without this grace the registration alarm was
+# proposed as a second, stale decision right after the fix completed.
+REEVAL_GRACE_SECONDS = int(os.getenv("REEVAL_GRACE_SECONDS", "120"))
+_root_cleared_at: dict = {}  # root alarm -> time it stopped firing
+
+
+def _root_still_handled(root: str, firing: set, pending: set) -> bool:
+    """A root alarm is still being dealt with while it fires, while its SOP is
+    proposed and waiting for approval, or while its SOP runs."""
+    return root in firing or root in pending or root in _active_sops
+
+
+def _symptoms_to_reevaluate(firing: set, pending: set, now: float) -> tuple[list, list]:
+    """Return (raise_now, drop) for suppressed symptoms.
+
+    raise_now: symptoms still firing REEVAL_GRACE_SECONDS after their root
+    stopped being handled. drop: symptoms that cleared on their own.
+    """
+    raise_now, drop = [], []
+    for sym, root in list(_suppressed.items()):
+        if sym not in firing:
+            drop.append(sym)
+            continue
+        if _root_still_handled(root, firing, pending):
+            _root_cleared_at.pop(root, None)
+            continue
+        cleared = _root_cleared_at.setdefault(root, now)
+        if now - cleared >= REEVAL_GRACE_SECONDS:
+            raise_now.append((sym, root))
+    return raise_now, drop
 _dynamic_sop_count: int = 0
 _dynamic_sop_reset: float = 0
 MAX_DYNAMIC_SOPS_PER_HOUR = int(os.getenv("MAX_DYNAMIC_SOPS_PER_HOUR", str(_cfg.anomaly_detection.max_sops_per_hour if _cfg else 3)))
@@ -802,6 +834,7 @@ def _correlate_log_line(alarm_name: str, result: dict, approval_mode: str = "") 
 def run_loop():
     seen = {}  # alarm_name -> last_seen timestamp
     cycle = 0
+    previous_firing: set = set()
 
     log.info(f"Monitor starting — poll every {POLL_INTERVAL}s")
     log.info(f"InfluxDB: {INFLUX_URL or '(disabled)'}")
@@ -847,14 +880,21 @@ def run_loop():
             # Update active alarm set (clears alarms that stopped firing)
             from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import clear_alarms
 
-            clear_alarms({a["name"] for a in alerts})
+            firing_now = {a["name"] for a in alerts}
+            clear_alarms(firing_now)
+            # Log the collected set only when it changes, and each alarm that
+            # stopped firing, so the activity feed shows changes, not polls.
             try:
                 from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
 
-                if alerts:
-                    push_activity("collect", "Cycle %d: %d alerts from 6 sources" % (cycle, len(alerts)))
+                if firing_now != previous_firing:
+                    names = ", ".join(sorted(firing_now)) or "none"
+                    push_activity("collect", "Alertmanager: %d active alert(s): %s" % (len(firing_now), names))
+                for name in sorted(previous_firing - firing_now):
+                    push_activity("clear", "%s cleared" % name, status="success")
             except Exception:
                 pass
+            previous_firing = firing_now
 
             # Drain Redfish event queue
             if redfish_queue:
@@ -945,7 +985,12 @@ def run_loop():
                 try:
                     from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
 
-                    push_activity("detect", "%s — %s %s" % (alert["name"], alert.get("value", ""), alert.get("threshold", "")), status="warning")
+                    measured = " ".join(str(v) for v in (alert.get("value"), alert.get("threshold")) if v not in (None, ""))
+                    push_activity(
+                        "detect",
+                        "%s fired (%s)%s" % (alert["name"], alert.get("severity", ""), (": " + measured) if measured else ""),
+                        status="warning",
+                    )
                 except Exception:
                     pass
 
@@ -987,7 +1032,7 @@ def run_loop():
 
                     correlation_result = result
                     try:
-                        push_correlation(result)
+                        push_correlation({**result, "alarm": alert["name"]})
                     except Exception as e:
                         log.debug(f"Non-critical: {e}")
 
@@ -998,13 +1043,29 @@ def run_loop():
                         except Exception as e:
                             log.debug(f"Non-critical: {e}")
                         _suppressed[alert["name"]] = result["root_cause"]
+                        try:
+                            from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+
+                            push_activity(
+                                "correlate",
+                                "%s: symptom of %s, suppressed" % (alert["name"], result["root_cause"]),
+                                status="info",
+                            )
+                        except Exception:
+                            pass
                         continue
 
                     log.info(_correlate_log_line(alert["name"], result))
                     try:
                         from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
 
-                        push_activity("correlate", "%s -> %s (root: %s)" % (alert["name"], result["action"], result["root_cause"]), status="success")
+                        if result["action"] == "execute" and APPROVAL_MODE != "auto":
+                            verdict = "root cause; SOP proposed for your approval"
+                        elif result["action"] == "execute":
+                            verdict = "root cause; running its SOP"
+                        else:
+                            verdict = "%s (root: %s)" % (result["action"], result["root_cause"])
+                        push_activity("correlate", "%s: %s" % (alert["name"], verdict), status="success")
                     except Exception:
                         pass
                 except Exception as e:
@@ -1013,18 +1074,33 @@ def run_loop():
                 # Execute SOP (async via thread pool)
                 _submit_sop(alert, correlation_result)
 
-            # Re-evaluate suppressed alarms after root cause SOP completes
-            for sym, root in list(_suppressed.items()):
-                if root not in _active_sops and sym in active:
-                    log.info(f"RE-EVAL: {sym} still active after {root} fixed")
-                    try:
-                        from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import push_activity
+            # Re-evaluate suppressed symptoms once their root alarm is no longer
+            # firing, proposed or running, after a grace period for recovery.
+            try:
+                from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
+                    push_activity,
+                    snapshot_pending_approvals,
+                )
 
-                        push_activity("reeval", "%s still active after %s fixed" % (sym, root), status="warning")
-                    except Exception:
-                        pass
-                    del _suppressed[sym]
-                    seen.pop(sym, None)
+                pending_names = set(snapshot_pending_approvals())
+            except Exception:
+                pending_names = set()
+            raise_now, drop = _symptoms_to_reevaluate(active, pending_names, time.time())
+            for sym in drop:
+                del _suppressed[sym]
+            for sym, root in raise_now:
+                log.info(f"RE-EVAL: {sym} still firing {REEVAL_GRACE_SECONDS}s after {root} cleared")
+                try:
+                    push_activity(
+                        "reeval",
+                        "%s still firing %ds after %s cleared; evaluating it on its own"
+                        % (sym, REEVAL_GRACE_SECONDS, root),
+                        status="warning",
+                    )
+                except Exception:
+                    pass
+                del _suppressed[sym]
+                seen.pop(sym, None)
 
             if cycle % 10 == 0:
                 log.info(f"Cycle {cycle}: {len(alerts)} active alarms, {len(seen)} tracked")

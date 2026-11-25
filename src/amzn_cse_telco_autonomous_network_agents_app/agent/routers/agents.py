@@ -13,10 +13,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 
 from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
+    snapshot_active_alarms,
     snapshot_activity,
-    snapshot_alarms,
     snapshot_executions,
+    snapshot_pending_approvals,
 )
+from amzn_cse_telco_autonomous_network_agents_app.agent.core import deployment_plans
 
 router = APIRouter(tags=["agents"])
 logger = logging.getLogger(__name__)
@@ -29,7 +31,8 @@ def get_agent_reasoning(limit: int = 20):
     Entries are typed as: reasoning | action | decision | escalation
     """
     entries = []
-    for activity in snapshot_activity()[-limit:]:
+    activity_feed = deployment_plans.merge_activity(snapshot_activity(), deployment_plans.list_plans())
+    for activity in activity_feed[-limit:]:
         entry_type = "action"
         stage = activity.get("stage", "")
         message = activity.get("message", "")
@@ -43,7 +46,7 @@ def get_agent_reasoning(limit: int = 20):
 
         entries.append(
             {
-                "agent": _infer_agent(stage),
+                "agent": "anda" if message.startswith("Network Change Agent") else _infer_agent(stage),
                 "timestamp": activity.get("timestamp", datetime.now(timezone.utc).isoformat()),
                 "type": entry_type,
                 "message": message,
@@ -57,44 +60,37 @@ def get_agent_reasoning(limit: int = 20):
 
 @router.get("/api/agents/status")
 def get_agent_status():
-    """Return cognitive state for each agent (idle/active/thinking/waiting)."""
+    """Return the state of each agent (idle/active/thinking/waiting).
+
+    The Assurance Agent's state comes from alarms that are firing now and from
+    proposals waiting for approval; the Change Agent's from DeploymentPlans.
+    """
     from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
 
-    active_alarms = [a for a in snapshot_alarms() if a.get("status") != "resolved"]
+    active_alarms = [a for a in snapshot_active_alarms() if not a.get("suppressed")]
+    pending = snapshot_pending_approvals()
     active_execs = [e for e in snapshot_executions() if e.get("status") == "running"]
 
-    # --- ANRA state (from alarms + executions) ---
+    # --- ANRA state ---
     anra_state = "idle"
-    anra_detail = "Watching — all systems nominal"
+    anra_detail = "Watching — no active alarms"
     if active_execs:
         anra_state = "active"
         anra_detail = f"Executing SOP: {active_execs[0].get('sop', 'unknown')}"
-    elif len(active_alarms) > 0:
+    elif pending:
+        anra_state = "waiting"
+        anra_detail = f"Waiting for your approval: {', '.join(sorted(pending))}"
+    elif active_alarms:
         anra_state = "thinking"
-        anra_detail = f"Correlating {len(active_alarms)} active alarms"
+        anra_detail = f"Correlating {len(active_alarms)} active alarm{'s' if len(active_alarms) != 1 else ''}"
 
-    # --- ANDA state (from live DeploymentPlan CRDs) ---
+    # --- ANDA state ---
     anda_state = "idle"
     anda_detail = "No active deployments"
-    try:
-        result = run_cmd(
-            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system -o json --field-selector status.phase!=Completed,status.phase!=Failed",
-            timeout=3,
-        )
-        if result.success:
-            items = json.loads(result.stdout).get("items", [])
-            active_plans = [p for p in items if p.get("status", {}).get("phase") not in ("Completed", "Failed", None)]
-            if active_plans:
-                plan = active_plans[0]
-                phase = plan.get("status", {}).get("phase", "Pending")
-                nf = plan.get("spec", {}).get("networkFunctions", [{}])[0].get("name", "unknown") if plan.get("spec", {}).get("networkFunctions") else "unknown"
-                anda_state = "active"
-                anda_detail = f"Deploying {nf} — {phase}"
-            elif items:  # Plans exist but all pending
-                anda_state = "thinking"
-                anda_detail = f"{len(items)} plan(s) queued"
-    except Exception:
-        pass
+    plan = deployment_plans.active_plan(deployment_plans.list_plans())
+    if plan:
+        anda_state = "active"
+        anda_detail = f"Running {plan['sop'] or plan['intent']} for {plan['nf']} — {plan['phase']}"
 
     # --- ANPA state (from live ProvisioningRequest CRDs) ---
     anpa_state = "idle"
@@ -151,7 +147,7 @@ def get_agent_status():
 def get_current_incident():
     """Return the current active incident (if any) with OODA state."""
     active_execs = [e for e in snapshot_executions() if e.get("status") == "running"]
-    active_alarms = [a for a in snapshot_alarms() if a.get("status") != "resolved"]
+    active_alarms = snapshot_active_alarms()
 
     if not active_execs and not active_alarms:
         return {"active": False}
@@ -168,10 +164,8 @@ def get_current_incident():
 
     return {
         "active": True,
-        "incident_id": f"INC-{datetime.now(timezone.utc).strftime('%Y-%m%d')}-001",
         "root_cause": {
             "description": exec_data.get("trigger", "Multiple correlated alarms"),
-            "confidence": 0.94,
             "causal_chain": [{"event": a.get("name", "unknown"), "time": a.get("fired_at", ""), "type": "alarm"} for a in active_alarms[:5]],
         },
         "sop": {
@@ -188,125 +182,56 @@ def get_current_incident():
 
 @router.get("/api/anra/track-record")
 def get_track_record(days: int = 7):
-    """Return aggregated track record stats for ANRA over the past N days."""
-    all_execs = snapshot_executions()
-    total = len(all_execs)
-    auto_resolved = sum(1 for e in all_execs if e.get("resolution") == "auto")
-    escalated = sum(1 for e in all_execs if e.get("resolution") == "escalated")
-    successes = sum(1 for e in all_execs if e.get("status") == "success")
-
-    avg_mttr_auto = 192 if total == 0 else sum(e.get("mttr_seconds", 180) for e in all_execs if e.get("resolution") == "auto") / max(auto_resolved, 1)
-
+    """Remediations the Assurance Agent handed to the Change Agent, from
+    DeploymentPlans. Values are None when there is nothing to measure yet."""
+    plans = [p for p in (deployment_plans.list_plans() or []) if p["triggered_by"] in ("anra", "")]
+    stats = deployment_plans.summary(plans)
     return {
-        "incidents_handled": total,
-        "auto_resolved": auto_resolved,
-        "escalated": escalated,
-        "avg_mttr_auto_seconds": int(avg_mttr_auto),
-        "avg_mttr_manual_seconds": 2040,
-        "sop_success_rate": round(successes / max(total, 1), 2),
-        "false_positive_rate": 0.08,
-    }
-
-
-@router.get("/api/anra/incidents/{incident_id}")
-def get_incident(incident_id: str):
-    """Return full incident timeline for a specific incident."""
-    return {
-        "id": incident_id,
-        "resolved": True,
-        "resolution": "auto",
-        "sop_used": "remediate-du-cpu-overload",
-        "mttr_seconds": 192,
-        "timeline": [
-            {"time": "14:01:45", "type": "alarm", "detail": "worker-003 CPU 99%", "source": "InfluxDB"},
-            {"time": "14:02:31", "type": "correlation", "detail": "3 alarms → CPU pressure", "confidence": 0.94},
-            {"time": "14:02:33", "type": "decision", "detail": "SOP: remediate-du-cpu-overload", "risk": "LOW"},
-            {"time": "14:02:35", "type": "action", "detail": "Identify high-CPU process", "result": "pid 4521"},
-            {"time": "14:03:10", "type": "action", "detail": "Restart DU with CPU affinity"},
-            {"time": "14:03:45", "type": "action", "detail": "Verify DU recovery", "result": "CPU 42% ✓"},
-            {"time": "14:04:15", "type": "action", "detail": "Verify downstream", "result": "PFCP ✓, SCTP ✓"},
-            {"time": "14:04:57", "type": "verified", "detail": "UE attach rate 99.7% (was 72.3%)"},
-            {"time": "14:04:57", "type": "closed"},
-        ],
-        "learning": "DU CPU overload on worker-003 is the 3rd occurrence this week. Recommendation: Set CPU resource limits on DU pod (resources.limits.cpu=4000m)",
+        "incidents_handled": stats["total"],
+        "auto_resolved": stats["completed"],
+        "completed": stats["completed"],
+        "escalated": stats["failed"],
+        "in_progress": stats["active"],
+        "avg_mttr_auto_seconds": stats["avg_seconds_to_fix"],
+        "mttr_minutes": round(stats["avg_seconds_to_fix"] / 60, 1) if stats["avg_seconds_to_fix"] else None,
+        "sop_success_rate": stats["success_rate"],
     }
 
 
 @router.get("/api/anda/active-deployment")
-def get_active_deployment():
-    """Return the currently active deployment (if any) with stage reasoning."""
-    from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
+def get_active_deployment(history: int = 10):
+    """The DeploymentPlan the Change Agent is running (if any) and recent ones.
 
-    # Check live CRDs first (source of truth)
-    try:
-        result = run_cmd(
-            "kubectl get deploymentplans.deployment.anda.aws.io -n anda-system -o json --field-selector status.phase!=Completed,status.phase!=Failed",
-            timeout=5,
-        )
-        if result.success:
-            data = json.loads(result.stdout)
-            items = data.get("items", [])
-            if items:
-                plan = items[0]
-                spec = plan.get("spec", {})
-                status = plan.get("status", {})
-                nfs = spec.get("networkFunctions", [])
-                phase = status.get("phase", "Pending")
-                sop_exec = status.get("sopExecution", {})
-
-                # Map phase to stage progress
-                stages = [
-                    {"name": "Preflight", "status": "done" if phase != "Pending" else "active"},
-                    {"name": "Deploy", "status": "active" if phase == "InProgress" else ("done" if phase in ("Completed",) else "pending")},
-                    {"name": "Validate", "status": "done" if phase == "Completed" else "pending"},
-                    {"name": "Live", "status": "done" if phase == "Completed" else "pending"},
-                ]
-
-                return {
-                    "active": True,
-                    "plan_name": plan.get("metadata", {}).get("name", "unknown"),
-                    "nf": nfs[0].get("name", "unknown") if nfs else "unknown",
-                    "intent": spec.get("intent", "deploy"),
-                    "priority": spec.get("priority", "normal"),
-                    "triggered_by": spec.get("triggeredBy", "operator"),
-                    "site": spec.get("site", "unknown"),
-                    "stage": phase,
-                    "reasoning": spec.get("reason", "Deployment in progress"),
-                    "sop_execution": sop_exec,
-                    "safety_net": "If KPIs degrade within 3 min → auto-rollback",
-                    "stages": stages,
-                }
-    except Exception:
-        pass
-
-    # Fallback: check in-memory deployment plans (legacy API path)
-    try:
-        from amzn_cse_telco_autonomous_network_agents_app.agent.routers.deployments import _deployment_plans
-
-        active = [p for p in _deployment_plans.values() if p.get("status") in ("pending", "deploying")]
-        if active:
-            plan = active[0]
-            return {
-                "active": True,
-                "nf": plan.get("networkFunctions", ["unknown"])[0],
-                "from_version": "current",
-                "to_version": "latest",
-                "site": plan.get("site", "unknown"),
-                "stage": plan.get("status", "pending"),
-                "reasoning": "Deployment in progress",
-                "watching": {},
-                "safety_net": "If KPIs degrade within 3 min → auto-rollback",
+    Reads every plan in anda-system and filters in Python: custom resources do
+    not support ``--field-selector status.phase``, which is why an earlier
+    version always reported "no active deployment".
+    """
+    plans = deployment_plans.list_plans()
+    if plans is None:
+        return {"active": False, "history": [], "error": "DeploymentPlans unavailable"}
+    plan = deployment_plans.active_plan(plans)
+    body: dict = {"active": plan is not None, "history": plans[: max(0, history)]}
+    if plan:
+        phase = plan["phase"]
+        body.update(
+            {
+                "plan_name": plan["name"],
+                "nf": plan["nf"] or "unknown",
+                "intent": plan["intent"],
+                "alarm": plan["alarm"],
+                "sop": plan["sop"],
+                "triggered_by": plan["triggered_by"],
+                "stage": phase,
+                "reasoning": plan["reason"],
+                "steps": plan["steps"],
                 "stages": [
-                    {"name": "Preflight", "status": "done", "detail": "All checks passed"},
-                    {"name": "Deploy", "status": "active", "detail": "Helm upgrade in progress"},
-                    {"name": "Validate", "status": "pending"},
-                    {"name": "Live", "status": "pending"},
+                    {"name": "Accepted", "status": "done" if phase != "Pending" else "active"},
+                    {"name": "Running SOP", "status": "active" if phase == "InProgress" else "pending"},
+                    {"name": "Done", "status": "pending"},
                 ],
             }
-    except Exception:
-        pass
-
-    return {"active": False}
+        )
+    return body
 
 
 @router.get("/api/anda/fleet-opinions")

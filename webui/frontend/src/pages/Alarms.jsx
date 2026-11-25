@@ -23,7 +23,7 @@ const Alarms = () => {
       axios.get('/api/executions'),
       axios.get('/api/correlations'),
       axios.get('/api/events?window=300'),
-      axios.get('/api/activity?limit=40'),
+      axios.get('/api/activity?limit=100'),
     ])
       .then(([a, e, c, ev, act]) => {
         setAlarms(a.data.alarms || [])
@@ -43,9 +43,12 @@ const Alarms = () => {
     return () => clearInterval(t)
   }, [])
 
-  const suppressed = corrs.filter(c => c.action === 'suppress').length
-  const successRate = execs.length ? Math.round(execs.filter(e => e.result === 'completed' || e.result === 'success').length / execs.length * 100) : 0
-  const activeStage = activity.length > 0 ? activity[activity.length - 1].stage : null
+  const suppressed = alarms.filter(a => a.suppressed).length
+  // Executions include the DeploymentPlans the Network Change Agent ran after
+  // approval. Success rate counts finished runs only; "—" until there is one.
+  const finished = execs.filter(e => e.result !== 'running')
+  const succeeded = finished.filter(e => e.result === 'completed' || e.result === 'success').length
+  const successRate = finished.length ? Math.round(succeeded / finished.length * 100) : null
 
   if (error) return <Alert type="error" message={error} />
   if (!ready) return <Spin style={{ display: 'block', margin: '120px auto' }} />
@@ -56,16 +59,17 @@ const Alarms = () => {
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={5}><Card bordered={false} size="small"><Statistic title="Active Alarms" value={alarms.length} prefix={<AlertOutlined />}
           valueStyle={alarms.length > 0 ? { color: '#cf1322' } : {}} /></Card></Col>
-        <Col span={5}><Card bordered={false} size="small"><Statistic title="Suppressed" value={suppressed} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={5}><Card bordered={false} size="small"><Statistic title="Suppressed now" value={suppressed} valueStyle={{ color: '#722ed1' }} /></Card></Col>
         <Col span={5}><Card bordered={false} size="small"><Statistic title="SOPs Executed" value={execs.length} prefix={<CheckCircleOutlined />} /></Card></Col>
-        <Col span={5}><Card bordered={false} size="small"><Statistic title="Success Rate" value={successRate} suffix="%" valueStyle={{ color: successRate >= 80 ? '#3f8600' : '#cf1322' }} /></Card></Col>
+        <Col span={5}><Card bordered={false} size="small"><Statistic title="Success Rate" value={successRate ?? '—'} suffix={successRate == null ? '' : '%'}
+          valueStyle={successRate == null ? {} : { color: successRate >= 80 ? '#3f8600' : '#cf1322' }} /></Card></Col>
         <Col span={4}><Card bordered={false} size="small"><Statistic title="Events (5m)" value={events.length} prefix={<ClockCircleOutlined />} /></Card></Col>
       </Row>
 
       {/* Remediation Pipeline */}
       <Card bordered={false} style={{ marginBottom: 16, borderRadius: 12, background: 'linear-gradient(135deg, #fafafa 0%, #f0f5ff 100%)' }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Remediation Pipeline</div>
-        <RemediationPipeline activeStage={activeStage} />
+        <RemediationPipeline activity={activity} />
       </Card>
 
       {/* Live Activity Feed */}
@@ -118,7 +122,8 @@ const Alarms = () => {
               <Table dataSource={corrs.slice(-10).reverse()} size="small" pagination={false}
                 rowKey={(r, i) => `${r.root_cause}-${r.action}-${i}`}
                 columns={[
-                  { title: 'Action', dataIndex: 'action', width: 80, render: a => <Tag color={a === 'suppress' ? 'purple' : a === 'execute' ? 'green' : 'orange'}>{a}</Tag> },
+                  { title: 'Alarm', dataIndex: 'alarm', render: t => t || '—' },
+                  { title: 'Decision', dataIndex: 'action', width: 90, render: a => <Tag color={a === 'suppress' ? 'purple' : a === 'execute' ? 'green' : 'orange'}>{a === 'suppress' ? 'symptom' : a === 'execute' ? 'root cause' : a}</Tag> },
                   { title: 'Root Cause', dataIndex: 'root_cause', render: t => <b>{t}</b> },
                   { title: 'Symptoms', dataIndex: 'symptoms', render: s => (s || []).map(n => <Tag key={n} style={{ fontSize: 10 }}>{n}</Tag>) },
                   { title: 'Confidence', dataIndex: 'confidence', width: 80, render: c => <Tag color={c === 'high' ? 'green' : 'orange'}>{c}</Tag> },
@@ -135,8 +140,9 @@ const Alarms = () => {
           columns={[
             { title: 'Alarm', dataIndex: 'alarm', render: t => <b>{t}</b> },
             { title: 'SOP', dataIndex: 'sop', ellipsis: true, render: s => s ? s.split('/').pop() : '-' },
-            { title: 'Status', dataIndex: 'result', width: 80, render: s => <Tag color={s === 'completed' || s === 'success' ? 'green' : 'red'}>{s}</Tag> },
-            { title: 'Correlation', dataIndex: 'correlation', ellipsis: true, render: c => <span style={{ fontSize: 11, color: '#666' }}>{c}</span> },
+            { title: 'Status', dataIndex: 'result', width: 90, render: s => <Tag color={s === 'completed' || s === 'success' ? 'green' : s === 'running' ? 'blue' : 'red'}>{s}</Tag> },
+            { title: 'Run by', dataIndex: 'executed_by', width: 170, render: (b, r) => <span style={{ fontSize: 11, color: '#666' }}>{b || 'Network Assurance Agent'}{r.plan ? ` (${r.plan})` : ''}</span> },
+            { title: 'Duration', dataIndex: 'elapsed_seconds', width: 80, render: d => (d != null ? `${d}s` : '-') },
             { title: 'Time', dataIndex: 'timestamp', width: 80, render: t => t ? new Date(t).toLocaleTimeString() : '-' },
           ]} />
       </Card>

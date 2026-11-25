@@ -1,6 +1,6 @@
 const STAGE_COLORS = {
   collect: '#8c8c8c', detect: '#f5222d', correlate: '#722ed1',
-  resolve: '#1890ff', enrich: '#fa8c16', execute: '#52c41a', reeval: '#faad14',
+  resolve: '#1890ff', enrich: '#fa8c16', execute: '#52c41a', reeval: '#faad14', clear: '#52c41a',
 }
 const STATUS_ICON = { info: '○', success: '✅', warning: '⚠️', error: '❌' }
 
@@ -8,7 +8,7 @@ const ActivityFeed = ({ activity = [] }) => {
   if (activity.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '24px 0', color: '#bfbfbf' }}>
-        <div style={{ fontSize: 13 }}>Idle — monitoring 8,000+ metrics...</div>
+        <div style={{ fontSize: 13 }}>Idle — no alarm activity yet</div>
         <div style={{ marginTop: 8, height: 3, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
           <div style={{ width: '30%', height: '100%', background: '#d9d9d9', borderRadius: 2, animation: 'idleSweep 3s infinite ease-in-out' }} />
         </div>

@@ -9,86 +9,47 @@ import {
 } from '@ant-design/icons'
 import { getAnraTrackRecord, getAgentsReasoning } from '../services/api'
 
+// Remediations this agent proposed and the Network Change Agent ran after your
+// approval, counted from DeploymentPlans. Fix time runs from approval to the
+// plan finishing. Values are "—" until there is something to measure.
 const TrackRecord = ({ record, loading }) => {
   if (loading) return <Skeleton active paragraph={{ rows: 3 }} />
   if (!record) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No track record data" />
 
-  const autoResolveRate = record.incidents_handled > 0
-    ? Math.round((record.auto_resolved / record.incidents_handled) * 100)
-    : 0
-  const mttrMinutes = record.avg_mttr_auto_seconds
-    ? Math.round(record.avg_mttr_auto_seconds / 60)
-    : null
+  const rate = record.sop_success_rate
+  const ratePct = rate == null ? null : Math.round(rate * 100)
+  const fixTime = record.avg_mttr_auto_seconds == null
+    ? '—'
+    : record.avg_mttr_auto_seconds < 120
+      ? `${record.avg_mttr_auto_seconds}s`
+      : `${Math.round(record.avg_mttr_auto_seconds / 60)}m`
+
+  const tiles = [
+    { value: record.incidents_handled ?? 0, label: 'Approved remediations', color: '#1890FF', bg: '#F0F5FF' },
+    { value: record.completed ?? record.auto_resolved ?? 0, label: 'Completed', color: '#52c41a', bg: '#F6FFED' },
+    { value: record.escalated ?? 0, label: 'Failed', color: '#FA8C16', bg: '#FFF7E6' },
+    { value: fixTime, label: 'Avg fix time', color: '#722ed1', bg: '#F9F0FF' },
+  ]
 
   return (
     <div>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card size="small" bordered={false} style={{ textAlign: 'center', background: '#F0F5FF', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#1890FF' }}>
-              {record.incidents_handled ?? 0}
-            </div>
-            <div style={{ fontSize: 11, color: '#8c8c8c' }}>Total incidents</div>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" bordered={false} style={{ textAlign: 'center', background: '#F6FFED', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#52c41a' }}>
-              {record.auto_resolved ?? 0}
-            </div>
-            <div style={{ fontSize: 11, color: '#8c8c8c' }}>Auto-resolved</div>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" bordered={false} style={{ textAlign: 'center', background: '#FFF7E6', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#FA8C16' }}>
-              {record.escalated ?? 0}
-            </div>
-            <div style={{ fontSize: 11, color: '#8c8c8c' }}>Escalated</div>
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" bordered={false} style={{ textAlign: 'center', background: '#F9F0FF', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#722ed1' }}>
-              {mttrMinutes !== null ? `${mttrMinutes}m` : '—'}
-            </div>
-            <div style={{ fontSize: 11, color: '#8c8c8c' }}>Avg MTTR (auto)</div>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12}>
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 500 }}>Auto-resolution rate</span>
-            <span style={{ float: 'right', fontSize: 13, fontWeight: 700, color: autoResolveRate >= 70 ? '#52c41a' : '#FA8C16' }}>
-              {autoResolveRate}%
-            </span>
-          </div>
-          <Progress
-            percent={autoResolveRate}
-            strokeColor={autoResolveRate >= 70 ? '#52c41a' : '#FA8C16'}
-            showInfo={false}
-            style={{ marginBottom: 0 }}
-          />
-        </Col>
-        {record.sop_success_rate !== undefined && (
-          <Col xs={24} sm={12}>
-            <div style={{ marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>SOP success rate</span>
-              <span style={{ float: 'right', fontSize: 13, fontWeight: 700, color: '#1890FF' }}>
-                {Math.round((record.sop_success_rate ?? 0) * 100)}%
-              </span>
-            </div>
-            <Progress
-              percent={Math.round((record.sop_success_rate ?? 0) * 100)}
-              strokeColor="#1890FF"
-              showInfo={false}
-              style={{ marginBottom: 0 }}
-            />
+        {tiles.map(t => (
+          <Col xs={12} sm={6} key={t.label}>
+            <Card size="small" bordered={false} style={{ textAlign: 'center', background: t.bg, borderRadius: 8 }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: t.color }}>{t.value}</div>
+              <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.label}</div>
+            </Card>
           </Col>
-        )}
+        ))}
       </Row>
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>SOP success rate</span>
+        <span style={{ float: 'right', fontSize: 13, fontWeight: 700, color: '#1890FF' }}>
+          {ratePct == null ? '—' : `${ratePct}%`}
+        </span>
+      </div>
+      <Progress percent={ratePct ?? 0} strokeColor="#1890FF" showInfo={false} style={{ marginBottom: 0 }} />
     </div>
   )
 }

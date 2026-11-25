@@ -52,13 +52,15 @@ const reasoningFixture = {
 
 const monitoringFixture = { tier1_rules: 12, tier2_metrics: 12, tier2_pct: 67 }
 const alarmsFixture = { alarms: [{ id: 1 }, { id: 2 }], count: 2 }
-const trackRecordFixture = { auto_resolved: 3, mttr_minutes: 4.2, sop_success_rate: 95 }
+const trackRecordFixture = { incidents_handled: 1, completed: 1, auto_resolved: 1, mttr_minutes: 1.4, sop_success_rate: 1.0 }
 const fleetFixture = { nfs: [
   { name: 'AMF', deployment: 'free5gc-amf-deployment', status: 'Running', detail: '1/1 available' },
   { name: 'SMF', deployment: 'free5gc-smf-deployment', status: 'Running', detail: '1/1 available' },
   { name: 'gNB/UE sim', deployment: 'packetrusher-packetrusher', status: 'Running', detail: '1/1 available' },
 ] }
-const activeDeploymentFixture = { status: 'in-progress', nf: 'SMF', stage: 'draining' }
+const activeDeploymentFixture = { active: false, history: [
+  { name: 'anra-amf-1', alarm: 'free5gc_nf_unavailable', nf: 'amf', phase: 'Completed', elapsed_seconds: 86, active: false },
+] }
 
 // ── Helpers ──
 function renderMissionControl() {
@@ -169,7 +171,7 @@ describe('MissionControl', () => {
     renderMissionControl()
 
     await waitFor(() => {
-      expect(screen.getByText('T1:12 T2:12')).toBeInTheDocument()
+      expect(screen.getByText('alert rules')).toBeInTheDocument()
     })
 
     expect(screen.getByText('Active Alarms')).toBeInTheDocument()
@@ -202,6 +204,27 @@ describe('MissionControl', () => {
     })
     expect(screen.getByTestId('nf-tile-AMF').style.background).toBe('rgb(255, 241, 240)')
     expect(screen.getByTestId('nf-tile-SMF').style.background).toBe('rgb(246, 255, 237)')
+  })
+
+  it('shows real hand-offs and no invented collaboration', async () => {
+    mockAllApisSuccess()
+    renderMissionControl()
+
+    await waitFor(() => {
+      expect(screen.getByText('Recent hand-offs')).toBeInTheDocument()
+    })
+    expect(await screen.findByText('86s')).toBeInTheDocument()
+    expect(screen.queryByText('Deployment change correlation')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cluster health pre-check')).not.toBeInTheDocument()
+    expect(screen.getByText('Not used in this workshop')).toBeInTheDocument()
+    expect(screen.queryByText(/baselined/)).not.toBeInTheDocument()
+  })
+
+  it('says "None yet" when nothing was handed off', async () => {
+    mockAllApisSuccess()
+    mockGetAndaActiveDeployment.mockResolvedValue({ active: false, history: [] })
+    renderMissionControl()
+    expect(await screen.findByText('None yet')).toBeInTheDocument()
   })
 
   it('has no Upgrades counter on the Network Change Agent card', async () => {

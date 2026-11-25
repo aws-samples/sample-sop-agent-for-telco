@@ -7,8 +7,24 @@ import remarkGfm from 'remark-gfm'
 
 const SUGGESTIONS = ['What alarms are active?', 'Explain the last SOP execution', 'What is the network status?', 'What happened in the last hour?']
 
+const STORAGE_KEY = 'askAiMessages'
+const GREETING = { role: 'agent', text: "I'm the Network Assurance Agent. Ask me about active alarms, pending approvals, recent changes or SOPs." }
+
+const loadMessages = () => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null')
+    if (Array.isArray(saved) && saved.length > 0) return saved
+  } catch { /* ignore corrupt storage */ }
+  return [GREETING]
+}
+
 const AskAnra = () => {
-  const [msgs, setMsgs] = useState([{ role: 'agent', text: "I'm the AI Network Operations Agent — ask me about alarms, SOPs, nodes, or service impact." }])
+  // The conversation is kept in sessionStorage so it survives switching pages
+  // (the page component unmounts) but not closing the browser tab.
+  const [msgs, setMsgs] = useState(loadMessages)
+  useEffect(() => {
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-50))) } catch { /* storage full or disabled */ }
+  }, [msgs])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef(null)

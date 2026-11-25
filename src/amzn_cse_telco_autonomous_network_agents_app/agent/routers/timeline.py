@@ -7,6 +7,8 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
     snapshot_executions,
 )
 from fastapi import APIRouter
+
+from amzn_cse_telco_autonomous_network_agents_app.agent.core import deployment_plans
 from amzn_cse_telco_autonomous_network_agents_app.agent.monitoring_stats import build_monitoring_stats_payload
 
 router = APIRouter(tags=["dashboard"])
@@ -14,7 +16,10 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/api/executions")
 def get_executions():
-    executions = snapshot_executions()
+    """SOP runs: the Assurance Agent's own, plus the DeploymentPlans the Change
+    Agent ran after an approval (where every workshop remediation runs)."""
+    executions = snapshot_executions() + deployment_plans.as_executions(deployment_plans.list_plans())
+    executions.sort(key=lambda e: e.get("timestamp", ""))
     return {"executions": executions[-50:], "count": len(executions)}
 
 
@@ -37,7 +42,8 @@ def get_correlations():
 @router.get("/api/activity")
 def get_activity(limit: int = 50):
     """Return live agent activity stream for pipeline animation."""
-    return {"activity": snapshot_activity()[-limit:]}
+    activity = deployment_plans.merge_activity(snapshot_activity(), deployment_plans.list_plans())
+    return {"activity": activity[-limit:]}
 
 
 @router.get("/api/monitoring-stats")

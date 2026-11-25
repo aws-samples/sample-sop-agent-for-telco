@@ -73,8 +73,9 @@ class TestChatRouting:
             # Should not be swarm mode
             assert body.get("mode") != "swarm"
 
-    def test_complex_query_routes_to_swarm(self, anra_client):
-        """Complex queries should attempt swarm."""
+    def test_complex_query_routes_to_swarm(self, anra_client, monkeypatch):
+        """With CHAT_SWARM=1, complex queries go to the swarm."""
+        monkeypatch.setenv("CHAT_SWARM", "1")
         mock_swarm_instance = MagicMock()
         mock_swarm_instance.return_value = "Swarm diagnosis: root cause is SMF upgrade"
         mock_swarm_instance.__str__ = MagicMock(return_value="Swarm diagnosis: root cause is SMF upgrade")

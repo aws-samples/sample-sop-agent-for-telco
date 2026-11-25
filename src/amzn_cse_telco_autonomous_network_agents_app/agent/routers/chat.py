@@ -2,18 +2,21 @@
 # SPDX-License-Identifier: MIT-0
 
 import json
+import os
 from pathlib import Path
 
+from fastapi import APIRouter
+from pydantic import BaseModel
+
 from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
-    snapshot_alarms,
+    snapshot_active_alarms,
     snapshot_correlations,
     snapshot_executions,
     snapshot_pending_approvals,
 )
-from fastapi import APIRouter
+from amzn_cse_telco_autonomous_network_agents_app.agent.core import deployment_plans
 from amzn_cse_telco_autonomous_network_agents_app.agent.live_topology import build_live_topology
 from amzn_cse_telco_autonomous_network_agents_app.agent.monitoring_stats import build_monitoring_stats_payload
-from pydantic import BaseModel
 
 router = APIRouter(tags=["chat"])
 
@@ -24,16 +27,18 @@ class ChatRequest(BaseModel):
 
 @router.post("/api/chat")
 async def chat(req: ChatRequest):
-    """Chat with ANRA agent — ask about alarms, nodes, SOPs.
+    """Ask AI: answer questions about alarms, approvals, changes and SOPs from
+    the Network Assurance Agent's live state (see ``build_chat_context``).
 
-    Routes complex cross-domain queries to the ANO Swarm (ANPA + ANDA + ANRA).
-    Simple queries go to a single ANRA agent with live context.
+    With CHAT_SWARM=1, cross-domain queries go to the ANO swarm instead.
     """
-    # Route complex queries to the multi-agent swarm
+    # The multi-agent swarm (ANPA + ANDA + ANRA) is opt-in: in the workshop ANPA
+    # is not deployed, and the swarm's agents do not see this pod's live state,
+    # so a "what caused..." question would be answered without the incident data.
     try:
         from amzn_cse_telco_autonomous_network_agents_app.agent.core.swarm import is_complex_query
 
-        if is_complex_query(req.message):
+        if os.getenv("CHAT_SWARM", "0") == "1" and is_complex_query(req.message):
             return await _handle_swarm_query(req.message)
     except Exception:
         # Fall through to single-agent if swarm fails
@@ -52,76 +57,7 @@ async def chat(req: ChatRequest):
 
         model = build_model(ModelTier.FAST)
 
-        topo = build_live_topology()
-        s = topo.get("summary", {})
-        nodes = topo.get("k8s_nodes", [])
-        edge_nodes = [n for n in nodes if n.get("role") == "edge"]
-        region_nodes = [n for n in nodes if n.get("role") == "region"]
-
-        sops = []
-        try:
-            sop_dir = Path(__file__).resolve().parent.parent.parent / "sops"
-            sops = [f.stem for f in sop_dir.rglob("*.md") if f.stem != "TEMPLATE" and "archive" not in f.relative_to(sop_dir).parts]
-        except Exception:
-            pass
-
-        from amzn_cse_telco_autonomous_network_agents_app.agent.event_store import get_recent
-
-        recent_events = get_recent(300)
-
-        mon_stats = build_monitoring_stats_payload()
-
-        alarms_snap = snapshot_alarms()
-        execs_snap = snapshot_executions()
-        corrs_snap = snapshot_correlations()
-        pending_snap = snapshot_pending_approvals()
-        alarm_summary = json.dumps(
-            [{"name": a["name"], "severity": a["severity"]} for a in alarms_snap[-10:]],
-            default=str,
-        )
-        exec_summary = json.dumps(
-            [{"alarm": e.get("alarm"), "status": e.get("result")} for e in execs_snap[-5:]],
-            default=str,
-        )
-        corr_summary = json.dumps(
-            [{"action": c.get("action"), "root_cause": c.get("root_cause")} for c in corrs_snap[-5:]],
-            default=str,
-        )
-        edge_names = ", ".join(n.get("name", "") + " " + n.get("ip", "") for n in edge_nodes)
-        region_names = ", ".join(n.get("name", "") for n in region_nodes)
-        sop_list = ", ".join(sops[:10]) + ("..." if len(sops) > 10 else "")
-        t1 = mon_stats.get("tier1_rules", 11)
-        t2 = mon_stats.get("tier2_metrics", 0)
-        t2p = mon_stats.get("tier2_pct", 0)
-
-        context = f"""CURRENT STATE:
-- Active alarms: {alarm_summary}
-- Recent executions: {exec_summary}
-- Correlations: {corr_summary}
-- Events (5min): {len(recent_events)}
-- Pending approvals: {len(pending_snap)}
-
-TOPOLOGY:
-- {len(edge_nodes)} edge nodes: {edge_names}
-- {len(region_nodes)} region nodes: {region_names}
-- {s.get("nf_count", 0)} NF pods
-
-MONITORING:
-- Tier 1: {t1} threshold rules
-- Tier 2: {t2} metrics monitored, {t2p}% baselined
-- Tier 3: Bedrock AI classification (on-demand)
-
-SOPs AVAILABLE ({len(sops)}): {sop_list}
-
-Answer concisely using ONLY the data above."""
-
-        agent = Agent(
-            model=model,
-            system_prompt=f"""You are ANRA, the Autonomous Network Remediation Agent.
-You MUST answer using ONLY the data below. Never say you don't have access.
-
-{context}""",
-        )
+        agent = Agent(model=model, system_prompt=build_chat_context())
         result = agent(req.message)
         return {"response": str(result)}
     except Exception as e:
@@ -149,3 +85,85 @@ async def _handle_swarm_query(message: str) -> dict:
         }
     except Exception as e:
         return {"response": f"Swarm failed, falling back: {str(e)[:200]}", "mode": "error"}
+
+
+def _sop_dir() -> Path:
+    """SOPs ship in the image under ``$SOP_REPO/sops`` (``/app/sops``)."""
+    repo = os.getenv("SOP_REPO")
+    if repo:
+        return Path(repo) / "sops"
+    return Path(__file__).resolve().parents[4] / "sops"
+
+
+def _list_sops() -> list[str]:
+    root = _sop_dir()
+    try:
+        return sorted(str(f.relative_to(root)) for f in root.rglob("*.md") if f.stem != "TEMPLATE" and "archive" not in f.relative_to(root).parts)
+    except OSError:
+        return []
+
+
+def build_chat_context() -> str:
+    """System prompt for Ask AI, built only from live state.
+
+    Alarms are the ones firing now (the alarm store also keeps history);
+    executions include the DeploymentPlans the Change Agent ran after approval;
+    each correlation names the alarm it was about.
+    """
+    alarms = snapshot_active_alarms()
+    active = [{"name": a["name"], "severity": a.get("severity", "")} for a in alarms if not a.get("suppressed")]
+    suppressed = [{"name": a["name"], "symptom_of": a.get("root_cause", "")} for a in alarms if a.get("suppressed")]
+    pending = [{"alarm": name, "sop": (p.get("sop") or "").replace("/app/sops/", "")} for name, p in snapshot_pending_approvals().items()]
+    plans = deployment_plans.list_plans() or []
+    plan_rows = [
+        {
+            "plan": p["name"],
+            "alarm": p["alarm"],
+            "sop": p["sop"],
+            "phase": p["phase"],
+            "created": p["created"],
+            "seconds": p["elapsed_seconds"],
+            "steps": p["steps"],
+        }
+        for p in plans[:5]
+    ]
+    local_execs = [{"alarm": e.get("alarm"), "result": e.get("result")} for e in snapshot_executions()[-5:]]
+    correlations = [
+        {
+            "alarm": c.get("alarm", ""),
+            "decision": c.get("action"),
+            "root_cause": c.get("root_cause"),
+            "time": c.get("timestamp", ""),
+        }
+        for c in snapshot_correlations()[-8:]
+    ]
+    try:
+        nf_pods = build_live_topology().get("summary", {}).get("nf_count", 0)
+    except Exception:
+        nf_pods = "unknown"
+    try:
+        rules = build_monitoring_stats_payload().get("tier1_rules", "unknown")
+    except Exception:
+        rules = "unknown"
+    sops = _list_sops()
+    approval_mode = os.getenv("APPROVAL_MODE", "auto")
+
+    def dump(value) -> str:
+        return json.dumps(value, default=str)
+
+    return f"""You are the Network Assurance Agent for a Free5GC 5G core with a PacketRusher gNB/UE simulator.
+You watch alarms, correlate them, and propose reviewed SOPs. Approval mode is "{approval_mode}": in manual
+mode nothing runs until a person approves; approved SOPs run in the Network Change Agent as DeploymentPlans.
+Answer concisely using ONLY the data below. If a list is empty, say so plainly. Do not invent alarms, SOPs,
+executions or numbers.
+
+ALARMS FIRING NOW ({len(active)}): {dump(active)}
+SUPPRESSED AS SYMPTOMS ({len(suppressed)}): {dump(suppressed)}
+PENDING APPROVALS ({len(pending)}): {dump(pending)}
+CHANGES RUN BY THE NETWORK CHANGE AGENT (newest first, seconds = approval to finish): {dump(plan_rows)}
+SOPs RUN BY THIS AGENT ITSELF: {dump(local_execs)}
+RECENT CORRELATION DECISIONS (decision "suppress" means the alarm was treated as a symptom of root_cause;
+"execute" means it was treated as a root cause and an SOP was proposed): {dump(correlations)}
+NETWORK: {nf_pods} Free5GC/PacketRusher pods tracked; {rules} Prometheus alert rules.
+SOPs AVAILABLE ({len(sops)}): {", ".join(sops)}
+"""

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Row, Col, Card, Tag, Skeleton, Empty, Badge, Tooltip, Progress } from 'antd'
+import { Row, Col, Card, Tag, Skeleton, Empty, Badge, Tooltip } from 'antd'
 import {
   RobotOutlined,
   ThunderboltOutlined,
@@ -208,31 +208,6 @@ const AgentLifecycleFlow = () => {
         <div style={{ fontSize: 11, color: '#999', transform: 'rotate(-10deg)' }}>↩</div>
         <span style={{ fontSize: 9, color: '#999' }}>feedback</span>
       </div>
-    </div>
-  )
-}
-
-const CrossAgentInteraction = ({ interactions }) => {
-  if (!interactions || interactions.length === 0) return null
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#666', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        <ApiOutlined style={{ marginRight: 4 }} />
-        Cross-Agent Interactions
-      </div>
-      {interactions.slice(0, 3).map((item, i) => (
-        <div key={i} style={{
-          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
-          fontSize: 11, color: '#555', padding: '4px 8px',
-          background: '#fafafa', borderRadius: 4,
-        }}>
-          <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10 }}>{AGENT_META[item.from]?.displayName || item.from}</Tag>
-          <span style={{ color: '#bbb' }}>→</span>
-          <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10 }}>{AGENT_META[item.to]?.displayName || item.to}</Tag>
-          <span style={{ flex: 1 }}>{item.query}</span>
-        </div>
-      ))}
     </div>
   )
 }
@@ -455,7 +430,6 @@ const MissionControl = () => {
   const activeAgents = visibleAgents.filter(a => a.state === 'active' || a.state === 'thinking')
   const alarmCount = alarms?.count || alarms?.alarms?.length || 0
   const tier1Rules = monStats?.tier1_rules || 0
-  const tier2Metrics = monStats?.tier2_metrics || 0
 
   const fallbackSparkline = useMemo(() => Array.from({ length: 20 }, (_, i) => ({ i, value: Math.floor(Math.random() * 100) })), [])
   const sparklineMetrics = metrics.length > 0
@@ -468,48 +442,35 @@ const MissionControl = () => {
     const nfs = Array.isArray(fleetOpinions?.nfs) ? fleetOpinions.nfs : []
     return nfs.map(nf => ({
       name: nf.name,
-      short: nf.name === 'gNB/UE sim' ? 'gNB' : (nf.name || '').slice(0, 4),
+      short: nf.name === 'gNB/UE sim' ? 'gNB' : nf.name === 'WEBUI' ? 'WebC' : (nf.name || '').slice(0, 4),
       status: nf.status,
       detail: nf.detail,
     }))
   }, [fleetOpinions])
 
-  // Cross-agent interaction mock (real data would come from reasoning entries tagged with cross-agent)
-  const crossAgentInteractions = useMemo(() => {
-    const interactions = []
-    reasoning.forEach(entry => {
-      if (entry.message?.includes('ask_anda') || entry.message?.includes('ANDA')) {
-        interactions.push({ from: 'ANRA', to: 'ANDA', query: 'Recent deployments' })
-      }
-    })
-    // Always show at least the capability
-    if (interactions.length === 0) {
-      interactions.push(
-        { from: 'ANRA', to: 'ANDA', query: 'Deployment change correlation' },
-        { from: 'ANDA', to: 'ANRA', query: 'Cluster health pre-check' },
-      )
-    }
-    return interactions.slice(0, 3)
-  }, [reasoning])
+  // Hand-offs: each approved proposal became a DeploymentPlan that the
+  // Network Change Agent ran. Real records only; empty when none exist.
+  const handOffs = useMemo(() => (activeDeployment?.history || []).slice(0, 3), [activeDeployment])
 
   // ANDA stats
   const andaStats = useMemo(() => {
-    const active = activeDeployment?.status === 'in-progress' ? 1 : 0
+    const history = activeDeployment?.history || []
     return [
       { value: nfGrid.length, label: 'NFs' },
-      { value: active, label: 'Active' },
+      { value: activeDeployment?.active ? 1 : 0, label: 'Running' },
+      { value: history.filter(p => p.phase === 'Completed').length, label: 'Completed' },
     ]
   }, [nfGrid, activeDeployment])
 
   // ANRA stats
   const anraStats = useMemo(() => {
-    const resolved = trackRecord?.auto_resolved || 0
-    const mttr = trackRecord?.mttr_minutes || '—'
-    const successRate = trackRecord?.sop_success_rate || 0
+    const resolved = trackRecord?.completed ?? trackRecord?.auto_resolved ?? 0
+    const mttr = trackRecord?.mttr_minutes ?? '—'
+    const rate = trackRecord?.sop_success_rate
     return [
-      { value: resolved || '0', label: 'Resolved' },
-      { value: mttr, label: 'MTTR (m)' },
-      { value: `${successRate}%` || '—', label: 'Success' },
+      { value: String(resolved), label: 'Fixed' },
+      { value: mttr, label: 'Fix time (m)' },
+      { value: rate == null ? '—' : `${Math.round(rate * 100)}%`, label: 'Success' },
     ]
   }, [trackRecord])
 
@@ -585,8 +546,8 @@ const MissionControl = () => {
         <Col xs={12} sm={6}>
           <KpiCard
             title="Detection Rules"
-            value={tier1Rules + tier2Metrics}
-            suffix={`T1:${tier1Rules} T2:${tier2Metrics}`}
+            value={tier1Rules}
+            suffix="alert rules"
             icon={<DatabaseOutlined />}
             sparkData={sparklineMetrics.map(m => ({ ...m, value: m.value * 0.5 }))}
             sparkKey="value"
@@ -673,12 +634,12 @@ const MissionControl = () => {
             </div>
           </Card>
 
-          {/* Cross-Agent Interactions */}
+          {/* Hand-offs from the Assurance Agent to the Change Agent */}
           <Card
             title={
               <span>
                 <ApiOutlined style={{ marginRight: 8, color: '#FA8C16' }} />
-                Agent Collaboration
+                Recent hand-offs
               </span>
             }
             bordered={false}
@@ -687,18 +648,21 @@ const MissionControl = () => {
             bodyStyle={{ padding: '12px 16px' }}
           >
             <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-              Agents query each other for context during reasoning:
+              Approved proposals the Network Assurance Agent passed to the Network Change Agent as DeploymentPlans:
             </div>
-            {crossAgentInteractions.map((item, i) => (
-              <div key={i} style={{
+            {handOffs.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#8c8c8c' }}>None yet</div>
+            ) : handOffs.map(plan => (
+              <div key={plan.name} style={{
                 display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
                 fontSize: 12, color: '#555', padding: '6px 10px',
                 background: '#fafafa', borderRadius: 6, border: '1px solid #f0f0f0',
               }}>
-                <Tag color={AGENT_META[item.from]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{AGENT_META[item.from]?.displayName || item.from}</Tag>
-                <span style={{ color: '#bbb', fontSize: 14 }}>→</span>
-                <Tag color={AGENT_META[item.to]?.color} style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>{AGENT_META[item.to]?.displayName || item.to}</Tag>
-                <span style={{ flex: 1, fontStyle: 'italic' }}>{item.query}</span>
+                <span style={{ flex: 1 }}>{plan.alarm || plan.nf}</span>
+                <Tag color={plan.phase === 'Completed' ? 'green' : plan.active ? 'blue' : 'red'} style={{ margin: 0 }}>{plan.phase}</Tag>
+                <span style={{ color: '#8c8c8c', minWidth: 40, textAlign: 'right' }}>
+                  {plan.elapsed_seconds != null ? `${plan.elapsed_seconds}s` : ''}
+                </span>
               </div>
             ))}
           </Card>
@@ -726,20 +690,13 @@ const MissionControl = () => {
                   <span style={{ fontWeight: 700, color: '#1890FF' }}>{tier1Rules}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#52c41a' }} />
-                  <span style={{ fontSize: 12, flex: 1 }}>Tier 2 — Anomaly Detection</span>
-                  <span style={{ fontWeight: 700, color: '#52c41a' }}>{tier2Metrics}</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d9d9d9' }} />
+                  <span style={{ fontSize: 12, flex: 1, color: '#8c8c8c' }}>Tier 2 — Anomaly Detection</span>
+                  <span style={{ fontSize: 12, color: '#8c8c8c' }}>Not used in this workshop</span>
                 </div>
-                <Progress
-                  percent={monStats?.tier2_pct ?? 0}
-                  size="small"
-                  strokeColor="#52c41a"
-                  format={p => `${p}% baselined`}
-                  style={{ margin: '4px 0' }}
-                />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FA8C16' }} />
-                  <span style={{ fontSize: 12, flex: 1 }}>Tier 3 — Bedrock AI</span>
+                  <span style={{ fontSize: 12, flex: 1 }}>Tier 3 — Bedrock AI (Ask AI, generated SOPs)</span>
                   <span style={{ fontWeight: 700, color: '#FA8C16' }}>On-demand</span>
                 </div>
               </div>
