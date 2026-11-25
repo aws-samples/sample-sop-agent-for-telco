@@ -83,7 +83,7 @@ If the bound file does not exist, `resolve_sop()` falls back to generating a SOP
 | `free5gc_pod_restarting` | 30s | kill PID 1 in the SMF container three times, 20s apart | `day2-remediate/core/free5gc-pod-crashloop.md` |
 | `free5gc_registration_unavailable` | 30s | `kubectl scale deploy/packetrusher-packetrusher -n free5gc --replicas=0` | `day2-remediate/core/free5gc-registration-unavailable.md` |
 | `free5gc_node_not_ready` | 1m | stage demo only (stop kubelet via SSM); not in the participant script | `day2-remediate/infra/free5gc-node-not-ready.md` |
-| `free5gc_metrics_missing` | 2m | none — hygiene rule, not part of the storyline | (Bedrock-generated) |
+| `free5gc_metrics_missing` | 2m | none — hygiene rule, not part of the storyline; fires only when the AMF is running but not scraped, so it stays quiet during the AMF incident | (Bedrock-generated) |
 
 **Workshop timing tuning.** Detection latency is the sum of: kube-state-metrics scrape (≤30s), rule evaluation (`interval: 15s`), the `for:` window, Alertmanager `group_wait: 5s`, and ANRA's poll of Alertmanager (`monitoring.pollIntervalSeconds: 15`). With the values above an injected fault typically reaches ANRA as a pending approval in 45–75 seconds (worst case ≈2 minutes, measured ~90s before the tuning). Production rules should debounce for several minutes to avoid paging on transient blips; every tuned value carries a `WORKSHOP TUNING` comment.
 

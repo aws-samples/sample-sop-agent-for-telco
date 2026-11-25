@@ -300,6 +300,17 @@ def test_workshop_alarm_sop_bindings_agree():
     assert not value_sops["free5gc_metrics_missing"]
 
 
+def test_metrics_missing_stays_quiet_while_the_amf_is_down():
+    """The AMF incident must not raise free5gc_metrics_missing as a separate
+    root cause: the rule only reports a scrape gap on a running AMF."""
+    rules = yaml.safe_load((MONITORING / "free5gc-alert-rules.yaml").read_text())
+    by_name = {r["alert"]: r for g in rules["spec"]["groups"] for r in g["rules"]}
+    expr = " ".join(by_name["free5gc_metrics_missing"]["expr"].split())
+    assert expr.startswith("absent(free5gc_amf_business_ue_gmm_state_count{")
+    assert ('unless on() (kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"} == 0)') in expr
+    assert "five minutes" not in by_name["free5gc_metrics_missing"]["annotations"]["description"]
+
+
 def test_anpa_is_disabled_and_not_deployed_by_sop3():
     platform = yaml.safe_load((ROOT / "helm-charts" / "ano-platform" / "values.yaml").read_text())
     assert platform["anpa"]["enabled"] is False

@@ -53,11 +53,18 @@ spec:
             alarm_key: free5gc_node_not_ready
           annotations:
             summary: EKS worker node is not Ready
-            description: Node {{ $labels.node }} has not been Ready for two minutes.
+            description: Node {{ $labels.node }} has not been Ready for one minute.
             sop: day2-remediate/infra/free5gc-node-not-ready.md
 
         - alert: free5gc_metrics_missing
-          expr: absent(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"})
+          # Fires only when the AMF is running but its metric is not scraped (a
+          # monitoring gap). When the AMF has no available replica the metric is
+          # absent by definition and free5gc_nf_unavailable already reports the
+          # outage, so `unless` keeps this rule from raising a second, unrelated
+          # alarm (and a Bedrock-drafted SOP) during the AMF incident.
+          expr: |
+            absent(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"})
+              unless on() (kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"} == 0)
           for: 2m
           labels:
             severity: warning
@@ -65,12 +72,13 @@ spec:
             alarm_key: free5gc_metrics_missing
           annotations:
             summary: Free5GC AMF metrics are missing
-            description: Prometheus has not received the AMF registered-UE metric for five minutes.
+            description: Prometheus has not received the AMF registered-UE metric for two minutes while the AMF is running.
 
         - alert: free5gc_registration_unavailable
           # `or vector(0)` makes an absent series evaluate as 0 registered UEs, so
           # this fires when the AMF itself is down instead of silently returning
-          # no data. metrics_missing still fires separately for the scrape gap.
+          # no data. metrics_missing does not fire while the AMF is down; it only
+          # reports a scrape gap on a running AMF.
           expr: (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) or vector(0)) < 1
           for: 30s
           labels:
