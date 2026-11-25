@@ -86,7 +86,13 @@ def list_sops():
             continue
         rel = str(f.relative_to(sop_dir))
         sops.append(_sop_entry(f, rel, rel.split("/")[0]))
-    for name, f in _generated_files().items():
+    generated = _generated_files()
+    for name, f in generated.items():
+        # The enrich step writes <stem>-enriched.md next to the draft and the
+        # decision uses the enriched copy, so list only that one. The draft
+        # is still served by its own path.
+        if not name.endswith("-enriched.md") and f"{name[:-3]}-enriched.md" in generated:
+            continue
         try:
             entry = _sop_entry(f, GENERATED_PREFIX + name, "generated")
         except (OSError, UnicodeDecodeError):

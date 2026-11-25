@@ -159,3 +159,13 @@ def test_viewer_covers_the_paths_the_monitor_writes():
     assert Path("/tmp/generated-sops") in sops.GENERATED_SOP_DIRS
     assert sops._is_generated_name("remediate-anything.md")
     assert sops._is_generated_name("free5gc-pod-crashloop-enriched.md")
+
+
+def test_draft_is_hidden_when_its_enriched_copy_exists(client, dirs):
+    (dirs["gen"] / "remediate-Free5GCWorkshopPipelineTest.md").write_text("# Draft pipeline test\n")
+    paths = [s["path"] for s in client.get("/api/sops").json()["sops"]]
+    assert "generated/remediate-Free5GCWorkshopPipelineTest-enriched.md" in paths
+    assert "generated/remediate-Free5GCWorkshopPipelineTest.md" not in paths
+    assert "generated/remediate-nf_crashloop.md" in paths  # no enriched copy: still listed
+    draft = client.get("/api/sops/generated/remediate-Free5GCWorkshopPipelineTest.md")
+    assert draft.status_code == 200
