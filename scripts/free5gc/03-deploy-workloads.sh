@@ -2,7 +2,9 @@
 # =============================================================================
 # IND321 - Deploy free5gc core + packetrusher and bring up a working E2E 5G call.
 #
-# This script is IDEMPOTENT and encodes every lesson learned during bring-up:
+# This script is IDEMPOTENT: when the deployment is already healthy it exits
+# without changing anything (FORCE=1 overrides). It encodes every lesson learned
+# during bring-up:
 #   1. gtp5g must be built + loaded on every worker node BEFORE the UPF starts
 #      (see scripts/install-gtp5g.sh). We verify it here and fail fast if missing.
 #   2. free5gc is installed first, then packetrusher (which waits for the AMF).
@@ -47,6 +49,42 @@ krestart_recreate() {  # $1 = deployment name  (clean scale 0 -> 1 for singleton
   sleep 10
   kubectl -n "${NAMESPACE}" scale deploy "${dep}" --replicas=1 >/dev/null 2>&1 || true
 }
+
+# ---- Fast path: already deployed and healthy -> change nothing --------------
+# A second run (for example, a participant re-running the SOP by mistake) must
+# not disturb a working network: the PacketRusher recreate below drops the UE's
+# PDU session and raises alarms. Exit before touching anything when both
+# releases are deployed at the bundled chart versions, every non-Job pod is
+# Ready, and the UE has its data interface. Set FORCE=1 to run the full flow.
+UE_IF="${UE_IF:-val0000000003}"
+already_healthy() {
+  local releases pods pr
+  releases="$(helm list -n "${NAMESPACE}" -o json 2>/dev/null)" || return 1
+  printf '%s' "${releases}" | jq -e \
+    --arg f "$(basename "${FREE5GC_CHART}" .tgz)" --arg p "$(basename "${PACKETRUSHER_CHART}" .tgz)" '
+      ([.[] | select(.name == "free5gc" and .chart == $f and .status == "deployed")] | length == 1) and
+      ([.[] | select(.name == "packetrusher" and .chart == $p and .status == "deployed")] | length == 1)
+    ' >/dev/null || return 1
+  pods="$(kubectl get pods -n "${NAMESPACE}" -o json 2>/dev/null)" || return 1
+  printf '%s' "${pods}" | jq -e '
+      [.items[]
+        | select(.status.phase != "Succeeded")
+        | select(((.metadata.ownerReferences // []) | map(.kind) | index("Job")) | not)]
+      | length > 0 and all(.status.conditions // [] | any(.type == "Ready" and .status == "True"))
+    ' >/dev/null || return 1
+  pr="$(kubectl get pods -n "${NAMESPACE}" -l app=packetrusher -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+  [ -n "${pr}" ] || return 1
+  kubectl exec -n "${NAMESPACE}" "${pr}" -- ip addr show "${UE_IF}" >/dev/null 2>&1
+}
+
+if [ "${FORCE:-0}" != "1" ] && already_healthy; then
+  echo "==> Free5GC and PacketRusher are already deployed and healthy in namespace ${NAMESPACE}."
+  echo "    Releases free5gc and packetrusher are deployed at the bundled chart versions,"
+  echo "    all pods are Ready, and the UE has interface ${UE_IF}. Nothing was changed."
+  echo "    Set FORCE=1 to run the full install and reconcile flow anyway."
+  kubectl get pods -n "${NAMESPACE}" -o wide
+  exit 0
+fi
 
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
