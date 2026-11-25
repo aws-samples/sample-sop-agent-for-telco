@@ -16,7 +16,6 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import { getApprovals, APPROVALS_CHANGED_EVENT } from '../services/api'
-import { useDemoMode } from '../context/DemoContext'
 
 const PAGE_TITLES = {
   '/': 'Mission Control',
@@ -35,7 +34,6 @@ const DashboardLayout = ({ children }) => {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
-  const { isDemoMode, toggleDemo } = useDemoMode()
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const location = useLocation()
@@ -340,16 +338,6 @@ const DashboardLayout = ({ children }) => {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-            <Tooltip title={isDemoMode ? 'Demo Mode ON — showing mock data' : 'Switch to Demo Mode'}>
-              <Button
-                size="small"
-                type={isDemoMode ? 'primary' : 'default'}
-                onClick={toggleDemo}
-                style={{ fontSize: 12 }}
-              >
-                {isDemoMode ? '🎬 Demo ON' : '🎬 Demo'}
-              </Button>
-            </Tooltip>
             <span style={{
               color: '#545B64',
               fontSize: 14,

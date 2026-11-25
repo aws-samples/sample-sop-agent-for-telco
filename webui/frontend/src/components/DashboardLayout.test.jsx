@@ -11,9 +11,6 @@ vi.mock('../services/api', () => ({
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { username: 'admin' }, logout: vi.fn(), changePassword: vi.fn() }),
 }))
-vi.mock('../context/DemoContext', () => ({
-  useDemoMode: () => ({ isDemoMode: false, toggleDemo: vi.fn() }),
-}))
 
 import DashboardLayout from './DashboardLayout'
 
@@ -33,5 +30,16 @@ describe('DashboardLayout approvals badge', () => {
     await act(async () => { window.dispatchEvent(new Event('approvals-changed')) })
     await waitFor(() => expect(screen.queryByText('1')).toBeNull())
     expect(getApprovals).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not offer the mock-data Demo toggle', async () => {
+    getApprovals.mockResolvedValue({ approvals: [] })
+    render(
+      <MemoryRouter>
+        <DashboardLayout><div /></DashboardLayout>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(getApprovals).toHaveBeenCalled())
+    expect(screen.queryByText(/Demo/)).toBeNull()
   })
 })
