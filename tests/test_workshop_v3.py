@@ -311,6 +311,31 @@ def test_metrics_missing_stays_quiet_while_the_amf_is_down():
     assert "five minutes" not in by_name["free5gc_metrics_missing"]["annotations"]["description"]
 
 
+def test_registration_rule_ignores_an_unscraped_running_amf():
+    """A fresh Prometheus must not report 'No UE is connected' before its first
+    AMF scrape: the rule fires on a scraped count below one, or on an AMF with
+    no available replica, never on an absent metric alone."""
+    rules = yaml.safe_load((MONITORING / "free5gc-alert-rules.yaml").read_text())
+    by_name = {r["alert"]: r for g in rules["spec"]["groups"] for r in g["rules"]}
+    expr = " ".join(by_name["free5gc_registration_unavailable"]["expr"].split())
+    assert "or vector(0)" not in expr
+    assert 'gmm_state="Registered"}) < 1)' in expr
+    assert ('or on() (sum(kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}) == 0)') in expr
+    assert (ROOT / "tests" / "promtool" / "free5gc-alert-rules.test.yaml").exists()
+
+
+def test_core_install_checks_nrf_registration_before_packetrusher():
+    """An NF that timed out registering with the NRF must be restarted before
+    PacketRusher attaches, or the UE fails with 5GMM Congestion."""
+    script = (ROOT / "scripts" / "free5gc" / "03-deploy-workloads.sh").read_text()
+    check = script.index("Checking that every SBI network function registered with the NRF")
+    install = script.index("helm upgrade --install packetrusher")
+    assert check < install
+    assert "/nnrf-disc/v1/nf-instances?target-nf-type=" in script
+    for nf in ("AMF", "AUSF", "NSSF", "PCF", "SMF", "UDM", "UDR"):
+        assert nf in script.split('SBI_NFS="${SBI_NFS:-', 1)[1].split("}", 1)[0]
+
+
 def test_anpa_is_disabled_and_not_deployed_by_sop3():
     platform = yaml.safe_load((ROOT / "helm-charts" / "ano-platform" / "values.yaml").read_text())
     assert platform["anpa"]["enabled"] is False

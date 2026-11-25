@@ -75,11 +75,14 @@ spec:
             description: Prometheus has not received the AMF registered-UE metric for two minutes while the AMF is running.
 
         - alert: free5gc_registration_unavailable
-          # `or vector(0)` makes an absent series evaluate as 0 registered UEs, so
-          # this fires when the AMF itself is down instead of silently returning
-          # no data. metrics_missing does not fire while the AMF is down; it only
-          # reports a scrape gap on a running AMF.
-          expr: (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) or vector(0)) < 1
+          # Two ways to have no registered UE: the AMF reports fewer than one, or
+          # the AMF has no available replica (its metric is then absent). A
+          # running AMF that has not been scraped yet matches neither branch, so
+          # a fresh Prometheus does not raise a false alarm before its first AMF
+          # scrape. metrics_missing covers a lasting scrape gap on a running AMF.
+          expr: |
+            (sum(free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}) < 1)
+              or on() (sum(kube_deployment_status_replicas_available{namespace="free5gc",deployment="free5gc-amf-deployment"}) == 0)
           for: 30s
           labels:
             severity: critical

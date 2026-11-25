@@ -8,6 +8,8 @@
 #   1. gtp5g must be built + loaded on every worker node BEFORE the UPF starts
 #      (see scripts/install-gtp5g.sh). We verify it here and fail fast if missing.
 #   2. free5gc is installed first, then packetrusher (which waits for the AMF).
+#      Before packetrusher, every SBI NF must be registered with the NRF; an NF
+#      that started before the NRF was serving is restarted.
 #   3. The UPF/SMF must come up in order once gtp5g is present; a plain rollout
 #      can leave them crashlooped, so we reconcile them with a clean restart.
 #   4. The subscriber provisioning leaves a stale factory S-NSSAI (sst1/sd010203)
@@ -147,6 +149,50 @@ fi
 if kubectl get pods -n "${NAMESPACE}" | grep -qE 'smf.*(CrashLoopBackOff|Error|Init)'; then
   kubectl -n "${NAMESPACE}" rollout restart deploy free5gc-smf-deployment
   sleep 45
+fi
+
+# ---- 2b. Make sure every SBI NF registered with the NRF ----------------------
+# Each NF registers with the NRF once at startup. If the NRF is not serving yet
+# when an NF starts (its wait-for-nrf init container only checks the port), the
+# NF logs a timeout and never retries: the UE then fails authentication with
+# "5GMM Failure: Congestion". Ask NRF discovery for every SBI NF type and
+# restart any that is missing, then check again.
+NRF_URL="${NRF_URL:-http://free5gc-nrf.${NAMESPACE}:8000}"
+SBI_NFS="${SBI_NFS:-AMF AUSF NSSF PCF SMF UDM UDR}"
+nrf_missing() {  # prints the NF types the NRF does not know
+  local pod="nrf-registration-check"
+  kubectl delete pod "${pod}" -n "${NAMESPACE}" --ignore-not-found --grace-period=0 --force >/dev/null 2>&1 || true
+  kubectl run "${pod}" -n "${NAMESPACE}" --restart=Never --image=busybox:1.36 --command -- sh -c "
+    for t in ${SBI_NFS}; do
+      wget -qO- \"${NRF_URL}/nnrf-disc/v1/nf-instances?target-nf-type=\${t}&requester-nf-type=AMF\" 2>/dev/null \
+        | grep -q '\"nfInstances\":\[{' || echo \"\${t}\"
+    done" >/dev/null 2>&1 || true
+  kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/"${pod}" -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || true
+  kubectl logs "${pod}" -n "${NAMESPACE}" 2>/dev/null | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//'
+  kubectl delete pod "${pod}" -n "${NAMESPACE}" --grace-period=0 --force >/dev/null 2>&1 || true
+}
+echo "==> Checking that every SBI network function registered with the NRF"
+for attempt in 1 2 3; do
+  MISSING_NFS="$(nrf_missing)"
+  if [ -z "${MISSING_NFS}" ]; then
+    echo "   all registered: ${SBI_NFS}"
+    break
+  fi
+  echo "   not registered with the NRF (attempt ${attempt}/3): ${MISSING_NFS}; restarting them"
+  for nf in ${MISSING_NFS}; do
+    dep="free5gc-$(echo "${nf}" | tr '[:upper:]' '[:lower:]')-deployment"
+    kubectl -n "${NAMESPACE}" rollout restart deploy "${dep}" >/dev/null
+  done
+  for nf in ${MISSING_NFS}; do
+    dep="free5gc-$(echo "${nf}" | tr '[:upper:]' '[:lower:]')-deployment"
+    kubectl -n "${NAMESPACE}" rollout status deploy "${dep}" --timeout=120s >/dev/null 2>&1 || true
+  done
+  sleep 15
+done
+if [ -n "${MISSING_NFS}" ]; then
+  echo "ERROR: still not registered with the NRF after 3 attempts: ${MISSING_NFS}" >&2
+  echo "       Check the NRF pod and the NF logs before continuing." >&2
+  exit 1
 fi
 
 # ---- 3. Prune the stale factory S-NSSAI from the subscriber -----------------
