@@ -255,3 +255,22 @@ class TestToolInputSafety:
         call_args = mock_run.call_args[0][0]
         assert "--profile nec" in call_args
         assert "--region us-east-1" in call_args
+
+
+def test_region_falls_back_to_bedrock_then_default_region(monkeypatch):
+    """The bastion sets BEDROCK_REGION and AWS_DEFAULT_REGION, not AWS_REGION."""
+    import importlib
+
+    from amzn_cse_telco_autonomous_network_agents_app.agent import sop_executor
+
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    monkeypatch.setenv("BEDROCK_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-1")
+    assert importlib.reload(sop_executor).AWS_REGION == "us-east-1"
+    monkeypatch.delenv("BEDROCK_REGION")
+    assert importlib.reload(sop_executor).AWS_REGION == "eu-west-1"
+    monkeypatch.setenv("AWS_REGION", "ap-south-1")
+    assert importlib.reload(sop_executor).AWS_REGION == "ap-south-1"
+    monkeypatch.delenv("AWS_REGION")
+    monkeypatch.delenv("AWS_DEFAULT_REGION")
+    assert importlib.reload(sop_executor).AWS_REGION == "us-west-2"

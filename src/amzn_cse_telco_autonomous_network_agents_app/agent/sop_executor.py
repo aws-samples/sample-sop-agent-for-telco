@@ -57,7 +57,14 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import (  
 # Configuration via environment variables
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 SOP_REPO = os.getenv("SOP_REPO", os.path.join(_script_dir, ".."))
-AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
+# The bastion exports AWS_DEFAULT_REGION and BEDROCK_REGION, not AWS_REGION;
+# fall back to them so Bedrock runs in the event's Region.
+AWS_REGION = (
+    os.getenv("AWS_REGION")
+    or os.getenv("BEDROCK_REGION")
+    or os.getenv("AWS_DEFAULT_REGION")
+    or "us-west-2"
+)
 DEFAULT_TIMEOUT = int(os.getenv("CMD_TIMEOUT", "120"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
