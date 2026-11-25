@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Table, Tag, Modal, Input } from 'antd'
 import { FileTextOutlined, SearchOutlined } from '@ant-design/icons'
 import axios from 'axios'
+import SopMarkdown from '../components/SopMarkdown'
 
 const SOPs = () => {
   const [sops, setSops] = useState([])
@@ -33,8 +34,8 @@ const SOPs = () => {
             { title: 'Severity', dataIndex: 'severity', width: 90, render: s => s ? <Tag color={s === 'critical' ? 'red' : 'orange'}>{s}</Tag> : '-' },
           ]} />
       </Card>
-      <Modal title={modal} open={!!modal} onCancel={() => setModal(null)} footer={null} width={700}>
-        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, maxHeight: '60vh', overflow: 'auto' }}>{content}</pre>
+      <Modal title={modal} open={!!modal} onCancel={() => setModal(null)} footer={null} width={860}>
+        <SopMarkdown content={content} />
       </Modal>
     </div>
   )

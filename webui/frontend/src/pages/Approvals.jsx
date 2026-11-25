@@ -14,6 +14,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons'
 import { getApprovals, getSop, postApprove, APPROVALS_CHANGED_EVENT } from '../services/api'
+import SopMarkdown from '../components/SopMarkdown'
 
 const SECTION_STYLES = {
   reasoning: {
@@ -43,8 +44,8 @@ const openSop = (path) => {
   getSop(path)
     .then(sop => Modal.info({
       title: path,
-      width: 700,
-      content: <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, maxHeight: '60vh', overflow: 'auto' }}>{sop.content}</pre>,
+      width: 860,
+      content: <SopMarkdown content={sop.content} />,
     }))
     .catch(() => message.error(`Could not load SOP ${path}`))
 }
