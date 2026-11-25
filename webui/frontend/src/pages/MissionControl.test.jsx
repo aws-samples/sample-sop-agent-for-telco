@@ -53,7 +53,11 @@ const reasoningFixture = {
 const monitoringFixture = { tier1_rules: 12, tier2_metrics: 12, tier2_pct: 67 }
 const alarmsFixture = { alarms: [{ id: 1 }, { id: 2 }], count: 2 }
 const trackRecordFixture = { auto_resolved: 3, mttr_minutes: 4.2, sop_success_rate: 95 }
-const fleetFixture = { nfs: [{ name: 'AMF', status: 'Running', opinion: 'stable' }, { name: 'SMF', status: 'Running', opinion: 'upgrade' }, { name: 'UPF', status: 'Running', opinion: 'stable' }] }
+const fleetFixture = { nfs: [
+  { name: 'AMF', deployment: 'free5gc-amf-deployment', status: 'Running', detail: '1/1 available' },
+  { name: 'SMF', deployment: 'free5gc-smf-deployment', status: 'Running', detail: '1/1 available' },
+  { name: 'gNB/UE sim', deployment: 'packetrusher-packetrusher', status: 'Running', detail: '1/1 available' },
+] }
 const activeDeploymentFixture = { status: 'in-progress', nf: 'SMF', stage: 'draining' }
 
 // ── Helpers ──
@@ -173,14 +177,41 @@ describe('MissionControl', () => {
     expect(screen.getByText('Detection Rules')).toBeInTheDocument()
   })
 
-  it('renders NF grid with fallback when fleet opinions returns empty', async () => {
+  it('shows "NF status unavailable" and no invented NFs when the list is empty', async () => {
     mockAllApisSuccess()
-    mockGetAndaFleetOpinions.mockResolvedValue({ nfs: [] })
+    mockGetAndaFleetOpinions.mockResolvedValue({ nfs: [], error: 'NF status unavailable' })
     renderMissionControl()
 
     await waitFor(() => {
-      expect(screen.getByText('5G Network Functions')).toBeInTheDocument()
+      expect(screen.getByText('NF status unavailable')).toBeInTheDocument()
     })
+    expect(screen.queryByTestId(/^nf-tile-/)).not.toBeInTheDocument()
+    expect(screen.queryByText('SCP')).not.toBeInTheDocument()
+  })
+
+  it('renders one tile per NF with the health the API reports', async () => {
+    mockAllApisSuccess()
+    mockGetAndaFleetOpinions.mockResolvedValue({ nfs: [
+      { name: 'AMF', status: 'Down', detail: '0/0 available' },
+      { name: 'SMF', status: 'Running', detail: '1/1 available' },
+    ] })
+    renderMissionControl()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nf-tile-AMF')).toHaveAttribute('data-status', 'Down')
+    })
+    expect(screen.getByTestId('nf-tile-AMF').style.background).toBe('rgb(255, 241, 240)')
+    expect(screen.getByTestId('nf-tile-SMF').style.background).toBe('rgb(246, 255, 237)')
+  })
+
+  it('has no Upgrades counter on the Network Change Agent card', async () => {
+    mockAllApisSuccess()
+    renderMissionControl()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nf-tile-AMF')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Upgrades')).not.toBeInTheDocument()
   })
 
   it('handles API errors gracefully without crashing', async () => {

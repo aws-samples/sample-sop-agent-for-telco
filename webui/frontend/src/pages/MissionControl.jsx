@@ -238,13 +238,15 @@ const CrossAgentInteraction = ({ interactions }) => {
 }
 
 const NetworkFunctionGrid = ({ nfs }) => {
-  if (!nfs || nfs.length === 0) return null
+  if (!nfs || nfs.length === 0) {
+    return <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>NF status unavailable</div>
+  }
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
       {nfs.map((nf, i) => (
-        <Tooltip key={i} title={`${nf.name}: ${nf.status}`}>
-          <div style={{
+        <Tooltip key={i} title={nf.detail ? `${nf.name}: ${nf.status} (${nf.detail})` : `${nf.name}: ${nf.status}`}>
+          <div data-testid={`nf-tile-${nf.name}`} data-status={nf.status} style={{
             width: 32, height: 32, borderRadius: 6,
             background: nf.status === 'Running' ? '#f6ffed' : nf.status === 'Degraded' ? '#fff7e6' : '#fff1f0',
             border: `1px solid ${nf.status === 'Running' ? '#b7eb8f' : nf.status === 'Degraded' ? '#ffd591' : '#ffa39e'}`,
@@ -460,19 +462,15 @@ const MissionControl = () => {
     ? metrics.slice(-20).map((m, i) => ({ i, value: m.value ?? m }))
     : fallbackSparkline
 
-  // NF grid from fleet opinions
+  // NF grid: one tile per network-function Deployment, health from the API
+  // (Running / Degraded / Down). No invented NFs when the data is missing.
   const nfGrid = useMemo(() => {
-    const opinions = fleetOpinions?.nfs || fleetOpinions || []
-    if (!Array.isArray(opinions) || opinions.length === 0) {
-      // Fallback: show standard 5G SA NFs
-      return ['AMF', 'SMF', 'UPF', 'NRF', 'AUSF', 'UDM', 'UDR', 'PCF', 'NSSF', 'SCP', 'gNB'].map(name => ({
-        name, short: name.slice(0, 3), status: 'Running',
-      }))
-    }
-    return opinions.map(nf => ({
-      name: nf.name || nf.nf_name,
-      short: (nf.name || nf.nf_name || '').slice(0, 3).toUpperCase(),
-      status: nf.status || 'Running',
+    const nfs = Array.isArray(fleetOpinions?.nfs) ? fleetOpinions.nfs : []
+    return nfs.map(nf => ({
+      name: nf.name,
+      short: nf.name === 'gNB/UE sim' ? 'gNB' : (nf.name || '').slice(0, 4),
+      status: nf.status,
+      detail: nf.detail,
     }))
   }, [fleetOpinions])
 
@@ -496,16 +494,12 @@ const MissionControl = () => {
 
   // ANDA stats
   const andaStats = useMemo(() => {
-    const opinions = fleetOpinions?.nfs || fleetOpinions || []
-    const nfCount = Array.isArray(opinions) ? opinions.length : 11
-    const upgradeCount = Array.isArray(opinions) ? opinions.filter(n => n.opinion === 'upgrade').length : 0
     const active = activeDeployment?.status === 'in-progress' ? 1 : 0
     return [
-      { value: nfCount || '11', label: 'NFs' },
-      { value: upgradeCount || '0', label: 'Upgrades' },
+      { value: nfGrid.length, label: 'NFs' },
       { value: active, label: 'Active' },
     ]
-  }, [fleetOpinions, activeDeployment])
+  }, [nfGrid, activeDeployment])
 
   // ANRA stats
   const anraStats = useMemo(() => {

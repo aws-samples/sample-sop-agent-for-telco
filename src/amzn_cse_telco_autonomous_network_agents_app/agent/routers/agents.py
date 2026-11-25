@@ -311,81 +311,53 @@ def get_active_deployment():
 
 @router.get("/api/anda/fleet-opinions")
 def get_fleet_opinions():
-    """Return NF fleet status with agent opinions on each NF."""
+    """Health of each network function, read from its Deployment.
+
+    One row per Deployment in the NF namespace. Health uses the same data as
+    the free5gc_nf_unavailable alarm (available vs desired replicas), so the
+    dashboard and the alarms agree. A Deployment scaled to 0 stays in the list
+    as Down; Jobs and MongoDB are not network functions and are skipped.
+    """
     from amzn_cse_telco_autonomous_network_agents_app.agent.core.executor import run_cmd
 
-    # Try 1: Load from ANDA's NF catalog (works on ANDA pod)
+    namespace = os.getenv("DEFAULT_NF_NAMESPACE", "free5gc")
+    result = run_cmd(f"kubectl get deployments -n {shlex.quote(namespace)} -o json", timeout=5)
+    if not result.success:
+        return {"nfs": [], "error": "NF status unavailable"}
     try:
-        from amzn_cse_telco_autonomous_network_agents_app.agent.agents.anda.config import load_nf_catalog
+        items = json.loads(result.stdout or "{}").get("items", [])
+    except ValueError:
+        return {"nfs": [], "error": "NF status unavailable"}
 
-        catalog = load_nf_catalog()
-        if catalog:
-            nfs = [
-                {
-                    "name": e.name,
-                    "current": e.version,
-                    "latest": e.version,
-                    "status": "current",
-                    "opinion": "Latest version — no action needed",
-                }
-                for e in catalog
-            ]
-            return {"nfs": nfs}
-    except Exception:
-        pass
-
-    # Try 2: Discover live NF pods from configured workshop namespaces.
-    try:
-        namespaces = list(
-            dict.fromkeys(
-                [
-                    os.getenv("DEFAULT_NF_NAMESPACE", "open5gs"),
-                    os.getenv("DEFAULT_RAN_NAMESPACE", os.getenv("DEFAULT_NF_NAMESPACE", "srsran")),
-                ]
-            )
+    nfs = []
+    for d in items:
+        name = d.get("metadata", {}).get("name", "")
+        if not name or "mongodb" in name:
+            continue
+        desired = d.get("spec", {}).get("replicas", 1)
+        available = d.get("status", {}).get("availableReplicas", 0) or 0
+        if desired > 0 and available >= desired:
+            status = "Running"
+        elif available > 0:
+            status = "Degraded"
+        else:
+            status = "Down"
+        nfs.append(
+            {
+                "name": _nf_display_name(name),
+                "deployment": name,
+                "status": status,
+                "detail": f"{available}/{desired} available",
+            }
         )
-        nfs = []
-        seen = set()
-        for namespace in namespaces:
-            result = run_cmd(
-                f"kubectl get pods -n {shlex.quote(namespace)} -o json 2>/dev/null",
-                timeout=5,
-            )
-            if not result.success:
-                continue
-            for pod in json.loads(result.stdout or "{}").get("items", []):
-                metadata = pod.get("metadata", {})
-                labels = metadata.get("labels", {})
-                name = labels.get("app.kubernetes.io/name") or labels.get("app") or metadata.get("name", "").split("-")[0]
-                key = (namespace, name)
-                if not name or key in seen or name == "mongodb":
-                    continue
-                seen.add(key)
-                phase = pod.get("status", {}).get("phase", "Unknown")
-                nfs.append(
-                    {
-                        "name": name,
-                        "current": phase,
-                        "latest": phase,
-                        "status": "stable" if phase == "Running" else "degraded",
-                        "opinion": f"Pod phase: {phase}",
-                        "namespace": namespace,
-                    }
-                )
-        if nfs:
-            return {"nfs": nfs}
-    except Exception:
-        pass
+    return {"nfs": sorted(nfs, key=lambda n: n["name"])}
 
-    # Fallback: static list
-    return {
-        "nfs": [
-            {"name": "Open5GS-AMF", "current": "2.7.0", "latest": "2.7.1", "status": "upgrade", "opinion": "Has memory leak fix — recommend upgrade this week"},
-            {"name": "Open5GS-SMF", "current": "2.7.0", "latest": "2.7.1", "status": "current", "opinion": "Stable, no rush"},
-            {"name": "Open5GS-UPF", "current": "2.7.0", "latest": "2.7.1", "status": "current", "opinion": "Stable"},
-            {"name": "srsRAN-DU", "current": "24.04.1", "latest": "24.04.1", "status": "current", "opinion": "Latest version"},
-        ]
-    }
+
+def _nf_display_name(deployment: str) -> str:
+    """free5gc-amf-deployment -> AMF, packetrusher-packetrusher -> gNB/UE sim."""
+    if deployment.startswith("packetrusher"):
+        return "gNB/UE sim"
+    return deployment.removeprefix("free5gc-").removesuffix("-deployment").upper()
 
 
 def _infer_agent(stage: str) -> str:
