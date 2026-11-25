@@ -248,6 +248,43 @@ def _nf_pod_selector(nf_type: str, namespace: str) -> str:
     return f"app={nf_type}"
 
 
+# Plan scopes that name a layer, not one NF. ANRA uses them when an alarm is
+# not tied to a single NF (free5gc_registration_unavailable -> "core"). No pod
+# carries such a label, so the per-NF check would always report "No pods
+# found" and mark a successful remediation PartiallyFailed.
+GENERIC_NF_SCOPES = frozenset({"core", "gnb", "ran", "infra"})
+
+
+def _namespace_health_check(scope: str, namespace: str) -> Dict[str, Any]:
+    """Every non-Job pod in the namespace is Running with all containers ready."""
+    issues: List[Tuple[str, bool]] = []
+    rc, stdout, _ = _kubectl(f"get pods -n {namespace} -o json")
+    pods: List[Dict[str, Any]] = []
+    if rc != 0:
+        issues.append((f"Failed to list pods in namespace={namespace} (kubectl rc={rc})", True))
+    else:
+        try:
+            pods = json.loads(stdout).get("items", [])
+        except json.JSONDecodeError as exc:
+            issues.append((f"Failed to parse pods in namespace={namespace}: {exc}", True))
+    bad: List[str] = []
+    for pod in pods:
+        owners = [o.get("kind") for o in pod.get("metadata", {}).get("ownerReferences", [])]
+        phase = pod.get("status", {}).get("phase", "Unknown")
+        if "Job" in owners or phase == "Succeeded":
+            continue
+        ready = all(cs.get("ready", False) for cs in pod.get("status", {}).get("containerStatuses", []))
+        if phase != "Running" or not ready:
+            bad.append(f"{pod.get('metadata', {}).get('name', '<unknown>')} (phase={phase}, ready={ready})")
+    if rc == 0 and not pods and not issues:
+        issues.append((f"No pods in namespace '{namespace}'", True))
+    if bad:
+        issues.append((f"Pod(s) not Running and ready: {', '.join(bad)}", True))
+    result = _build_result(issues)
+    log.info("Post-deploy namespace check for scope=%s namespace=%s: status=%s", scope, namespace, result["status"])
+    return result
+
+
 def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
     """Run post-deploy checks after an NF has been rolled out.
 
@@ -269,6 +306,8 @@ def postdeploy_check(nf_type: str, namespace: str) -> Dict[str, Any]:
     log.info(
         "Running post-deploy checks for nf_type=%s namespace=%s", nf_type, namespace
     )
+    if nf_type.lower() in GENERIC_NF_SCOPES:
+        return _namespace_health_check(nf_type, namespace)
     issues: List[Tuple[str, bool]] = []
 
     # ------------------------------------------------------------------
