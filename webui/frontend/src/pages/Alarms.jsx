@@ -141,27 +141,6 @@ const Alarms = () => {
           ]} />
       </Card>
 
-      {/* Demo Trigger Bar */}
-      <Card bordered={false} size="small" style={{ borderRadius: 12, background: '#f6f6f6', border: '1px dashed #d9d9d9' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Demo — Trigger Alarm:</span>
-            {[
-              { layer: 'hardware', label: 'Hardware', color: '#fa8c16' },
-              { layer: 'infra', label: 'Infra', color: '#722ed1' },
-              { layer: 'core', label: 'Core', color: '#1890ff' },
-              { layer: 'ran', label: 'RAN', color: '#f5222d' },
-            ].map(({ layer, label, color }) => (
-              <button key={layer} onClick={() => axios.post(`/api/alarms/trigger/${layer}`).then(() => load())}
-                style={{ background: color, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <span style={{ fontSize: 11, color: '#999' }}>Triggers flow through the full pipeline above</span>
-        </div>
-      </Card>
-
       {/* Alarm Detail Drawer */}
       <Drawer title={selected?.name} open={!!selected} onClose={() => setSelected(null)} width={480}
       >
