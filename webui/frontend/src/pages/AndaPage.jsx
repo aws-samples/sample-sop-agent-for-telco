@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Row, Col, Card, Tag, Skeleton, Empty, Alert, Table,
-  Steps, Descriptions, Badge, Tooltip, Progress, Timeline,
+  Row, Col, Card, Tag, Skeleton, Alert,
+  Steps, Descriptions, Badge, Timeline,
 } from 'antd'
 import {
   DeploymentUnitOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
-  RobotOutlined,
-  DatabaseOutlined,
   ArrowRightOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
   CodeOutlined,
 } from '@ant-design/icons'
-import { getAndaActiveDeployment, getAndaFleetOpinions, getAgentsReasoning } from '../services/api'
+import { getAndaActiveDeployment, getAgentsReasoning } from '../services/api'
 
 const STATUS_COLORS = {
   success: '#52c41a',
@@ -26,14 +24,6 @@ const STATUS_COLORS = {
   error: '#ff4d4f',
   waiting: '#8c8c8c',
   skipped: '#d9d9d9',
-}
-
-const OPINION_COLORS = {
-  upgrade: '#1890FF',
-  hold: '#FA8C16',
-  rollback: '#ff4d4f',
-  stable: '#52c41a',
-  unknown: '#8c8c8c',
 }
 
 const STEP_ICON = {
@@ -235,117 +225,16 @@ const DeploymentPipeline = ({ deployment, loading }) => {
   )
 }
 
-// ─── Fleet Table ────────────────────────────────────────────────────────────
-
-const FleetTable = ({ opinions, loading }) => {
-  const columns = [
-    {
-      title: 'NF Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: name => <strong>{name}</strong>,
-    },
-    {
-      title: 'Current Version',
-      dataIndex: 'current',
-      key: 'current',
-      render: v => v
-        ? <code style={{ fontSize: 12, background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>{v}</code>
-        : <span style={{ color: '#ccc' }}>—</span>,
-    },
-    {
-      title: 'Latest Version',
-      dataIndex: 'latest',
-      key: 'latest',
-      render: v => v
-        ? <code style={{ fontSize: 12, background: '#e6f4ff', padding: '2px 6px', borderRadius: 3, color: '#1890FF' }}>{v}</code>
-        : <span style={{ color: '#ccc' }}>—</span>,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: status => {
-        const color = STATUS_COLORS[status] || '#8c8c8c'
-        return (
-          <Tag style={{ color, border: `1px solid ${color}`, background: `${color}15` }}>
-            {status || 'unknown'}
-          </Tag>
-        )
-      },
-    },
-    {
-      title: 'Change Agent Opinion',
-      dataIndex: 'opinion',
-      key: 'opinion',
-      render: opinion => {
-        const color = OPINION_COLORS[opinion?.toLowerCase()] || '#8c8c8c'
-        return opinion ? (
-          <Tooltip title="Change Agent recommendation based on fleet health">
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                background: '#F3E5F5',
-                borderRadius: 4,
-                padding: '2px 8px',
-                color: '#6A1B9A',
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              <RobotOutlined style={{ fontSize: 11 }} />
-              {opinion}
-            </span>
-          </Tooltip>
-        ) : (
-          <span style={{ color: '#ccc' }}>—</span>
-        )
-      },
-    },
-  ]
-
-  if (loading) return <Skeleton active paragraph={{ rows: 5 }} />
-  if (!opinions || opinions.length === 0) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No fleet data" />
-  }
-
-  return (
-    <Table
-      dataSource={opinions}
-      columns={columns}
-      rowKey={(r, i) => r.name || i}
-      size="small"
-      pagination={{ pageSize: 10, hideOnSinglePage: true }}
-      rowClassName={(record) => {
-        if (record.status === 'failed' || record.status === 'error') return 'ant-table-row-danger'
-        return ''
-      }}
-    />
-  )
-}
-
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 const AndaPage = () => {
   const [deployment, setDeployment] = useState(null)
   const [deploymentLoading, setDeploymentLoading] = useState(true)
-  const [fleetOpinions, setFleetOpinions] = useState([])
-  const [fleetLoading, setFleetLoading] = useState(true)
 
   const loadData = () => {
     getAndaActiveDeployment()
       .then(data => { setDeployment(data); setDeploymentLoading(false) })
       .catch(() => setDeploymentLoading(false))
-
-    getAndaFleetOpinions()
-      .then(data => {
-        const nfs = data?.nfs || []
-        setFleetOpinions(nfs)
-        setFleetLoading(false)
-      })
-      .catch(() => setFleetLoading(false))
   }
 
   useEffect(() => {
@@ -356,34 +245,8 @@ const AndaPage = () => {
     return () => clearInterval(t)
   }, [deployment?.active])
 
-  const upgradeCount = fleetOpinions.filter(n => n.opinion?.toLowerCase() === 'upgrade').length
-  const stableCount = fleetOpinions.filter(n => n.opinion?.toLowerCase() === 'stable').length
-  const holdCount = fleetOpinions.filter(n => n.opinion?.toLowerCase() === 'hold').length
-
   return (
     <div>
-      {/* Summary KPIs */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={8}>
-          <Card bordered={false} size="small" style={{ textAlign: 'center', background: '#F6FFED', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#52c41a' }}>{stableCount}</div>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>Stable NFs</div>
-          </Card>
-        </Col>
-        <Col xs={12} sm={8}>
-          <Card bordered={false} size="small" style={{ textAlign: 'center', background: '#E6F4FF', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#1890FF' }}>{upgradeCount}</div>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>Pending upgrade</div>
-          </Card>
-        </Col>
-        <Col xs={12} sm={8}>
-          <Card bordered={false} size="small" style={{ textAlign: 'center', background: '#FFF7E6', borderRadius: 8 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#FA8C16' }}>{holdCount}</div>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>On hold</div>
-          </Card>
-        </Col>
-      </Row>
-
       <Row gutter={[16, 16]}>
         {/* Deployment Pipeline */}
         <Col xs={24} lg={12}>
@@ -430,73 +293,6 @@ const AndaPage = () => {
           </Card>
         </Col>
 
-        {/* Fleet Stats */}
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <span>
-                <DatabaseOutlined style={{ marginRight: 8, color: '#722ed1' }} />
-                Fleet Version Summary
-              </span>
-            }
-            bordered={false}
-            style={{ borderRadius: 8 }}
-          >
-            {fleetLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
-            ) : fleetOpinions.length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No fleet data" />
-            ) : (
-              <div>
-                {Object.entries(
-                  fleetOpinions.reduce((acc, nf) => {
-                    const opinion = nf.opinion?.toLowerCase() || 'unknown'
-                    acc[opinion] = (acc[opinion] || 0) + 1
-                    return acc
-                  }, {})
-                ).map(([opinion, count]) => (
-                  <div key={opinion} style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, textTransform: 'capitalize' }}>{opinion}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: OPINION_COLORS[opinion] || '#8c8c8c' }}>
-                        {count} NF{count !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <Progress
-                      percent={Math.round((count / fleetOpinions.length) * 100)}
-                      strokeColor={OPINION_COLORS[opinion] || '#8c8c8c'}
-                      showInfo={false}
-                      size="small"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </Col>
-
-        {/* NF Fleet Table */}
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <span>
-                <RobotOutlined style={{ marginRight: 8, color: '#6A1B9A' }} />
-                NF Fleet with Change Agent Opinions
-              </span>
-            }
-            bordered={false}
-            style={{ borderRadius: 8 }}
-            extra={
-              fleetOpinions.length > 0 && (
-                <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                  {fleetOpinions.length} network functions
-                </span>
-              )
-            }
-          >
-            <FleetTable opinions={fleetOpinions} loading={fleetLoading} />
-          </Card>
-        </Col>
       </Row>
     </div>
   )
