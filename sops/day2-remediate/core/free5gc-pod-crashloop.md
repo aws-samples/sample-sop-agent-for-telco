@@ -74,20 +74,13 @@ kubectl logs -n free5gc deploy/free5gc-nrf-deployment --tail=20
 **Expected**: the dependency the logs complain about (NRF, MongoDB, UPF for SMF PFCP) is itself unhealthy. Remediate it with `free5gc-nf-unavailable.md`; the restarting pod recovers on its next restart once the dependency answers. If it is still looping afterwards, `kubectl rollout restart deploy DEPLOY -n free5gc`.
 
 ### Step 4: Re-attach the UE if AMF, SMF or UPF restarted
-Recreate PacketRusher with a clean scale-down and scale-up. Deleting the pod instead lets the new pod start while the old one still holds its N2 address, and the new pod then fails with `ipvlan: address already in use`.
+Run this one script and nothing else for this step. It recreates PacketRusher cleanly (scale 0 -> 1, which avoids the `ipvlan: address already in use` conflict that a pod delete or `rollout restart` causes), waits for the PDU session, and retries once when the AMF still holds the UE's old session after an SMF restart (`Duplicated PDU session ID`). It takes up to about 110 seconds; run it with a command timeout of at least 180 seconds.
 ```bash
-kubectl scale deploy packetrusher-packetrusher -n free5gc --replicas=0
-kubectl wait --for=delete pod -l app=packetrusher -n free5gc --timeout=90s
-kubectl scale deploy packetrusher-packetrusher -n free5gc --replicas=1
-kubectl rollout status deploy packetrusher-packetrusher -n free5gc --timeout=120s
-sleep 45
-PR=$(kubectl get pods -n free5gc -l app=packetrusher -o jsonpath='{.items[0].metadata.name}')
-kubectl logs -n free5gc "$PR" --tail=100 | grep -E 'PDU address received|val0000000003'
-kubectl logs deploy/free5gc-amf-deployment -n free5gc --since=2m | grep -cE 'Duplicated PDU session ID|Release SmContext Failed'
+bash "${SOP_REPO:-/app}/scripts/free5gc/reattach-ue.sh"
 ```
-**Expected**: the PacketRusher log shows `PDU address received: 10.63.x.x` and `val0000000003` configured. The SMF holds the UE's PDU session; an SMF restart drops it and PacketRusher does not re-establish it on its own.
+**Expected**: the last line is `UE re-attached: 10.63.x.x (attempt N)` and the exit code is 0. Continue to Step 5.
 
-If there is no `PDU address received` line and the AMF count is above 0, the AMF still held the UE's old session context from before the SMF restart; the first attempt released it. Run the four scale commands above **once more** and check the log again. Do **not** restart the AMF: that drops every UE and is not needed. If the second attempt also has no PDU address, stop and report: this SOP does not cover it.
+If the last line is `UE did not re-attach after N attempt(s): ...` (exit code 1), stop and report that line: this SOP does not cover it. Do **not** restart the AMF, delete the PacketRusher pod, or run `rollout restart` on it.
 
 ### Step 5: Verify
 ```bash
