@@ -476,3 +476,16 @@ def test_correlate_log_line_says_nothing_runs_in_manual_mode():
     assert "nothing runs" not in _correlate_log_line("X", result, approval_mode="auto")
     escalate = {**result, "action": "escalate"}
     assert "nothing runs" not in _correlate_log_line("X", escalate, approval_mode="manual")
+
+
+def test_crashloop_sop_reattaches_the_ue_without_restarting_the_amf():
+    """After an SMF restart the AMF holds a stale session; the SOP recreates
+    PacketRusher cleanly, retries once on 'Duplicated PDU session ID', and
+    never restarts the AMF."""
+    sop = (ROOT / "sops" / "day2-remediate" / "core" / "free5gc-pod-crashloop.md").read_text()
+    step4 = sop.split("### Step 4:", 1)[1].split("### Step 5:", 1)[0]
+    assert "kubectl scale deploy packetrusher-packetrusher -n free5gc --replicas=0" in step4
+    assert "kubectl delete pod -n free5gc -l app=packetrusher" not in step4
+    assert "Duplicated PDU session ID" in step4
+    assert "once more" in step4
+    assert "Do **not** restart the AMF" in step4
