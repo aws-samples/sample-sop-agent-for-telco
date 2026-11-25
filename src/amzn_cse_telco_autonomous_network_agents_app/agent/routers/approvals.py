@@ -14,6 +14,7 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
     push_activity,
     push_execution,
     snapshot_pending_approvals,
+    was_withdrawn,
 )
 from amzn_cse_telco_autonomous_network_agents_app.agent.routers.sops import generated_view_path
 from fastapi import APIRouter, HTTPException
@@ -50,6 +51,10 @@ def get_approvals():
 def approve(req: ApprovalRequest):
     entry = pop_pending_approval(req.alarm_name)
     if entry is None:
+        if was_withdrawn(req.alarm_name):
+            raise HTTPException(
+                404, f"This proposal was withdrawn because {req.alarm_name} cleared before a decision. Nothing ran."
+            )
         raise HTTPException(404, f"No pending approval for {req.alarm_name}")
     entry["action"] = req.action
     entry["actioned_at"] = datetime.now(timezone.utc).isoformat()

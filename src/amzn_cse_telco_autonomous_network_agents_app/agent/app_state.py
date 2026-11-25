@@ -26,4 +26,6 @@ from amzn_cse_telco_autonomous_network_agents_app.agent.core.state import (  # n
     snapshot_correlations,
     snapshot_executions,
     snapshot_pending_approvals,
+    was_withdrawn,
+    withdraw_pending_approval,
 )

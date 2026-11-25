@@ -59,6 +59,7 @@ def clean_state():
         state._executions.clear()
         state._correlations.clear()
         state._pending_approvals.clear()
+        state._withdrawn_approvals.clear()
         state._activity.clear()
     yield
     with state._lock:
@@ -217,3 +218,54 @@ def test_symptom_still_firing_after_the_grace_period_is_raised(suppressed, monit
     raise_now, drop = monitor._symptoms_to_reevaluate(firing, set(), 100 + monitor.REEVAL_GRACE_SECONDS)
     assert raise_now == [("free5gc_registration_unavailable", "free5gc_nf_unavailable")]
     assert drop == []
+
+
+# ── Withdrawing cards whose alarm cleared before a decision ──
+
+
+@pytest.fixture
+def quiet(monitor):
+    monitor._card_quiet_since.clear()
+    yield monitor
+    monitor._card_quiet_since.clear()
+
+
+def test_card_is_withdrawn_after_its_alarm_is_quiet_for_the_grace_period(quiet):
+    m = quiet
+    pending = {"free5gc_registration_unavailable"}
+    assert m._stale_approvals(set(), pending, 100) == []
+    assert m._stale_approvals(set(), pending, 100 + m.WITHDRAW_AFTER_SECONDS - 1) == []
+    assert m._stale_approvals(set(), pending, 100 + m.WITHDRAW_AFTER_SECONDS) == ["free5gc_registration_unavailable"]
+
+
+def test_card_whose_alarm_fires_again_starts_over(quiet):
+    m = quiet
+    pending = {"free5gc_nf_unavailable"}
+    m._stale_approvals(set(), pending, 0)
+    m._stale_approvals({"free5gc_nf_unavailable"}, pending, 60)  # firing again
+    assert m._stale_approvals(set(), pending, 61) == []  # quiet again from 61
+    assert m._stale_approvals(set(), pending, 61 + m.WITHDRAW_AFTER_SECONDS - 1) == []
+    assert m._stale_approvals(set(), pending, 61 + m.WITHDRAW_AFTER_SECONDS) == ["free5gc_nf_unavailable"]
+
+
+def test_firing_alarm_and_pipeline_test_card_are_never_withdrawn(quiet):
+    m = quiet
+    pending = {"free5gc_nf_unavailable", "Free5GCWorkshopPipelineTest"}
+    m._stale_approvals({"free5gc_nf_unavailable"}, pending, 0)
+    assert m._stale_approvals({"free5gc_nf_unavailable"}, pending, 10_000) == []
+
+
+def test_withdrawn_card_explains_a_late_decision(clean_state):
+    from fastapi import HTTPException
+
+    from amzn_cse_telco_autonomous_network_agents_app.agent.routers import approvals
+
+    state.push_pending_approval("free5gc_registration_unavailable", "/app/sops/x.md", {})
+    assert state.withdraw_pending_approval("free5gc_registration_unavailable") is not None
+    assert state.snapshot_pending_approvals() == {}
+    with pytest.raises(HTTPException) as err:
+        approvals.approve(approvals.ApprovalRequest(alarm_name="free5gc_registration_unavailable", action="approve"))
+    assert "withdrawn" in err.value.detail and "Nothing ran" in err.value.detail
+    # A new proposal for the same alarm is a normal card again.
+    state.push_pending_approval("free5gc_registration_unavailable", "/app/sops/x.md", {})
+    assert not state.was_withdrawn("free5gc_registration_unavailable")

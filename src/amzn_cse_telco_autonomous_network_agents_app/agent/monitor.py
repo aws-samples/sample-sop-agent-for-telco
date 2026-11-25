@@ -583,6 +583,32 @@ _suppressed: dict = {}
 REEVAL_GRACE_SECONDS = int(os.getenv("REEVAL_GRACE_SECONDS", "120"))
 _root_cleared_at: dict = {}  # root alarm -> time it stopped firing
 
+# A Decisions card is withdrawn once its alarm has not fired for this long, so
+# nobody approves an SOP for a fault that already cleared. The synthetic
+# pipeline-test alert resolves in Alertmanager about two minutes after it is
+# sent, but its card is the "reject" exercise in Validate the alarm pipeline,
+# so it is exempt.
+WITHDRAW_AFTER_SECONDS = int(os.getenv("WITHDRAW_AFTER_SECONDS", "120"))
+WITHDRAW_EXEMPT = {
+    n.strip() for n in os.getenv("WITHDRAW_EXEMPT", "Free5GCWorkshopPipelineTest").split(",") if n.strip()
+}
+_card_quiet_since: dict = {}  # pending alarm -> time it stopped firing
+
+
+def _stale_approvals(firing: set, pending: set, now: float) -> list:
+    """Pending cards whose alarm has been quiet for WITHDRAW_AFTER_SECONDS."""
+    for name in list(_card_quiet_since):
+        if name not in pending or name in firing:
+            del _card_quiet_since[name]
+    stale = []
+    for name in sorted(pending - firing):
+        if name in WITHDRAW_EXEMPT:
+            continue
+        since = _card_quiet_since.setdefault(name, now)
+        if now - since >= WITHDRAW_AFTER_SECONDS:
+            stale.append(name)
+    return stale
+
 
 def _root_still_handled(root: str, firing: set, pending: set) -> bool:
     """A root alarm is still being dealt with while it fires, while its SOP is
@@ -895,6 +921,27 @@ def run_loop():
             except Exception:
                 pass
             previous_firing = firing_now
+
+            # Withdraw Decisions cards whose alarm cleared before a decision.
+            try:
+                from amzn_cse_telco_autonomous_network_agents_app.agent.app_state import (
+                    push_activity,
+                    snapshot_pending_approvals,
+                    withdraw_pending_approval,
+                )
+
+                for name in _stale_approvals(firing_now, set(snapshot_pending_approvals()), time.time()):
+                    if withdraw_pending_approval(name) is not None:
+                        _card_quiet_since.pop(name, None)
+                        seen.pop(name, None)  # a recurrence raises a fresh card
+                        log.info(f"WITHDRAWN: {name} cleared {WITHDRAW_AFTER_SECONDS}s before a decision")
+                        push_activity(
+                            "clear",
+                            "%s cleared before a decision; proposal withdrawn" % name,
+                            status="info",
+                        )
+            except Exception as e:
+                log.debug(f"Stale approval check failed: {e}")
 
             # Drain Redfish event queue
             if redfish_queue:

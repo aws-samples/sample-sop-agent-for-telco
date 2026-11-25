@@ -20,6 +20,8 @@ _active_alarm_names: set = set()
 _executions: list[dict] = []
 _correlations: list[dict] = []
 _pending_approvals: dict[str, dict] = {}
+# Cards removed because their alarm cleared before anyone decided (name -> ISO time).
+_withdrawn_approvals: dict[str, str] = {}
 
 
 def push_alarm(alarm: dict) -> None:
@@ -85,6 +87,22 @@ def push_pending_approval(alarm_name: str, sop_path: str, alarm: dict) -> None:
     }
     with _lock:
         _pending_approvals[alarm_name] = entry
+        _withdrawn_approvals.pop(alarm_name, None)
+
+
+def withdraw_pending_approval(alarm_name: str) -> dict | None:
+    """Remove a card whose alarm cleared before a decision, and remember it so
+    a late Approve/Reject gets an explanation instead of a bare 404."""
+    with _lock:
+        entry = _pending_approvals.pop(alarm_name, None)
+        if entry is not None:
+            _withdrawn_approvals[alarm_name] = datetime.now(timezone.utc).isoformat()
+        return entry
+
+
+def was_withdrawn(alarm_name: str) -> bool:
+    with _lock:
+        return alarm_name in _withdrawn_approvals
 
 
 def pop_pending_approval(alarm_name: str) -> dict | None:
