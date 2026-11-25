@@ -1,144 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
-  Row, Col, Card, Tag, Skeleton, Empty, Alert,
-  Timeline, Steps, Descriptions, Progress,
+  Row, Col, Card, Skeleton, Empty,
+  Timeline, Progress,
 } from 'antd'
 import {
-  SafetyCertificateOutlined,
-  FireOutlined,
-  CheckCircleOutlined,
   ThunderboltOutlined,
-  EyeOutlined,
-  HistoryOutlined,
   TrophyOutlined,
 } from '@ant-design/icons'
-import { getAnraIncidentCurrent, getAnraTrackRecord, getAgentsReasoning } from '../services/api'
-
-const OODA_STEPS = [
-  { title: 'Observe', icon: <EyeOutlined />, color: '#1890FF', description: 'Ingest alarms, metrics, logs' },
-  { title: 'Orient', icon: <ThunderboltOutlined />, color: '#722ed1', description: 'Classify, correlate, prioritise' },
-  { title: 'Decide', icon: <SafetyCertificateOutlined />, color: '#FA8C16', description: 'Select SOP, get approvals' },
-  { title: 'Act', icon: <CheckCircleOutlined />, color: '#52c41a', description: 'Execute remediation steps' },
-]
-
-const OODA_STATE_INDEX = {
-  observe: 0,
-  orient: 1,
-  decide: 2,
-  act: 3,
-}
-
-const OodaChain = ({ currentState, loading }) => {
-  const currentIdx = OODA_STATE_INDEX[currentState?.toLowerCase()] ?? -1
-
-  if (loading) return <Skeleton active paragraph={{ rows: 2 }} />
-
-  return (
-    <div>
-      <Steps
-        current={currentIdx}
-        size="small"
-        style={{ marginBottom: 16 }}
-        items={OODA_STEPS.map((step, i) => ({
-          title: step.title,
-          description: step.description,
-          icon: (
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: i <= currentIdx ? step.color : '#f0f0f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: i <= currentIdx ? '#fff' : '#bbb',
-                fontSize: 14,
-                transition: 'all 0.3s',
-              }}
-            >
-              {step.icon}
-            </div>
-          ),
-        }))}
-      />
-      {currentState && (
-        <div
-          style={{
-            textAlign: 'center',
-            fontSize: 13,
-            color: '#6A1B9A',
-            fontWeight: 500,
-            background: '#F3E5F5',
-            borderRadius: 6,
-            padding: '6px 12px',
-            display: 'inline-block',
-          }}
-        >
-          Current phase: <strong>{currentState}</strong>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const IncidentCard = ({ incident, loading }) => {
-  if (loading) return <Skeleton active paragraph={{ rows: 4 }} />
-
-  if (!incident || !incident.active) {
-    return (
-      <div
-        style={{
-          textAlign: 'center',
-          padding: '32px 0',
-          color: '#52c41a',
-        }}
-      >
-        <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 12, display: 'block' }} />
-        <div style={{ fontSize: 18, fontWeight: 600, color: '#52c41a', marginBottom: 8 }}>All Clear</div>
-        <div style={{ fontSize: 13, color: '#8c8c8c' }}>No active incidents — system is operating normally</div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <Alert
-        type="error"
-        showIcon
-        icon={<FireOutlined />}
-        message={
-          <span style={{ fontWeight: 600 }}>
-            Active Incident {incident.incident_id && <Tag color="red" style={{ marginLeft: 8 }}>{incident.incident_id}</Tag>}
-          </span>
-        }
-        description={incident.root_cause && typeof incident.root_cause === 'object' ? incident.root_cause.description || JSON.stringify(incident.root_cause) : incident.root_cause}
-        style={{ marginBottom: 16, borderRadius: 6 }}
-      />
-
-      <Descriptions column={1} size="small" bordered>
-        {incident.sop && (
-          <Descriptions.Item label="SOP">
-            <code style={{ fontSize: 12, background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
-              {typeof incident.sop === 'object' ? incident.sop.name || 'unknown' : incident.sop}
-            </code>
-          </Descriptions.Item>
-        )}
-        {incident.ooda_state && (
-          <Descriptions.Item label="OODA Phase">
-            <Tag color="purple">{incident.ooda_state}</Tag>
-          </Descriptions.Item>
-        )}
-        {incident.success_criteria && (
-          <Descriptions.Item label="Success Criteria">
-            <span style={{ fontSize: 12 }}>{incident.success_criteria}</span>
-          </Descriptions.Item>
-        )}
-      </Descriptions>
-
-    </div>
-  )
-}
+import { getAnraTrackRecord, getAgentsReasoning } from '../services/api'
 
 const TrackRecord = ({ record, loading }) => {
   if (loading) return <Skeleton active paragraph={{ rows: 3 }} />
@@ -225,18 +94,12 @@ const TrackRecord = ({ record, loading }) => {
 }
 
 const AnraPage = () => {
-  const [incident, setIncident] = useState(null)
-  const [incidentLoading, setIncidentLoading] = useState(true)
   const [trackRecord, setTrackRecord] = useState(null)
   const [trackLoading, setTrackLoading] = useState(true)
   const [reasoning, setReasoning] = useState([])
   const [reasoningLoading, setReasoningLoading] = useState(true)
 
   const loadData = () => {
-    getAnraIncidentCurrent()
-      .then(data => { setIncident(data); setIncidentLoading(false) })
-      .catch(() => setIncidentLoading(false))
-
     getAnraTrackRecord()
       .then(data => { setTrackRecord(data); setTrackLoading(false) })
       .catch(() => setTrackLoading(false))
@@ -265,45 +128,11 @@ const AnraPage = () => {
     }
   }, [])
 
-  const ooda_state = incident?.ooda_state
-
   return (
     <div>
       <Row gutter={[16, 16]}>
-        {/* OODA Chain */}
-        <Col xs={24}>
-          <Card
-            title={
-              <span>
-                <SafetyCertificateOutlined style={{ marginRight: 8, color: '#722ed1' }} />
-                OODA Reasoning Chain
-              </span>
-            }
-            bordered={false}
-            style={{ borderRadius: 8 }}
-          >
-            <OodaChain currentState={ooda_state} loading={incidentLoading} />
-          </Card>
-        </Col>
-
-        {/* Active Incident */}
-        <Col xs={24} lg={14}>
-          <Card
-            title={
-              <span>
-                <FireOutlined style={{ marginRight: 8, color: incident?.active ? '#ff4d4f' : '#52c41a' }} />
-                Active Incident
-              </span>
-            }
-            bordered={false}
-            style={{ borderRadius: 8 }}
-          >
-            <IncidentCard incident={incident} loading={incidentLoading} />
-          </Card>
-        </Col>
-
         {/* Reasoning Feed */}
-        <Col xs={24} lg={10}>
+        <Col xs={24}>
           <Card
             title={
               <span>
