@@ -52,6 +52,9 @@ confirm "Inject the fault now?"
 for i in 1 2 3; do
   pod=$(kubectl get pods -n "$NAMESPACE" -l epc-mode=smf -o jsonpath='{.items[0].metadata.name}')
   step "Kill $i/3: terminating PID 1 in $pod (container smf)"
+  # Wait until the container is back up: a kill sent during the crash back-off
+  # fails silently, leaving too few restarts for the alert to fire.
+  kubectl wait --for=condition=Ready pod/"$pod" -n "$NAMESPACE" --timeout=90s >/dev/null 2>&1 || true
   kubectl exec -n "$NAMESPACE" "$pod" -c smf -- kill 1 2>/dev/null || true
   sleep 20
 done

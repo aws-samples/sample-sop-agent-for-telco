@@ -77,6 +77,13 @@ tests:
       - series: 'free5gc_amf_business_ue_gmm_state_count{access_type="3GPP_ACCESS",gmm_state="Registered"}'
         values: '1x20'
     alert_rule_test:
+      # Just after PacketRusher is back, and later: never pending long enough to fire.
+      - eval_time: 1m30s
+        alertname: free5gc_registration_unavailable
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: free5gc_registration_unavailable
+        exp_alerts: []
       - eval_time: 3m
         alertname: free5gc_registration_unavailable
         exp_alerts: []

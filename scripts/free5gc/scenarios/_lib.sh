@@ -83,9 +83,9 @@ what_to_watch() {
 
 ${BOLD}What to watch now${NC}
   1. Alertmanager:  kubectl -n $MONITORING_NAMESPACE exec sts/alertmanager-kube-prometheus-stack-alertmanager -c alertmanager -- wget -qO- 'http://localhost:9093/api/v2/alerts?active=true'
-  2. Network Assurance Agent (ANRA) UI → Alarms, then Approvals. A pending approval bound to the SOP below should appear within about a minute.
+  2. Dashboard → Alarms, then Decisions. A pending decision bound to the SOP below should appear within about a minute.
   3. Open the SOP from the approval, read the Diagnose/Remediate/Verify steps, then click ${BOLD}Approve${NC}.
-  4. Network Change Agent (ANDA): kubectl get deploymentplans -n anda-system -w   — the approved SOP becomes a DeploymentPlan and runs to Completed (~2 min).
+  4. Network Change Agent: kubectl get deploymentplans -n anda-system -w   — the approved SOP becomes a DeploymentPlan and runs to Completed (2–6 min, depending on the scenario).
   5. Alerts clear on their own once the network has recovered. Nothing to undo by hand.
 ${DIM}If you get stuck, scripts/free5gc/scenarios/restore-<scenario>.sh puts the network back without the agents.${NC}
 EOW

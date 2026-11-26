@@ -25,20 +25,26 @@ AMF_DEPLOY="${AMF_DEPLOY:-free5gc-amf-deployment}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-2}"
 DEADLINE_SECONDS="${DEADLINE_SECONDS:-110}"
 START=$(date +%s)
-ATTEMPT_START=${START}
+ATTEMPT_START=${START}  # reset in recreate()
 
 remaining() { echo $(( DEADLINE_SECONDS - ($(date +%s) - START) )); }
 
 recreate() {
   kubectl scale deploy "${DEPLOY}" -n "${NAMESPACE}" --replicas=0 >/dev/null
   kubectl wait --for=delete pod -l "${SELECTOR}" -n "${NAMESPACE}" --timeout="$(( $(remaining) > 5 ? $(remaining) / 3 : 5 ))s" >/dev/null 2>&1 || true
+  # The AMF log window for this attempt starts here, after the old pod is gone,
+  # so the old session's teardown is not mistaken for this attempt's failure.
+  ATTEMPT_START=$(date +%s)
   kubectl scale deploy "${DEPLOY}" -n "${NAMESPACE}" --replicas=1 >/dev/null
   kubectl rollout status deploy "${DEPLOY}" -n "${NAMESPACE}" --timeout="$(( $(remaining) > 5 ? $(remaining) / 2 : 5 ))s" >/dev/null 2>&1 || true
 }
 
-ue_address() {  # prints the UE address once the PDU session is up
+ue_address() {  # prints the UE address once the newest pod's PDU session is up
   local pod
-  pod="$(kubectl get pods -n "${NAMESPACE}" -l "${SELECTOR}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+  # Newest pod only: an old pod still terminating keeps the address from before
+  # the fault in its log and would be reported as success.
+  pod="$(kubectl get pods -n "${NAMESPACE}" -l "${SELECTOR}" --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null)"
   [ -n "${pod}" ] || return 1
   kubectl logs -n "${NAMESPACE}" "${pod}" -c packetrusher --tail=200 2>/dev/null \
     | grep -oE 'PDU address received: [0-9.]+' | tail -1 | awk '{print $4}'
@@ -47,14 +53,13 @@ ue_address() {  # prints the UE address once the PDU session is up
 stale_context() {  # the AMF rejected this attempt's session because of the old one
   local since=$(( $(date +%s) - ATTEMPT_START + 1 ))
   kubectl logs deploy/"${AMF_DEPLOY}" -n "${NAMESPACE}" --since="${since}s" 2>/dev/null \
-    | grep -qE 'Duplicated PDU session ID|Release SmContext Failed'
+    | grep -q 'Duplicated PDU session ID'
 }
 
 reason="no PDU session"
 attempt=0
 while [ "${attempt}" -lt "${MAX_ATTEMPTS}" ] && [ "$(remaining)" -gt 15 ]; do
   attempt=$((attempt + 1))
-  ATTEMPT_START=$(date +%s)
   echo "attempt ${attempt}: recreating ${DEPLOY} (scale 0 -> 1)"
   recreate
   while [ "$(remaining)" -gt 0 ]; do
@@ -63,7 +68,7 @@ while [ "${attempt}" -lt "${MAX_ATTEMPTS}" ] && [ "$(remaining)" -gt 15 ]; do
       echo "UE re-attached: ${ip} (attempt ${attempt})"
       exit 0
     fi
-    if stale_context; then
+    if [ "${attempt}" -lt "${MAX_ATTEMPTS}" ] && stale_context; then
       reason="AMF reported a stale session (Duplicated PDU session ID)"
       echo "attempt ${attempt}: ${reason}; retrying"
       break

@@ -8,7 +8,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh" "$@"
 banner "Scenario 2 — restore SMF"
 require_cluster
 step "Restarting the SMF deployment to clear any CrashLoopBackOff"
-kubectl rollout restart deploy free5gc-smf-deployment -n "$NAMESPACE"
+# Scale 0 -> 1, not rollout restart: the SMF holds a static N4 (Multus) IP, and
+# a new pod that starts before the old one releases it never becomes Ready.
+kubectl scale deploy free5gc-smf-deployment -n "$NAMESPACE" --replicas=0
+kubectl wait --for=delete pod -l epc-mode=smf -n "$NAMESPACE" --timeout=90s || true
+kubectl scale deploy free5gc-smf-deployment -n "$NAMESPACE" --replicas=1
 kubectl rollout status deploy free5gc-smf-deployment -n "$NAMESPACE" --timeout=180s
 ok "SMF is running with a fresh pod (restart counter reset)"
 reattach_ue
