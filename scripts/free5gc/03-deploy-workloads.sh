@@ -166,9 +166,16 @@ nrf_missing() {  # prints the NF types the NRF does not know
     for t in ${SBI_NFS}; do
       wget -qO- \"${NRF_URL}/nnrf-disc/v1/nf-instances?target-nf-type=\${t}&requester-nf-type=AMF\" 2>/dev/null \
         | grep -q '\"nfInstances\":\[{' || echo \"\${t}\"
-    done" >/dev/null 2>&1 || true
+    done; echo CHECK-DONE" >/dev/null 2>&1 || true
   kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/"${pod}" -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || true
-  kubectl logs "${pod}" -n "${NAMESPACE}" 2>/dev/null | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//'
+  # Fail closed: no CHECK-DONE line means the check itself did not run.
+  local out
+  out="$(kubectl logs "${pod}" -n "${NAMESPACE}" 2>/dev/null)"
+  if printf '%s' "${out}" | grep -q CHECK-DONE; then
+    printf '%s' "${out}" | grep -v CHECK-DONE | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//'
+  else
+    echo "CHECK-FAILED"
+  fi
   kubectl delete pod "${pod}" -n "${NAMESPACE}" --grace-period=0 --force >/dev/null 2>&1 || true
 }
 echo "==> Checking that every SBI network function registered with the NRF"
@@ -178,10 +185,19 @@ for attempt in 1 2 3; do
     echo "   all registered: ${SBI_NFS}"
     break
   fi
+  if [ "${MISSING_NFS}" = "CHECK-FAILED" ]; then
+    echo "   NRF check pod did not complete (attempt ${attempt}/3); retrying"
+    sleep 15
+    continue
+  fi
   echo "   not registered with the NRF (attempt ${attempt}/3): ${MISSING_NFS}; restarting them"
   for nf in ${MISSING_NFS}; do
     dep="free5gc-$(echo "${nf}" | tr '[:upper:]' '[:lower:]')-deployment"
-    kubectl -n "${NAMESPACE}" rollout restart deploy "${dep}" >/dev/null
+    case "${nf}" in
+      # Static Multus IPs: a rolling restart can hang on the address the old pod holds.
+      AMF | SMF | UPF) krestart_recreate "${dep}" ;;
+      *) kubectl -n "${NAMESPACE}" rollout restart deploy "${dep}" >/dev/null ;;
+    esac
   done
   for nf in ${MISSING_NFS}; do
     dep="free5gc-$(echo "${nf}" | tr '[:upper:]' '[:lower:]')-deployment"
