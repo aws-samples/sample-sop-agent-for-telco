@@ -667,41 +667,6 @@ const MissionControl = () => {
             ))}
           </Card>
 
-          {/* Infrastructure Tiers */}
-          <Card
-            title={
-              <span>
-                <CheckCircleOutlined style={{ marginRight: 8, color: '#52c41a' }} />
-                Detection Tiers
-              </span>
-            }
-            bordered={false}
-            size="small"
-            style={{ borderRadius: 8 }}
-            bodyStyle={{ padding: '12px 16px' }}
-          >
-            {infraLoading ? (
-              <Skeleton active paragraph={{ rows: 3 }} />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1890FF' }} />
-                  <span style={{ fontSize: 12, flex: 1 }}>Tier 1 — Threshold Rules</span>
-                  <span style={{ fontWeight: 700, color: '#1890FF' }}>{tier1Rules}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d9d9d9' }} />
-                  <span style={{ fontSize: 12, flex: 1, color: '#8c8c8c' }}>Tier 2 — Anomaly Detection</span>
-                  <span style={{ fontSize: 12, color: '#8c8c8c' }}>Not used in this workshop</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FA8C16' }} />
-                  <span style={{ fontSize: 12, flex: 1 }}>Tier 3 — Bedrock AI (Ask AI, generated SOPs)</span>
-                  <span style={{ fontWeight: 700, color: '#FA8C16' }}>On-demand</span>
-                </div>
-              </div>
-            )}
-          </Card>
         </Col>
       </Row>
     </div>

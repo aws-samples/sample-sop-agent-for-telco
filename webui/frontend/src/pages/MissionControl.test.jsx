@@ -216,7 +216,7 @@ describe('MissionControl', () => {
     expect(await screen.findByText('86s')).toBeInTheDocument()
     expect(screen.queryByText('Deployment change correlation')).not.toBeInTheDocument()
     expect(screen.queryByText('Cluster health pre-check')).not.toBeInTheDocument()
-    expect(screen.getByText('Not used in this workshop')).toBeInTheDocument()
+    expect(screen.queryByText('Detection Tiers')).not.toBeInTheDocument()
     expect(screen.queryByText(/baselined/)).not.toBeInTheDocument()
   })
 
