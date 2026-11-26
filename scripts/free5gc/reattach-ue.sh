@@ -55,7 +55,6 @@ attempt=0
 while [ "${attempt}" -lt "${MAX_ATTEMPTS}" ] && [ "$(remaining)" -gt 15 ]; do
   attempt=$((attempt + 1))
   ATTEMPT_START=$(date +%s)
-ATTEMPT_START=${START}
   echo "attempt ${attempt}: recreating ${DEPLOY} (scale 0 -> 1)"
   recreate
   while [ "$(remaining)" -gt 0 ]; do

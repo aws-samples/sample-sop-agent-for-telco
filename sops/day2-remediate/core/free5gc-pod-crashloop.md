@@ -29,7 +29,7 @@ kubectl get pods -n free5gc -o wide
 sleep 60
 kubectl get pods -n free5gc --no-headers | awk '{print $1, $3, $4}'
 ```
-**Expected**: `RESTARTS` column identifies the pod (record as `POD`, its NF as `NF`, e.g. `smf`, and its Deployment as `DEPLOY` = `free5gc-NF-deployment`). If the count did **not** increase across the 60-second window and the pod is `Running 1/1`, the restarts have stopped: go straight to Step 5.
+**Expected**: `RESTARTS` column identifies the pod (record as `POD`, its NF as `NF`, e.g. `smf`, and its Deployment as `DEPLOY` = `free5gc-NF-deployment`). If the count did **not** increase across the 60-second window and the pod is `Running 1/1`, the restarts have stopped: run Step 2 once to record why the container exited, change nothing on the pod, then go to Step 4.
 
 ### Step 2: Read why the previous container exited
 ```bash
@@ -39,9 +39,11 @@ kubectl describe pod POD -n free5gc | sed -n '/Events:/,$p'
 ```
 **Expected**:
 - `last=OOMKilled` → Step 3a.
-- `last=Error exit=137` or `143` with logs ending mid-stream (no error line) → the process was killed externally. Step 3b.
+- `last=Error exit=137` or `143`, or `last=Completed exit=0`, with logs ending mid-stream (no error line) → the process was killed or stopped externally. Step 3b.
 - Logs end with a configuration/parse error or `address already in use` → Step 3c.
 - Logs end with repeated `NRF`, `mongodb`, or `PFCP` failures → Step 3d.
+
+Classify from these three commands only. An external kill leaves no Kubernetes event that names the sender: record "terminated externally, sender unknown — escalate to the platform team (Kubernetes audit log)" and continue. Do not search further for the sender.
 
 ### Step 3a: OOMKilled — raise the memory limit
 ```bash
