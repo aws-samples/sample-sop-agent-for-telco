@@ -32,7 +32,7 @@ export AGENT_IMAGE_TAG=<immutable-workshop-v3-image-tag>
 bash scripts/free5gc/00-run-all.sh
 ```
 
-The full command creates chargeable AWS resources. Use `scripts/free5gc/99-cleanup.sh` when the dry run is complete.
+The full command creates chargeable AWS resources. When the dry run is complete, `scripts/free5gc/99-cleanup.sh --delete-stack` removes the workloads and deletes the stack; without `--delete-stack` it only cleans the cluster.
 
 ## Architecture
 

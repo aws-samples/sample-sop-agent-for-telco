@@ -491,3 +491,14 @@ def test_crashloop_sop_reattaches_the_ue_without_restarting_the_amf():
     assert "kubectl delete pod" not in script and "rollout restart" not in script
     assert "Duplicated PDU session ID" in script
     assert 'DEADLINE_SECONDS="${DEADLINE_SECONDS:-110}"' in script
+
+
+def test_cleanup_deletes_the_stack_only_when_asked():
+    """99-cleanup.sh cleans the cluster by default; on the bastion STACK_NAME is
+    the event's own stack, so deleting it must be opt-in."""
+    script = (ROOT / "scripts" / "free5gc" / "99-cleanup.sh").read_text()
+    guard = script.index('if [ "${DELETE_STACK}" -ne 1 ]; then')
+    assert script.index("aws cloudformation delete-stack") > guard
+    assert "exit 0" in script[guard : script.index("aws cloudformation delete-stack")]
+    assert "--delete-stack) DELETE_STACK=1" in script
+    assert "kubectl delete deploymentplans.deployment.anda.aws.io --all -A" in script
